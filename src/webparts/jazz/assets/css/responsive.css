@@ -1,0 +1,83 @@
+@media screen and (max-width: 1399px) {
+  .main_header .navbar-nav .nav-item {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+}
+
+/* ends max width 1399px */
+
+@media screen and (max-width: 1199px) {
+  .main_header .navbar-nav .nav-item {
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+  }
+  .addLeadCanvas.offcanvas-end {
+    width: calc(100% - 100px);
+  }
+}
+
+/* ends max width 1199px */
+
+@media screen and (max-width: 991px) {
+  .notification_dropdown_wrap_outer {
+    position: absolute;
+    top: 0.65rem;
+    right: 1.5rem;
+  }
+  .main_header .navbar-toggler {
+    margin-right: 50px;
+  }
+  .main_header .navbar-nav .nav-item {
+    margin: 0 0 4px 0;
+  }
+}
+
+/* ends max width 991px */
+
+@media screen and (max-width: 767px) {
+  .main_header {
+    padding: 0.75rem;
+  }
+
+  .leadFilterWrap {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .leadFilterWrap .page_search {
+    width: 100%;
+  }
+}
+/* ends max width 767px */
+
+@media screen and (max-width: 575px) {
+  .tablePagination {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .addLeadCanvas.offcanvas-end {
+    width: 100%;
+  }
+
+  .offcanvas,
+  .offcanvas-lg,
+  .offcanvas-md,
+  .offcanvas-sm,
+  .offcanvas-xl,
+  .offcanvas-xxl {
+    --bs-offcanvas-padding-x: 1rem;
+    --bs-offcanvas-padding-y: 1rem;
+  }
+  .leadFilterWrap .sortBy,
+  .leadFilterWrap .dateField,
+  .leadFilterWrap .currentYear,
+  .leadFilterWrap .btn-submit {
+    width: 50%;
+    width: calc(50% - 0.25rem);
+  }
+  .tableActionTabButton {
+    border-radius: 10px;
+  }
+}
+/* ends max width 575px */

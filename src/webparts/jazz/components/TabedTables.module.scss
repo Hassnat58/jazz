@@ -1,0 +1,145 @@
+.tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    color: white;
+    background-color:#991b1b ;
+    padding: 10px 20px;
+  }
+  
+  .tab {
+    background: none;
+    border: none;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: white;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+  }
+  
+  .activeTab {
+    color: black;
+    border-bottom: 3px solid #facc15;
+  }
+  
+  .headerRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .activeTabTitle {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    margin-left: 30px;
+  }
+  
+  .addBtn {
+    background-color: #facc15;
+    color: #111;
+    font-weight: 600;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 30px;
+  }
+  
+  .tableContainer {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
+  }
+  
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .table th{
+    background-color: #57585b;
+    color: white;
+  }
+  .table th,
+  .table td {
+    text-align: left;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* Status Chips */
+  .chipActive {
+    background-color: #22c55e;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+  }
+  
+  .chipDeactive {
+    background-color: #3b82f6;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+  }
+  
+  .chipFiled {
+    background-color: #facc15;
+    color: black;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+  }
+  
+  /* Action buttons */
+  .eyeBtn,
+  .editBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-right: 6px;
+    font-size: 16px;
+  }
+  .formActions {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .cancelBtn,
+  .saveBtn,
+  .draftBtn {
+    padding: 6px 12px;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  
+  .cancelBtn {
+    background-color: #ccc;
+  }
+  
+  .saveBtn {
+    background-color: #0078d4;
+    color: white;
+  }
+  
+  .draftBtn {
+    background-color: #ffc107;
+    color: black;
+  }
+  
+  .formContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .formContainer label {
+    display: flex;
+    flex-direction: column;
+    font-weight: 500;
+  }
+  

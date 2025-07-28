@@ -1,0 +1,19 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "jazz-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/jazz/JazzWebPart.js",
+          "manifest": "./src/webparts/jazz/JazzWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "JazzWebPartStrings": "lib/webparts/jazz/loc/{locale}.js",
+    "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js"
+  }
+}
