@@ -1,3 +1,4 @@
+/* eslint-disable dot-notation */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -18,12 +19,14 @@ interface CaseFormProps {
   onCancel: () => void;
   onSave: (data: any) => void;
   SpfxContext: any;
+  selectedCase?: any;
 }
 
 const CaseForm: React.FC<CaseFormProps> = ({
   SpfxContext,
   onCancel,
   onSave,
+  selectedCase,
 }) => {
   const { control, handleSubmit, reset, getValues } = useForm();
 
@@ -122,6 +125,33 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     fetchLOVs();
   }, []);
+  useEffect(() => {
+    if (selectedCase) {
+      const prefilledValues: any = {};
+
+      dropdownFields.forEach((label) => {
+        const internalName = fieldMapping[label];
+        prefilledValues[internalName] = selectedCase[internalName] || "";
+      });
+
+      inputFields.forEach(({ name }) => {
+        prefilledValues[name] = selectedCase[name] || "";
+      });
+
+      dateFields.forEach(({ name }) => {
+        const dateStr = selectedCase[name];
+        prefilledValues[name] = dateStr ? new Date(dateStr) : null;
+      });
+
+      multilineFields.forEach(({ name }) => {
+        prefilledValues[name] = selectedCase[name] || "";
+      });
+
+      prefilledValues["CaseNumber"] = selectedCase["ID"] || "";
+
+      reset(prefilledValues);
+    }
+  }, [selectedCase, reset]);
 
   const submitForm = async (isDraft: boolean) => {
     const data = getValues();
@@ -132,7 +162,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     dropdownFields.forEach((field) => {
       const internalName = fieldMapping[field];
-      itemData[internalName] = data[field] || "";
+      itemData[internalName] = data[internalName] || "";
     });
 
     inputFields.forEach(({ name }) => {
@@ -147,12 +177,30 @@ const CaseForm: React.FC<CaseFormProps> = ({
       itemData[name] = data[name] || null;
     });
 
-    try {
-      const addResult = await sp.web.lists
-        .getByTitle("Cases")
-        .items.add(itemData);
-      const itemId = addResult.ID;
+    multilineFields.forEach(({ name }) => {
+      itemData[name] = data[name] || "";
+    });
 
+    try {
+      let itemId;
+
+      if (selectedCase && selectedCase.ID) {
+        await sp.web.lists
+          .getByTitle("Cases")
+          .items.getById(selectedCase.ID)
+          .update({
+            ...itemData,
+          });
+        itemId = selectedCase.ID;
+      } else {
+        const addResult = await sp.web.lists.getByTitle("Cases").items.add({
+          ...itemData,
+          CaseStatus: "Active",
+        });
+        itemId = addResult.ID;
+      }
+
+      // Upload file if selected
       if (selectedFile) {
         await sp.web.lists
           .getByTitle("Cases")
@@ -160,7 +208,13 @@ const CaseForm: React.FC<CaseFormProps> = ({
           .attachmentFiles.add(selectedFile.name, selectedFile);
       }
 
-      alert(isDraft ? "Saved as Draft!" : "Saved successfully!");
+      alert(
+        isDraft
+          ? "Saved as Draft!"
+          : selectedCase
+          ? "Updated successfully!"
+          : "Saved successfully!"
+      );
       onSave(data);
       reset();
       setSelectedFile(null);
@@ -284,7 +338,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         <button type="button" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit">Save</button>
+        <button type="submit">{selectedCase ? "Update" : "Save"}</button>
         <button type="button" onClick={() => submitForm(true)}>
           Save as Draft
         </button>

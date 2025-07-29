@@ -23,6 +23,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const [activeTab, setActiveTab] = useState("Correspondence In");
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [casesData, setCasesData] = useState<any[]>([]);
+  const [selectedCase, setSelectedCase] = useState<any>(null);
   const sp = spfi().using(SPFx(SpfxContext));
   useEffect(() => {
     if (activeTab === "Correspondence In") {
@@ -35,6 +36,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       const items = await sp.web.lists
         .getByTitle("Cases")
         .items.select(
+          "*",
           "ID",
           "Title",
           "DocumentReferenceNo",
@@ -54,12 +56,14 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
 
   const handleCancel = () => {
     setIsAddingNew(false);
+    setSelectedCase(null);
   };
 
   const handleSave = (formData: any) => {
     console.log("Form Submitted:", formData);
     setIsAddingNew(false);
-    loadCasesData(); // Reload table after saving
+    setSelectedCase(null);
+    loadCasesData();
   };
 
   const renderCorrespondenceTable = () => (
@@ -94,7 +98,14 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
               <button className={styles.eyeBtn} title="View">
                 👁
               </button>
-              <button className={styles.editBtn} title="Edit">
+              <button
+                className={styles.editBtn}
+                title="Edit"
+                onClick={() => {
+                  setSelectedCase(item);
+                  setIsAddingNew(true);
+                }}
+              >
                 ✏️
               </button>
             </td>
@@ -111,6 +122,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           SpfxContext={SpfxContext}
           onCancel={handleCancel}
           onSave={handleSave}
+          selectedCase={selectedCase}
         />
       );
     }
