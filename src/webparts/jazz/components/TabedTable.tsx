@@ -5,9 +5,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
 import { useEffect, useState } from "react";
+import { spfi, SPFx } from "@pnp/sp";
+import { Offcanvas, Button } from "react-bootstrap";
 import styles from "./TabedTables.module.scss";
 import CaseForm from "./CaseForm";
-import { spfi, SPFx } from "@pnp/sp";
+import ViewCaseForm from "./ViewCaseForm";
+import "bootstrap/dist/css/bootstrap.min.css";
+
+/* your other styles… */
 
 const tabs = [
   "Notification",
@@ -24,7 +29,10 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [casesData, setCasesData] = useState<any[]>([]);
   const [selectedCase, setSelectedCase] = useState<any>(null);
+  const [showOffcanvas, setShowOffcanvas] = useState(false);
+
   const sp = spfi().using(SPFx(SpfxContext));
+
   useEffect(() => {
     if (activeTab === "Correspondence In") {
       loadCasesData();
@@ -66,6 +74,16 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
     loadCasesData();
   };
 
+  const handleShow = (item: any) => {
+    setSelectedCase(item);
+    setShowOffcanvas(true);
+  };
+
+  const handleClose = () => {
+    setShowOffcanvas(false);
+    setSelectedCase(null);
+  };
+
   const renderCorrespondenceTable = () => (
     <table className={styles.table}>
       <thead>
@@ -95,10 +113,16 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
             <td>{item.GrossTaxDemanded}</td>
             <td>{item.CaseStatus}</td>
             <td>
-              <button className={styles.eyeBtn} title="View">
+              <Button
+                variant="link"
+                className={styles.eyeBtn}
+                title="View"
+                onClick={() => handleShow(item)}
+              >
                 👁
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="link"
                 className={styles.editBtn}
                 title="Edit"
                 onClick={() => {
@@ -107,7 +131,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
                 }}
               >
                 ✏️
-              </button>
+              </Button>
             </td>
           </tr>
         ))}
@@ -151,7 +175,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   };
 
   return (
-    <div>
+    <>
       <div className={styles.tabs}>
         {tabs.map((tab) => (
           <button
@@ -185,7 +209,28 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       </div>
 
       <div className={styles.tableContainer}>{renderTabContent()}</div>
-    </div>
+
+      {/* Offcanvas for viewing case details */}
+      <Offcanvas
+        show={showOffcanvas}
+        onHide={handleClose}
+        placement="end"
+        style={{ width: "700px" }}
+      >
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title>View Case Details</Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          {selectedCase && (
+            <ViewCaseForm
+              caseData={selectedCase}
+              onClose={handleClose}
+              show={false}
+            />
+          )}
+        </Offcanvas.Body>
+      </Offcanvas>
+    </>
   );
 };
 

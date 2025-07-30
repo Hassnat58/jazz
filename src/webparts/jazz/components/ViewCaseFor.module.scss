@@ -1,0 +1,50 @@
+.viewCaseContainer {
+  padding: 1rem;
+
+  .header {
+    text-align: center;
+    .logo {
+      height: 50px;
+    }
+  }
+
+  .metaInfo {
+    display: flex;
+    justify-content: space-between;
+    margin: 1rem 0;
+    font-weight: 500;
+  }
+
+  .detailTable {
+    width: 100%;
+    border-collapse: collapse;
+    td {
+      padding: 8px;
+      border: 1px solid #dee2e6;
+    }
+    td:first-child {
+      font-weight: bold;
+      width: 20%;
+    }
+  }
+
+  .attachments {
+    margin-top: 1.5rem;
+    .fileList {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+
+      .fileItem {
+        background: #f9f9f9;
+        padding: 10px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+      }
+    }
+  }
+}

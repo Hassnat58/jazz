@@ -10,10 +10,14 @@ import { spfi, SPFx } from "@pnp/sp";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
+import "@pnp/sp/files";
+import "@pnp/sp/folders";
 import "@pnp/sp/attachments";
+
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
 import { DatePicker } from "@fluentui/react/lib/DatePicker";
+import styles from "./CaseForm.module.scss";
 
 interface CaseFormProps {
   onCancel: () => void;
@@ -29,12 +33,11 @@ const CaseForm: React.FC<CaseFormProps> = ({
   selectedCase,
 }) => {
   const { control, handleSubmit, reset, getValues } = useForm();
-
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const sp = spfi().using(SPFx(SpfxContext));
 
   const fieldMapping: { [key: string]: string } = {
@@ -53,7 +56,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
   };
 
   const dropdownFields = Object.keys(fieldMapping);
-
   const inputFields = [
     { label: "Document Reference No.", name: "DocumentReferenceNo" },
     { label: "Financial Year", name: "FinancialYear" },
@@ -67,6 +69,11 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { label: "Date Received", name: "DateReceived" },
     { label: "Date of Compliance", name: "DateofCompliance" },
     { label: "Hearing Date", name: "Hearingdate" },
+  ];
+
+  const multilineFields = [
+    { label: "Brief Description", name: "BriefDescription" },
+    { label: "Case Brief Description", name: "CaseBriefDescription" },
   ];
 
   const fieldOrder = [
@@ -99,18 +106,12 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { type: "input", label: "Email – Title", name: "Email" },
   ];
 
-  const multilineFields = [
-    { label: "Brief Description", name: "BriefDescription" },
-    { label: "Case Brief Description", name: "CaseBriefDescription" },
-  ];
-
   useEffect(() => {
     const fetchLOVs = async () => {
       const items = await sp.web.lists
         .getByTitle("LOV Data")
         .items.select("Title", "Description", "Status")();
       const activeItems = items.filter((item) => item.Status === "Active");
-
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
         if (!grouped[item.Title]) grouped[item.Title] = [];
@@ -119,93 +120,111 @@ const CaseForm: React.FC<CaseFormProps> = ({
           text: item.Description,
         });
       });
-
       setLovOptions(grouped);
     };
 
     fetchLOVs();
   }, []);
+
   useEffect(() => {
+    const loadExistingAttachments = async () => {
+      if (selectedCase?.ID) {
+        const files = await sp.web.lists
+          .getByTitle("Core Data Repositories")
+          .items.filter(`CaseId eq ${selectedCase.ID}`)
+          .select("FileLeafRef", "FileRef", "ID")();
+        setExistingAttachments(files);
+      }
+    };
+
     if (selectedCase) {
       const prefilledValues: any = {};
+      dropdownFields.forEach((field) => {
+        const fieldName = fieldMapping[field];
+        const value = selectedCase[fieldName];
 
-      dropdownFields.forEach((label) => {
-        const internalName = fieldMapping[label];
-        prefilledValues[internalName] = selectedCase[internalName] || "";
+        // Ensure it's a string or null
+        prefilledValues[fieldName] =
+          typeof value === "string" ? value : value?.toString() || "";
       });
-
       inputFields.forEach(({ name }) => {
         prefilledValues[name] = selectedCase[name] || "";
       });
-
       dateFields.forEach(({ name }) => {
-        const dateStr = selectedCase[name];
-        prefilledValues[name] = dateStr ? new Date(dateStr) : null;
+        prefilledValues[name] = selectedCase[name]
+          ? new Date(selectedCase[name])
+          : null;
       });
-
       multilineFields.forEach(({ name }) => {
         prefilledValues[name] = selectedCase[name] || "";
       });
-
       prefilledValues["CaseNumber"] = selectedCase["ID"] || "";
-
       reset(prefilledValues);
+      loadExistingAttachments();
     }
   }, [selectedCase, reset]);
 
   const submitForm = async (isDraft: boolean) => {
     const data = getValues();
     const itemData: any = {
-      Title: data.CaseNumber || "",
+      Title: String(data.CaseNumber || ""),
       IsDraft: isDraft,
     };
 
     dropdownFields.forEach((field) => {
-      const internalName = fieldMapping[field];
-      itemData[internalName] = data[internalName] || "";
+      const key = fieldMapping[field];
+      const value = data[key];
+
+      itemData[key] =
+        typeof value === "string"
+          ? value
+          : value?.text || value?.Description || value?.toString?.() || "";
     });
 
     inputFields.forEach(({ name }) => {
-      if (name === "GrossTaxDemanded") {
-        itemData[name] = parseFloat(data[name]) || 0;
-      } else {
-        itemData[name] = data[name] || "";
-      }
+      itemData[name] =
+        name === "GrossTaxDemanded"
+          ? parseFloat(data[name]) || 0
+          : data[name] || "";
     });
-
     dateFields.forEach(({ name }) => {
       itemData[name] = data[name] || null;
     });
-
     multilineFields.forEach(({ name }) => {
       itemData[name] = data[name] || "";
     });
+    console.log("Final itemData before submit:", itemData);
 
     try {
       let itemId;
-
-      if (selectedCase && selectedCase.ID) {
+      if (selectedCase?.ID) {
         await sp.web.lists
           .getByTitle("Cases")
           .items.getById(selectedCase.ID)
-          .update({
-            ...itemData,
-          });
+          .update(itemData);
         itemId = selectedCase.ID;
       } else {
-        const addResult = await sp.web.lists.getByTitle("Cases").items.add({
-          ...itemData,
-          CaseStatus: "Active",
-        });
+        const addResult = await sp.web.lists
+          .getByTitle("Cases")
+          .items.add({ ...itemData, CaseStatus: "Active" });
         itemId = addResult.ID;
       }
 
-      // Upload file if selected
-      if (selectedFile) {
-        await sp.web.lists
-          .getByTitle("Cases")
-          .items.getById(itemId)
-          .attachmentFiles.add(selectedFile.name, selectedFile);
+      // Upload attachments directly to library and set lookup
+      for (const file of attachments) {
+        const uploadResult = await sp.web.lists
+          .getByTitle("Core Data Repositories")
+          .rootFolder.files.addUsingPath(file.name, file, { Overwrite: true });
+
+        const serverRelativeUrl = uploadResult.ServerRelativeUrl;
+
+        const fileItem = await sp.web
+          .getFileByServerRelativePath(serverRelativeUrl)
+          .getItem();
+
+        await fileItem.update({
+          CaseId: itemId,
+        });
       }
 
       alert(
@@ -217,7 +236,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       );
       onSave(data);
       reset();
-      setSelectedFile(null);
+      setAttachments([]);
     } catch (error) {
       console.error("Submission failed", error);
       alert("Error submitting form.");
@@ -233,27 +252,40 @@ const CaseForm: React.FC<CaseFormProps> = ({
   return (
     <form
       onSubmit={handleSubmit(() => submitForm(false))}
-      style={{ marginTop: "1rem" }}
+      style={{ marginTop: "0px" }}
     >
+      <div className={styles.topbuttongroup}>
+        <button className={styles.cancelbtn} type="button" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          className={styles.draftbtn}
+          type="button"
+          onClick={() => submitForm(true)}
+        >
+          Save as Draft
+        </button>
+        <button className={styles.savebtn} type="submit">
+          {selectedCase ? "Update" : "Save"}
+        </button>
+      </div>
       <div style={formStyle}>
         {fieldOrder.map((field) => {
-          if (field.type === "input") {
+          if (field.type === "input")
             return (
               <Controller
                 key={field.name}
                 name={field.name as string}
                 control={control}
-                render={({ field: inputField }) => (
+                render={({ field: f }) => (
                   <TextField
                     label={field.label}
-                    {...inputField}
+                    {...f}
                     type={field.name === "GrossTaxDemanded" ? "number" : "text"}
                   />
                 )}
               />
             );
-          }
-
           if (field.type === "dropdown") {
             const internalName = fieldMapping[field.label];
             return (
@@ -261,61 +293,56 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 key={field.label}
                 name={internalName}
                 control={control}
-                render={({ field: dropdownField }) => (
+                render={({ field: f }) => (
                   <Dropdown
                     label={field.label}
-                    placeholder={`Select ${field.label}`}
                     options={lovOptions[field.label] || []}
-                    selectedKey={dropdownField.value}
-                    onChange={(_, option) =>
-                      dropdownField.onChange(option?.key)
-                    }
+                    selectedKey={f.value}
+                    onChange={(_, o) => f.onChange(o?.key)}
                   />
                 )}
               />
             );
           }
-
-          if (field.type === "date") {
+          if (field.type === "date")
             return (
               <Controller
                 key={field.name}
                 name={field.name as string}
                 control={control}
-                render={({ field: dateField }) => (
+                render={({ field: f }) => (
                   <DatePicker
                     label={field.label}
-                    value={dateField.value}
-                    onSelectDate={(date) => dateField.onChange(date)}
+                    value={f.value}
+                    onSelectDate={(d) => f.onChange(d)}
                   />
                 )}
               />
             );
-          }
-
           return null;
         })}
 
-        {/* File Upload */}
         <div style={{ gridColumn: "span 3" }}>
-          <label style={{ fontWeight: 600 }}>Attachment</label>
-          <br />
+          <label style={{ fontWeight: 600 }}>Attachments</label>
           <input
             type="file"
-            accept="*"
-            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+            multiple
+            onChange={(e) => setAttachments(Array.from(e.target.files || []))}
           />
-          {selectedFile && (
-            <div style={{ marginTop: "0.5rem" }}>
-              <span>{selectedFile.name}</span> &nbsp;
-              <span style={{ color: "gray", fontSize: "0.85rem" }}>
-                ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-              </span>
-            </div>
-          )}
+          <div>
+            {existingAttachments.map((file) => (
+              <div key={file.ID}>
+                <a href={file.FileRef} target="_blank" rel="noreferrer">
+                  {file.FileLeafRef}
+                </a>
+              </div>
+            ))}
+            {attachments.map((file, idx) => (
+              <div key={`new-${idx}`}>{file.name}</div>
+            ))}
+          </div>
         </div>
 
-        {/* Multiline Fields */}
         {multilineFields.map(({ label, name }) => (
           <Controller
             key={name}
@@ -334,7 +361,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         ))}
       </div>
 
-      <div style={{ marginTop: "1rem", display: "flex", gap: "1rem" }}>
+      {/* <div style={{ marginTop: "1rem", display: "flex", gap: "1rem" }}>
         <button type="button" onClick={onCancel}>
           Cancel
         </button>
@@ -342,7 +369,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         <button type="button" onClick={() => submitForm(true)}>
           Save as Draft
         </button>
-      </div>
+      </div> */}
     </form>
   );
 };

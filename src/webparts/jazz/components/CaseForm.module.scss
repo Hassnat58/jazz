@@ -1,0 +1,53 @@
+.topbuttongroup {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  position: sticky; 
+  top: 0;
+  background-color: #fff;
+  z-index: 10;
+}
+
+/* Cancel Button */
+.cancelbtn {
+  background-color: #aaa;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cancelbtn:hover {
+  background-color: #8a191e; /* Darker shade on hover */
+}
+
+/* Draft Button */
+.draftbtn {
+  background-color: #fff;
+  color: #000;
+  border: 1px solid #ccc;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.draftbtn:hover {
+  background-color: #8a191e; /* Darker shade on hover */
+}
+
+/* Save Case Button */
+.savebtn {
+  background-color: #fbbc05;
+  color: #000;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.savebtn:hover {
+  background-color: #8a191e; /* Darker shade on hover */
+}

@@ -1,25 +1,33 @@
 .tabs {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     margin-bottom: 16px;
     color: white;
-    background-color:#991b1b ;
-    padding: 10px 20px;
+    background-color:#8a191e ;
+    padding: 0px 20px;
   }
+
   
   .tab {
+    margin-top: 15px;
     background: none;
     border: none;
-    padding: 10px 20px;
+    padding: 12px 20px;
     font-weight: 600;
     color: white;
     border-bottom: 2px solid transparent;
     cursor: pointer;
   }
+    .tab:hover {
+    background-color: #f8f8f8;
+    color: #8d8d90;
+    border-radius: 5px;
+  }
   
   .activeTab {
-    color: black;
-    border-bottom: 3px solid #facc15;
+    background-color: #f8f8f8;
+    color: #8d8d90;
+    border-radius: 5px;
   }
   
   .headerRow {
@@ -46,8 +54,12 @@
     cursor: pointer;
     margin-right: 30px;
   }
+  .addBtn:hover {
+    background-color: #8a191e;
+  }
   
   .tableContainer {
+    margin-top: 20px;
     background: white;
     padding: 16px;
     border-radius: 8px;
