@@ -11,13 +11,16 @@
   .metaInfo {
     display: flex;
     justify-content: space-between;
-    margin: 1rem 0;
+    padding: 15px;
     font-weight: 500;
+    background-color: #f8f8f8;
   }
 
   .detailTable {
     width: 100%;
     border-collapse: collapse;
+    margin-top: 20px;
+    border:1px solid #dee2e6;
     td {
       padding: 8px;
       border: 1px solid #dee2e6;

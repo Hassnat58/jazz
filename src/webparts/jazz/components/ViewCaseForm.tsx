@@ -18,9 +18,9 @@ const ViewCaseOffcanvas: React.FC<{
       </div>
 
       <div className={styles.metaInfo}>
-        <div>Last Updated: 07-14-2025</div>
+        <div>Last Updated: {new Date(data.Modified).toLocaleString()}</div>
         <div>
-          Owner: <strong>John Doe</strong>
+          Owner: <strong>{data.Author?.Title}</strong>
         </div>
       </div>
 
@@ -31,58 +31,50 @@ const ViewCaseOffcanvas: React.FC<{
               <strong>Case No:</strong>
             </td>
             <td>00-CN{data.ID}</td>
-            <td>
-              <strong>Doc Reference No:</strong>
-            </td>
-            <td>{data.DocumentReferenceNo}</td>
           </tr>
           <tr>
             <td>
               <strong>Entity:</strong>
             </td>
-            <td>Acme Corp</td>
+            <td>{data.Entity}</td>
             <td>
               <strong>Tax Authority:</strong>
             </td>
-            <td>IRS</td>
+            <td>{data.TaxAuthority}</td>
           </tr>
           <tr>
             <td>
               <strong>Jurisdiction:</strong>
             </td>
-            <td>Federal</td>
+            <td>{data.Jurisdiction}</td>
             <td>
               <strong>Concerning Law:</strong>
             </td>
-            <td>Income Tax Act</td>
+            <td>{data.ConcerningLaw}</td>
           </tr>
           <tr>
             <td>
               <strong>Correspondence Type:</strong>
             </td>
             <td>{data.CorrespondenceType}</td>
-            <td>
-              <strong>Attachments:</strong>
-            </td>
-            <td>audit_report.pdf.xlsx</td>
           </tr>
           <tr>
             <td>
               <strong>Brief Description:</strong>
             </td>
-            <td colSpan={3}>Financial records require verification.</td>
+            <td colSpan={3}>{data.BriefDescription}</td>
           </tr>
           <tr>
             <td>
               <strong>Issued By:</strong>
             </td>
-            <td>IRS Audit Dept</td>
+            <td>{data.IssuedBy}</td>
+          </tr>
+          <tr>
             <td>
               <strong>Case Brief Description:</strong>
             </td>
-            <td>
-              The audit uncovered discrepancies in reported income and expenses.
-            </td>
+            <td colSpan={3}>{data.CaseBriefDescription}</td>
           </tr>
           <tr>
             <td>
@@ -118,21 +110,21 @@ const ViewCaseOffcanvas: React.FC<{
             <td>
               <strong>Hearing Date:</strong>
             </td>
-            <td>03-15-2025</td>
+            <td>{data.Hearingdate?.split("T")[0]}</td>
             <td>
               <strong>Next Forum/Pending Authority:</strong>
             </td>
-            <td>Tax Court</td>
+            <td>{data.NextForum_x002f_PendingAuthority}</td>
           </tr>
           <tr>
             <td>
               <strong>Email - Title:</strong>
             </td>
-            <td>Assessment Notice</td>
+            <td>{data.Email}</td>
             <td>
               <strong>Tax exposure Stage:</strong>
             </td>
-            <td>Assessment</td>
+            <td>{data.TaxexposureStage}</td>
           </tr>
         </tbody>
       </table>

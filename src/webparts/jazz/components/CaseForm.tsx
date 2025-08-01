@@ -18,6 +18,12 @@ import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
 import { DatePicker } from "@fluentui/react/lib/DatePicker";
 import styles from "./CaseForm.module.scss";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import {
+  PeoplePicker,
+  PrincipalType,
+} from "@pnp/spfx-controls-react/lib/PeoplePicker";
 
 interface CaseFormProps {
   onCancel: () => void;
@@ -49,19 +55,17 @@ const CaseForm: React.FC<CaseFormProps> = ({
     IssuedBy: "IssuedBy",
     "Next Forum/Pending Authority": "NextForum_x002f_PendingAuthority",
     "Tax exposure Stage": "TaxexposureStage",
-    "Case Status": "CaseStatus",
     "Tax Consultant Assigned": "TaxConsultantAssigned",
-    "Lawyer Assigned": "LawyerAssigned",
     "Exposure Issues": "Exposure_x0020_Issues",
+    "Financial Year": "FinancialYear",
   };
 
   const dropdownFields = Object.keys(fieldMapping);
   const inputFields = [
-    { label: "Document Reference No.", name: "DocumentReferenceNo" },
-    { label: "Financial Year", name: "FinancialYear" },
     { label: "Gross Tax Demanded/Exposure", name: "GrossTaxDemanded" },
     { label: "Email – Title", name: "Email" },
     { label: "Brief Description", name: "BriefDescription" },
+    { label: "Case Brief Description", name: "CaseBriefDescription" },
   ];
 
   const dateFields = [
@@ -77,11 +81,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
   ];
 
   const fieldOrder = [
-    {
-      type: "input",
-      label: "Document Reference No.",
-      name: "DocumentReferenceNo",
-    },
     { type: "dropdown", label: "Entity" },
     { type: "dropdown", label: "TaxAuthority" },
     { type: "dropdown", label: "Jurisdiction" },
@@ -90,14 +89,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { type: "dropdown", label: "IssuedBy" },
     { type: "date", label: "Date of Document", name: "Dateofdocument" },
     { type: "date", label: "Date Received", name: "DateReceived" },
+    { type: "dropdown", label: "Financial Year" },
     { type: "dropdown", label: "Next Forum/Pending Authority" },
     { type: "date", label: "Date of Compliance", name: "DateofCompliance" },
     { type: "date", label: "Hearing Date", name: "Hearingdate" },
-    { type: "input", label: "Financial Year", name: "FinancialYear" },
     { type: "dropdown", label: "Tax exposure Stage" },
-    { type: "dropdown", label: "Case Status" },
+
     { type: "dropdown", label: "Tax Consultant Assigned" },
-    { type: "dropdown", label: "Lawyer Assigned" },
+    { type: "dropdown", label: "Exposure Issues" },
     {
       type: "input",
       label: "Gross Tax Demanded/Exposure",
@@ -110,7 +109,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     const fetchLOVs = async () => {
       const items = await sp.web.lists
         .getByTitle("LOV Data")
-        .items.select("Title", "Description", "Status")();
+        .items.select("Id", "Title", "Description", "Status")();
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
@@ -169,16 +168,16 @@ const CaseForm: React.FC<CaseFormProps> = ({
     const itemData: any = {
       Title: String(data.CaseNumber || ""),
       IsDraft: isDraft,
+      CaseStatus: isDraft ? "Draft" : "Active",
     };
 
     dropdownFields.forEach((field) => {
-      const key = fieldMapping[field];
-      const value = data[key];
+      const internalName = fieldMapping[field];
+      const selectedKey = data[internalName];
 
-      itemData[key] =
-        typeof value === "string"
-          ? value
-          : value?.text || value?.Description || value?.toString?.() || "";
+      if (selectedKey !== undefined && selectedKey !== null) {
+        itemData[`${internalName}Id`] = Number(selectedKey);
+      }
     });
 
     inputFields.forEach(({ name }) => {
@@ -206,7 +205,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       } else {
         const addResult = await sp.web.lists
           .getByTitle("Cases")
-          .items.add({ ...itemData, CaseStatus: "Active" });
+          .items.add(itemData);
         itemId = addResult.ID;
       }
 
@@ -227,13 +226,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         });
       }
 
-      alert(
-        isDraft
-          ? "Saved as Draft!"
-          : selectedCase
-          ? "Updated successfully!"
-          : "Saved successfully!"
-      );
+      toast.success(isDraft ? "Draft saved" : "Case submitted");
       onSave(data);
       reset();
       setAttachments([]);
@@ -281,6 +274,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   <TextField
                     label={field.label}
                     {...f}
+                    placeholder={field.label}
                     type={field.name === "GrossTaxDemanded" ? "number" : "text"}
                   />
                 )}
@@ -314,6 +308,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   <DatePicker
                     label={field.label}
                     value={f.value}
+                    placeholder="Select a date"
                     onSelectDate={(d) => f.onChange(d)}
                   />
                 )}
@@ -321,12 +316,46 @@ const CaseForm: React.FC<CaseFormProps> = ({
             );
           return null;
         })}
+        <Controller
+          name="LawyerAssigned"
+          control={control}
+          render={({ field }) => (
+            <div style={{ gridColumn: "span 1" }}>
+              <PeoplePicker
+                context={SpfxContext}
+                titleText="Select a Lawyer"
+                personSelectionLimit={1}
+                showHiddenInUI={false}
+                principalTypes={[PrincipalType.User]}
+                resolveDelay={500}
+                defaultSelectedUsers={
+                  selectedCase?.LawyerAssigned?.Email
+                    ? [selectedCase.LawyerAssigned.Email]
+                    : []
+                }
+                onChange={(items: any[]) => {
+                  const selectedUser = items[0];
+                  if (selectedUser) {
+                    field.onChange({
+                      Id: selectedUser.id,
+                      Email: selectedUser.secondaryText,
+                      Title: selectedUser.text,
+                    });
+                  } else {
+                    field.onChange(null);
+                  }
+                }}
+              />
+            </div>
+          )}
+        />
 
         <div style={{ gridColumn: "span 3" }}>
           <label style={{ fontWeight: 600 }}>Attachments</label>
           <input
             type="file"
             multiple
+            placeholder="Attachments"
             onChange={(e) => setAttachments(Array.from(e.target.files || []))}
           />
           <div>
@@ -353,6 +382,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 label={label}
                 {...field}
                 multiline
+                placeholder={label}
                 rows={4}
                 styles={{ root: { gridColumn: "span 3" } }}
               />
