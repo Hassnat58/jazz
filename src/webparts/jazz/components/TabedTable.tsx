@@ -11,7 +11,7 @@ import styles from "./TabedTables.module.scss";
 import CaseForm from "./CaseForm";
 import ViewCaseForm from "./ViewCaseForm";
 import "bootstrap/dist/css/bootstrap.min.css";
-import ManagersTable from "./ManagersTable";
+// import ManagersTable from "./ManagersTable";
 
 const tabs = [
   "Notification",
@@ -180,7 +180,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         return <p>Reports section under construction.</p>;
 
       case "Managers":
-        return <ManagersTable/>
+        return <p>No Data</p>;
 
       default:
         return null;
