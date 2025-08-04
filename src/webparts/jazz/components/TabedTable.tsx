@@ -11,7 +11,6 @@ import styles from "./TabedTables.module.scss";
 import CaseForm from "./CaseForm";
 import ViewCaseForm from "./ViewCaseForm";
 import "bootstrap/dist/css/bootstrap.min.css";
-// import ManagersTable from "./ManagersTable";
 
 const tabs = [
   "Notification",
@@ -46,16 +45,19 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           "*",
           "ID",
           "Title",
-          "DocumentReferenceNo",
           "CorrespondenceType",
           "DateReceived",
           "FinancialYear",
           "DateofCompliance",
-          "LawyerAssigned",
+          "LawyerAssigned/Title",
           "GrossTaxDemanded",
-          "CaseStatus"
-        )();
+          "CaseStatus",
+          "Author/Title",
+          "Editor/Title"
+        )
+        .expand("Author", "Editor", "LawyerAssigned")();
       setCasesData(items);
+      console.log("Cases data:", items);
     } catch (err) {
       console.error("Error fetching data from Cases list:", err);
     }
@@ -102,7 +104,6 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       <thead>
         <tr>
           <th>Case No</th>
-          <th>Doc Reference No</th>
           <th>Correspondence Type</th>
           <th>Date Received</th>
           <th>Financial Year</th>
@@ -117,14 +118,39 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         {casesData.map((item) => (
           <tr key={item.ID}>
             <td>00-CN{item.ID}</td>
-            <td>{item.DocumentReferenceNo}</td>
             <td>{item.CorrespondenceType}</td>
             <td>{item.DateReceived?.split("T")[0]}</td>
             <td>{item.FinancialYear}</td>
             <td>{item.DateofCompliance?.split("T")[0]}</td>
-            <td>{item.LawyerAssigned}</td>
+            <td>{item.LawyerAssigned?.Title}</td>
             <td>{item.GrossTaxDemanded}</td>
-            <td>{item.CaseStatus}</td>
+            <td>
+              {item.CaseStatus && (
+                <div
+                  style={{
+                    backgroundColor:
+                      item.CaseStatus === "Active" ? "#5ebd74" : "#20a5bb",
+                    color: "white",
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  {item.CaseStatus}
+                </div>
+              )}
+              {/* <div
+                style={{
+                  backgroundColor:
+                    item.CaseStatus === "Active" ? "#5ebd74" : "#20a5bb",
+                  color: "white",
+                  padding: "4px 8px",
+                  borderRadius: "4px",
+                }}
+              >
+                {item.CaseStatus}
+              </div> */}
+            </td>
+
             <td>
               <Button
                 variant="link"
@@ -180,7 +206,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         return <p>Reports section under construction.</p>;
 
       case "Managers":
-        return <p>No Data</p>;
+        return <p>Managers' overview coming soon.</p>;
 
       default:
         return null;
