@@ -12,8 +12,6 @@ import CaseForm from "./CaseForm";
 import ViewCaseForm from "./ViewCaseForm";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-/* your other styles… */
-
 const tabs = [
   "Notification",
   "Correspondence In",
@@ -30,7 +28,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const [casesData, setCasesData] = useState<any[]>([]);
   const [selectedCase, setSelectedCase] = useState<any>(null);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
-
+  const [attachments, setAttachments] = useState<any[]>([]);
   const sp = spfi().using(SPFx(SpfxContext));
 
   useEffect(() => {
@@ -64,7 +62,20 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       console.error("Error fetching data from Cases list:", err);
     }
   };
+  const fetchAttachments = async (caseId: number) => {
+    try {
+      const files = await sp.web.lists
+        .getByTitle("Core Data Repositories")
+        .items.filter(`CaseId eq ${caseId}`)
+        .select("File/Name", "File/ServerRelativeUrl", "ID")
+        .expand("File")();
 
+      console.log("Fetched attachments:", files);
+      setAttachments(files);
+    } catch (error) {
+      console.error("Error fetching attachments:", error);
+    }
+  };
   const handleCancel = () => {
     setIsAddingNew(false);
     setSelectedCase(null);
@@ -77,8 +88,9 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
     loadCasesData();
   };
 
-  const handleShow = (item: any) => {
+  const handleShow = async (item: any) => {
     setSelectedCase(item);
+    await fetchAttachments(item.ID);
     setShowOffcanvas(true);
   };
 
@@ -251,6 +263,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           {selectedCase && (
             <ViewCaseForm
               caseData={selectedCase}
+              attachments={attachments}
               onClose={handleClose}
               show={false}
             />

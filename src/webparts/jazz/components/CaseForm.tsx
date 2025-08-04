@@ -18,7 +18,6 @@ import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
 import { DatePicker } from "@fluentui/react/lib/DatePicker";
 import styles from "./CaseForm.module.scss";
-import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   PeoplePicker,
@@ -172,12 +171,13 @@ const CaseForm: React.FC<CaseFormProps> = ({
     };
 
     dropdownFields.forEach((field) => {
-      const internalName = fieldMapping[field];
-      const selectedKey = data[internalName];
+      const key = fieldMapping[field];
+      const value = data[key];
 
-      if (selectedKey !== undefined && selectedKey !== null) {
-        itemData[`${internalName}Id`] = Number(selectedKey);
-      }
+      itemData[key] =
+        typeof value === "string"
+          ? value
+          : value?.text || value?.Description || value?.toString?.() || "";
     });
 
     inputFields.forEach(({ name }) => {
@@ -192,6 +192,10 @@ const CaseForm: React.FC<CaseFormProps> = ({
     multilineFields.forEach(({ name }) => {
       itemData[name] = data[name] || "";
     });
+    if (data.LawyerAssigned && data.LawyerAssigned.id) {
+      itemData["LawyerAssignedId"] = data.LawyerAssigned.id;
+    }
+    console.log("LawyerAssignedId:", itemData["LawyerAssignedId"]);
     console.log("Final itemData before submit:", itemData);
 
     try {
@@ -208,8 +212,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
           .items.add(itemData);
         itemId = addResult.ID;
       }
-
-      // Upload attachments directly to library and set lookup
       for (const file of attachments) {
         const uploadResult = await sp.web.lists
           .getByTitle("Core Data Repositories")
@@ -226,7 +228,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         });
       }
 
-      toast.success(isDraft ? "Draft saved" : "Case submitted");
+      alert(isDraft ? "Draft saved" : "Case submitted");
       onSave(data);
       reset();
       setAttachments([]);
@@ -323,14 +325,16 @@ const CaseForm: React.FC<CaseFormProps> = ({
             <div style={{ gridColumn: "span 1" }}>
               <PeoplePicker
                 context={SpfxContext}
-                titleText="Select a Lawyer"
+                titleText="Lawyer Assigned"
                 personSelectionLimit={1}
                 showHiddenInUI={false}
+                ensureUser={true}
                 principalTypes={[PrincipalType.User]}
                 resolveDelay={500}
                 defaultSelectedUsers={
-                  selectedCase?.LawyerAssigned?.Email
-                    ? [selectedCase.LawyerAssigned.Email]
+                  selectedCase?.LawyerAssigned &&
+                  selectedCase.LawyerAssigned.Title
+                    ? [selectedCase.LawyerAssigned.Title]
                     : []
                 }
                 onChange={(items: any[]) => {

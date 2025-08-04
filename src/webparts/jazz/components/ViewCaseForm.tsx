@@ -2,12 +2,18 @@
 import * as React from "react";
 import styles from "../components/ViewCaseFor.module.scss";
 import jazzLogo from "../assets/jazz-logo (1).png";
+import pdfIcon from "../assets/pdf.png";
+import wordIcon from "../assets/word.png";
+import xlsIcon from "../assets/xls.png";
+import imageIcon from "../assets/image (2).png";
+import genericIcon from "../assets/document.png"; // fallback
 
 const ViewCaseOffcanvas: React.FC<{
   show: boolean;
   onClose: () => void;
   caseData: any;
-}> = ({ show, onClose, caseData: data }) => {
+  attachments: any;
+}> = ({ show, onClose, caseData: data, attachments }) => {
   if (!data) return null;
 
   return (
@@ -100,7 +106,7 @@ const ViewCaseOffcanvas: React.FC<{
             <td>
               <strong>Lawyer Assigned:</strong>
             </td>
-            <td>{data.LawyerAssigned}</td>
+            <td>{data.LawyerAssigned?.Title}</td>
             <td>
               <strong>Gross Tax Demanded:</strong>
             </td>
@@ -132,13 +138,67 @@ const ViewCaseOffcanvas: React.FC<{
       <div className={styles.attachments}>
         <h6>Attachments:</h6>
         <div className={styles.fileList}>
-          <div className={styles.fileItem}>
-            <img src="/icons/doc-icon.png" alt="doc" />
-            <span>file_example.doc</span>
-            <span>5.7MB</span>
-            <button className="btn btn-outline-secondary btn-sm">⬇</button>
-          </div>
-          {/* Add more files similarly */}
+          {attachments && attachments.length > 0 ? (
+            attachments.map((file: any) => {
+              const fileName = file?.File?.Name || "";
+              const fileUrl = file?.File?.ServerRelativeUrl || "";
+              const fileSizeBytes = file?.File?.Length || 0;
+              const fileSize =
+                fileSizeBytes > 1024 * 1024
+                  ? (fileSizeBytes / (1024 * 1024)).toFixed(2) + " MB"
+                  : (fileSizeBytes / 1024).toFixed(2) + " KB";
+
+              const extension = fileName.split(".").pop()?.toLowerCase();
+              let iconPath = genericIcon;
+              switch (extension) {
+                case "pdf":
+                  iconPath = pdfIcon;
+                  break;
+                case "doc":
+                case "docx":
+                  iconPath = wordIcon;
+                  break;
+                case "xls":
+                case "xlsx":
+                  iconPath = xlsIcon;
+                  break;
+                case "png":
+                case "jpg":
+                case "jpeg":
+                  iconPath = imageIcon;
+                  break;
+                default:
+                  iconPath = genericIcon;
+              }
+
+              return (
+                <div className={styles.fileItem} key={file.ID}>
+                  <img
+                    src={iconPath}
+                    alt={extension + " file"}
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      objectFit: "contain",
+                    }}
+                  />
+                  <span>{fileName}</span>
+                  <span>{fileSize}</span>
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline-secondary btn-sm"
+                    download
+                  >
+                    ⬇
+                  </a>
+                </div>
+              );
+            })
+          ) : (
+            <p>No attachments found.</p>
+          )}
         </div>
       </div>
     </div>
