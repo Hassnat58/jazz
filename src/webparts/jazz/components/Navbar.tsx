@@ -3,9 +3,9 @@ import styles from "./Navbar.module.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSearch,
-  faCommentDots,
-  faBell,
-  faTh,
+  // faCommentDots,
+  // faBell,
+  // faTh,
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import logo from "../assets/jazz-logo (1).png";
@@ -23,12 +23,12 @@ const Navbar: React.FC = () => {
 
       {/* Right-side icons */}
       <div className={styles.navIcons}>
-        <FontAwesomeIcon icon={faCommentDots} className={styles.icon} />
+        {/* <FontAwesomeIcon icon={faCommentDots} className={styles.icon} />
         <div className={styles.notificationWrapper}>
           <FontAwesomeIcon icon={faBell} className={styles.icon} />
           <span className={styles.badge}>2</span>
         </div>
-        <FontAwesomeIcon icon={faTh} className={styles.icon} />
+        <FontAwesomeIcon icon={faTh} className={styles.icon} /> */}
         <FontAwesomeIcon icon={faUser} className={styles.icon} />
 
         {/* Admin Button */}

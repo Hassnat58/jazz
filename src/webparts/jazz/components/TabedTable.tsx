@@ -11,6 +11,8 @@ import styles from "./TabedTables.module.scss";
 import CaseForm from "./CaseForm";
 import ViewCaseForm from "./ViewCaseForm";
 import "bootstrap/dist/css/bootstrap.min.css";
+import CorrespondenceOutForm from "./CorrespondenceOutForm";
+import ViewCorrespondenceOutForm from "./ViewCorrespondenceOut";
 
 const tabs = [
   "Notification",
@@ -29,13 +31,42 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const [selectedCase, setSelectedCase] = useState<any>(null);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [correspondenceOutData, setCorrespondenceOutData] = useState<any[]>([]);
+  const [activeFormType, setActiveFormType] = useState<
+    "case" | "correspondenceOut" | null
+  >(null);
+
   const sp = spfi().using(SPFx(SpfxContext));
 
   useEffect(() => {
     if (activeTab === "Correspondence In") {
       loadCasesData();
+    } else if (activeTab === "Correspondence Out") {
+      loadCorrespondenceOutData();
     }
   }, [activeTab]);
+  const loadCorrespondenceOutData = async () => {
+    try {
+      const items = await sp.web.lists
+        .getByTitle("CorrespondenceOut")
+        .items.select(
+          "*",
+          "ID",
+          "Title",
+          "Dateoffiling",
+          "FiledAt",
+          "Filedthrough",
+          "BriefDescription",
+          "CaseNumber/ID",
+          "CaseNumber/Title"
+        )
+        .expand("CaseNumber")();
+      setCorrespondenceOutData(items);
+      console.log("Correspondence Out data:", items);
+    } catch (err) {
+      console.error("Error fetching data from Correspondence Out list:", err);
+    }
+  };
 
   const loadCasesData = async () => {
     try {
@@ -55,18 +86,30 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           "Author/Title",
           "Editor/Title"
         )
-        .expand("Author", "Editor", "LawyerAssigned")();
+        .expand("Author", "Editor", "LawyerAssigned")
+        .orderBy("ID", false)();
       setCasesData(items);
       console.log("Cases data:", items);
     } catch (err) {
       console.error("Error fetching data from Cases list:", err);
     }
   };
-  const fetchAttachments = async (caseId: number) => {
+  const fetchAttachments = async (
+    itemId: number,
+    type: "case" | "correspondenceOut"
+  ) => {
     try {
+      let filter = "";
+
+      if (type === "case") {
+        filter = `CaseId eq ${itemId}`;
+      } else if (type === "correspondenceOut") {
+        filter = `CorrespondenceOutId eq ${itemId}`;
+      }
+
       const files = await sp.web.lists
         .getByTitle("Core Data Repositories")
-        .items.filter(`CaseId eq ${caseId}`)
+        .items.filter(filter)
         .select("File/Name", "File/ServerRelativeUrl", "ID")
         .expand("File")();
 
@@ -76,6 +119,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       console.error("Error fetching attachments:", error);
     }
   };
+
   const handleCancel = () => {
     setIsAddingNew(false);
     setSelectedCase(null);
@@ -90,7 +134,11 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
 
   const handleShow = async (item: any) => {
     setSelectedCase(item);
-    await fetchAttachments(item.ID);
+
+    const type =
+      activeTab === "Correspondence In" ? "case" : "correspondenceOut";
+    await fetchAttachments(item.ID, type);
+
     setShowOffcanvas(true);
   };
 
@@ -166,6 +214,58 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
                 title="Edit"
                 onClick={() => {
                   setSelectedCase(item);
+                  setActiveFormType("case");
+                  setIsAddingNew(true);
+                }}
+              >
+                ✏️
+              </Button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+  const renderCorrespondenceOutTable = () => (
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th>Case Number</th>
+          <th>CorrespondenceOut</th>
+          <th>Brief Description</th>
+          <th>Field Through</th>
+          <th>Field At</th>
+          <th>Date Of Filling</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {correspondenceOutData.map((item) => (
+          <tr key={item.ID}>
+            <td>00-CN{item.CaseNumber?.Title}</td>
+            <td>{item.CorrespondenceOut}</td>
+            <td>{item.BriefDescription}</td>
+            <td>{item.Filedthrough}</td>
+            <td>{item.FiledAt}</td>
+            <td>{item.Dateoffiling?.split("T")[0]}</td>
+            <td>{item.Status}</td>
+            <td>
+              <Button
+                variant="link"
+                className={styles.eyeBtn}
+                title="View"
+                onClick={() => handleShow(item)}
+              >
+                👁
+              </Button>
+              <Button
+                variant="link"
+                className={styles.editBtn}
+                title="Edit"
+                onClick={() => {
+                  setSelectedCase(item);
+                  setActiveFormType("correspondenceOut");
                   setIsAddingNew(true);
                 }}
               >
@@ -180,21 +280,39 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
 
   const renderTabContent = () => {
     if (isAddingNew) {
-      return (
-        <CaseForm
-          SpfxContext={SpfxContext}
-          onCancel={handleCancel}
-          onSave={handleSave}
-          selectedCase={selectedCase}
-        />
-      );
+      if (activeFormType === "case") {
+        return (
+          <CaseForm
+            SpfxContext={SpfxContext}
+            onCancel={handleCancel}
+            onSave={handleSave}
+            selectedCase={selectedCase}
+          />
+        );
+      } else if (activeFormType === "correspondenceOut") {
+        return (
+          <CorrespondenceOutForm
+            SpfxContext={SpfxContext}
+            onCancel={handleCancel}
+            onSave={handleSave}
+            selectedCase={selectedCase}
+          />
+        );
+      }
     }
 
     switch (activeTab) {
       case "Correspondence In":
-      case "Correspondence Out":
-      case "UTP Dashboard":
         return renderCorrespondenceTable();
+      case "Correspondence Out":
+        return renderCorrespondenceOutTable();
+      case "UTP Dashboard":
+        return (
+          <p>
+            UTP Dashboard is currently under construction. Please check back
+            later.
+          </p>
+        );
 
       case "Notification":
         return <p>No Notification data available yet.</p>;
@@ -240,9 +358,16 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           !isAddingNew && (
             <button
               className={styles.addBtn}
-              onClick={() => setIsAddingNew(true)}
+              onClick={() => {
+                if (activeTab === "Correspondence In") {
+                  setActiveFormType("case");
+                } else if (activeTab === "Correspondence Out") {
+                  setActiveFormType("correspondenceOut");
+                }
+                setIsAddingNew(true);
+              }}
             >
-              + Add New
+              Add New
             </button>
           )}
       </div>
@@ -260,8 +385,17 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           <Offcanvas.Title>View Case Details</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
-          {selectedCase && (
+          {selectedCase && activeTab === "Correspondence In" && (
             <ViewCaseForm
+              caseData={selectedCase}
+              attachments={attachments}
+              onClose={handleClose}
+              show={false}
+            />
+          )}
+
+          {selectedCase && activeTab === "Correspondence Out" && (
+            <ViewCorrespondenceOutForm
               caseData={selectedCase}
               attachments={attachments}
               onClose={handleClose}
