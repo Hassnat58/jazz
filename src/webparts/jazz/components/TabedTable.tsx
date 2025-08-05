@@ -13,6 +13,7 @@ import ViewCaseForm from "./ViewCaseForm";
 import "bootstrap/dist/css/bootstrap.min.css";
 import CorrespondenceOutForm from "./CorrespondenceOutForm";
 import ViewCorrespondenceOutForm from "./ViewCorrespondenceOut";
+import ManagersTable from "./ManagersTable";
 
 const tabs = [
   "Notification",
@@ -324,7 +325,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         return <p>Reports section under construction.</p>;
 
       case "Managers":
-        return <p>Managers' overview coming soon.</p>;
+        return <ManagersTable SpfxContext={SpfxContext}/>
 
       default:
         return null;
