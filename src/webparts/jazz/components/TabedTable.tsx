@@ -13,6 +13,7 @@ import ViewCaseForm from "./ViewCaseForm";
 import "bootstrap/dist/css/bootstrap.min.css";
 import CorrespondenceOutForm from "./CorrespondenceOutForm";
 import ViewCorrespondenceOutForm from "./ViewCorrespondenceOut";
+import UTPForm from "./UTPForm";
 
 const tabs = [
   "Notification",
@@ -33,7 +34,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const [attachments, setAttachments] = useState<any[]>([]);
   const [correspondenceOutData, setCorrespondenceOutData] = useState<any[]>([]);
   const [activeFormType, setActiveFormType] = useState<
-    "case" | "correspondenceOut" | null
+    "case" | "correspondenceOut" | "UTP" | null
   >(null);
 
   const sp = spfi().using(SPFx(SpfxContext));
@@ -58,9 +59,12 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           "Filedthrough",
           "BriefDescription",
           "CaseNumber/ID",
-          "CaseNumber/Title"
+          "CaseNumber/Title",
+          "Author/Title",
+          "Editor/Title"
         )
-        .expand("CaseNumber")();
+        .expand("CaseNumber", "Author", "Editor")
+        .orderBy("ID", false)();
       setCorrespondenceOutData(items);
       console.log("Correspondence Out data:", items);
     } catch (err) {
@@ -96,7 +100,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   };
   const fetchAttachments = async (
     itemId: number,
-    type: "case" | "correspondenceOut"
+    type: "case" | "correspondenceOut" | "UTP"
   ) => {
     try {
       let filter = "";
@@ -105,6 +109,8 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         filter = `CaseId eq ${itemId}`;
       } else if (type === "correspondenceOut") {
         filter = `CorrespondenceOutId eq ${itemId}`;
+      } else if (type === "UTP") {
+        filter = `UTPId eq ${itemId}`;
       }
 
       const files = await sp.web.lists
@@ -135,8 +141,16 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const handleShow = async (item: any) => {
     setSelectedCase(item);
 
-    const type =
-      activeTab === "Correspondence In" ? "case" : "correspondenceOut";
+    let type: "case" | "correspondenceOut" | "UTP";
+    if (activeTab === "Correspondence In") {
+      type = "case";
+    } else if (activeTab === "Correspondence Out") {
+      type = "correspondenceOut";
+    } else if (activeTab === "UTP Dashboard") {
+      type = "UTP";
+    } else {
+      type = "case"; // default fallback
+    }
     await fetchAttachments(item.ID, type);
 
     setShowOffcanvas(true);
@@ -298,6 +312,15 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
             selectedCase={selectedCase}
           />
         );
+      } else if (activeTab === "UTP Dashboard") {
+        return (
+          <UTPForm
+            SpfxContext={SpfxContext}
+            onCancel={handleCancel}
+            onSave={handleSave}
+            selectedCase={selectedCase}
+          />
+        );
       }
     }
 
@@ -363,6 +386,8 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
                   setActiveFormType("case");
                 } else if (activeTab === "Correspondence Out") {
                   setActiveFormType("correspondenceOut");
+                } else if (activeTab === "UTP Dashboard") {
+                  setActiveFormType("UTP");
                 }
                 setIsAddingNew(true);
               }}
@@ -379,7 +404,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         show={showOffcanvas}
         onHide={handleClose}
         placement="end"
-        style={{ width: "700px" }}
+        style={{ width: "800px" }}
       >
         <Offcanvas.Header closeButton>
           <Offcanvas.Title>View Case Details</Offcanvas.Title>
