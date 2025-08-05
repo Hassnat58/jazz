@@ -42,32 +42,35 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
   const sp = spfi().using(SPFx(SpfxContext));
 
-  const fieldMapping = {
-    UTPCategory: "UTP Category",
-    RiskCategory: "Risk Category",
-    TaxMatter: "Tax Matter",
-    PaymentType: "Payment Type",
-    GRSCode: "GRS Code",
-  };
+  const requiredLabel = (label: string) => (
+    <span>
+      <span style={{ color: "red" }}>*</span> {label}
+    </span>
+  );
 
-  const dropdownFields = Object.keys(fieldMapping);
-
-  const inputFields = [
-    { label: "UTP ID", name: "UTPID" },
-    { label: "GMLR ID", name: "GMLRID" },
-    { label: "Gross Exposure", name: "GrossExposure" },
-    { label: "Cash Flow Exposure", name: "CashFlowExposure" },
-    { label: "ERM Unique Numbering", name: "ERMUniqueNumbering" },
-  ];
-
-  const dateFields = [{ label: "UTP Date", name: "UTPDate" }];
-
-  const booleanFields = [
-    { label: "P&L Exposure Exists", name: "PLExposureExists" },
-    { label: "EBITDA Exposure Exists", name: "EBITDAExposureExists" },
-    { label: "Contingency Note Exists", name: "ContingencyNoteExists" },
-    { label: "Provision Required", name: "ProvisionRequired" },
-  ];
+  const renderRadioGroup = (label: string, field: any) => (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <label style={{ fontWeight: 600, marginBottom: "4px" }}>{label}</label>
+      <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <input
+            type="radio"
+            checked={field.value === true}
+            onChange={() => field.onChange(true)}
+          />
+          Yes
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <input
+            type="radio"
+            checked={field.value === false}
+            onChange={() => field.onChange(false)}
+          />
+          No
+        </label>
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     (async () => {
@@ -86,7 +89,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
       const activeLOVs = lovs.filter((item) => item.Status === "Active");
       const groupedLOVs: { [key: string]: IDropdownOption[] } = {};
-
       activeLOVs.forEach(({ Title, Description }) => {
         if (!groupedLOVs[Title]) groupedLOVs[Title] = [];
         groupedLOVs[Title].push({ key: Description, text: Description });
@@ -98,21 +100,30 @@ const UTPForm: React.FC<UTPFormProps> = ({
   useEffect(() => {
     const prefillForm = async () => {
       if (!selectedCase) return;
-
       const prefilled: any = {};
-      dropdownFields.forEach((f) => (prefilled[f] = selectedCase[f] || ""));
-      inputFields.forEach(
-        (f) => (prefilled[f.name] = selectedCase[f.name] || "")
+      ["UTPCategory", "TaxMatter", "RiskCategory", "PaymentType"].forEach(
+        (f) => (prefilled[f] = selectedCase[f] || "")
       );
-      dateFields.forEach(
+      [
+        "UTPID",
+        "GMLRID",
+        "GRSCode",
+        "ERMUniqueNumbering",
+        "GrossExposure",
+        "CashFlowExposure",
+      ].forEach((name) => (prefilled[name] = selectedCase[name] || ""));
+      [{ name: "UTPDate" }].forEach(
         ({ name }) =>
           (prefilled[name] = selectedCase[name]
             ? new Date(selectedCase[name])
             : null)
       );
-      booleanFields.forEach(
-        ({ name }) => (prefilled[name] = Boolean(selectedCase[name]))
-      );
+      [
+        "PLExposureExists",
+        "EBITDAExposureExists",
+        "ContingencyNoteExists",
+        "ProvisionRequired",
+      ].forEach((name) => (prefilled[name] = Boolean(selectedCase[name])));
       prefilled.CaseNumber =
         selectedCase?.CaseNumber?.Id || selectedCase?.CaseNumberId || null;
       reset(prefilled);
@@ -130,28 +141,41 @@ const UTPForm: React.FC<UTPFormProps> = ({
     const data = getValues();
     const itemData: any = {
       IsDraft: isDraft,
-      Status: isDraft ? "Draft" : "Pending",
+      Status: isDraft ? "Draft" : "Open",
       CaseNumberId: data.CaseNumber || null,
     };
-
-    dropdownFields.forEach((key) => (itemData[key] = data[key] || ""));
-    inputFields.forEach(({ name }) => (itemData[name] = data[name] || ""));
-    dateFields.forEach(
+    ["UTPCategory", "TaxMatter", "RiskCategory", "PaymentType"].forEach(
+      (key) => (itemData[key] = data[key] || "")
+    );
+    [
+      "UTPID",
+      "GMLRID",
+      "GRSCode",
+      "ERMUniqueNumbering",
+      "GrossExposure",
+      "CashFlowExposure",
+    ].forEach((name) => (itemData[name] = data[name] || ""));
+    [{ name: "UTPDate" }].forEach(
       ({ name }) =>
         (itemData[name] = data[name] ? data[name].toISOString() : null)
     );
-    booleanFields.forEach(({ name }) => (itemData[name] = !!data[name]));
+    [
+      "PLExposureExists",
+      "EBITDAExposureExists",
+      "ContingencyNoteExists",
+      "ProvisionRequired",
+    ].forEach((name) => (itemData[name] = !!data[name]));
 
     try {
       let itemId = selectedCase?.ID;
       if (itemId) {
         await sp.web.lists
-          .getByTitle("UTP Data")
+          .getByTitle("UTPData")
           .items.getById(itemId)
           .update(itemData);
       } else {
         const result = await sp.web.lists
-          .getByTitle("UTP Data")
+          .getByTitle("UTPData")
           .items.add(itemData);
         itemId = result.ID;
       }
@@ -176,12 +200,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
     }
   };
 
-  const formStyle: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "1rem",
-  };
-
   return (
     <form
       onSubmit={handleSubmit(() => submitForm(false))}
@@ -203,7 +221,14 @@ const UTPForm: React.FC<UTPFormProps> = ({
         </button>
       </div>
 
-      <div style={formStyle}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "1.2rem",
+        }}
+      >
+        {/* Row 1 */}
         <Controller
           name="CaseNumber"
           control={control}
@@ -213,55 +238,177 @@ const UTPForm: React.FC<UTPFormProps> = ({
               options={caseOptions}
               selectedKey={field.value}
               onChange={(_, option) => field.onChange(option?.key)}
-              placeholder="Select Case Number"
+              placeholder="Select"
+              required
+            />
+          )}
+        />
+        <Controller
+          name="UTPID"
+          control={control}
+          render={({ field }) => (
+            <div>
+              <label style={{ fontWeight: 600 }}>
+                <span style={{ color: "red" }}>*</span> UTP ID
+              </label>
+              <TextField placeholder="Enter ID" {...field} />
+            </div>
+          )}
+        />
+        <Controller
+          name="GMLRID"
+          control={control}
+          render={({ field }) => (
+            <TextField label="* GMLR ID" placeholder="Enter ID" {...field} />
+          )}
+        />
+
+        {/* Row 2 */}
+        <Controller
+          name="GRSCode"
+          control={control}
+          render={({ field }) => (
+            <Dropdown
+              label="* GRS Code"
+              options={lovOptions["GRS Code"] || []}
+              selectedKey={field.value}
+              onChange={(_, o) => field.onChange(o?.key)}
+              placeholder="Select"
+            />
+          )}
+        />
+        <Controller
+          name="UTPCategory"
+          control={control}
+          render={({ field }) => (
+            <Dropdown
+              label="* UTP Category"
+              options={lovOptions["UTP Category"] || []}
+              selectedKey={field.value}
+              onChange={(_, o) => field.onChange(o?.key)}
+              placeholder="Select"
+            />
+          )}
+        />
+        <Controller
+          name="GrossExposure"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              label="Gross Exposure"
+              required
+              placeholder="Enter Value"
+              {...field}
+            />
+          )}
+        />
+
+        {/* Row 3 */}
+        <Controller
+          name="CashFlowExposure"
+          control={control}
+          render={({ field }) => (
+            <div>
+              <TextField
+                placeholder="Enter Value"
+                {...field}
+                label="Cash Flow Exposure"
+                required
+              />
+            </div>
+          )}
+        />
+        <Controller
+          name="PLExposureExists"
+          control={control}
+          render={({ field }) => renderRadioGroup("P&L Exposure Exists", field)}
+        />
+        <Controller
+          name="EBITDAExposureExists"
+          control={control}
+          render={({ field }) =>
+            renderRadioGroup("EBITDA Exposure Exists", field)
+          }
+        />
+
+        {/* Row 4 */}
+        <Controller
+          name="ContingencyNoteExists"
+          control={control}
+          render={({ field }) =>
+            renderRadioGroup("Contingency Note Exists", field)
+          }
+        />
+        <Controller
+          name="RiskCategory"
+          control={control}
+          render={({ field }) => (
+            <div>
+              <Dropdown
+                options={lovOptions["Risk Category"] || []}
+                selectedKey={field.value}
+                label="* Risk Category"
+                onChange={(_, o) => field.onChange(o?.key)}
+                placeholder="Select"
+                required
+              />
+            </div>
+          )}
+        />
+        <Controller
+          name="ProvisionRequired"
+          control={control}
+          render={({ field }) => renderRadioGroup("Provision Required", field)}
+        />
+
+        {/* Row 5 */}
+        <Controller
+          name="TaxMatter"
+          control={control}
+          render={({ field }) => (
+            <div>
+              <Dropdown
+                options={lovOptions["Tax Matter"] || []}
+                selectedKey={field.value}
+                label="Tax Matter"
+                onChange={(_, o) => field.onChange(o?.key)}
+                placeholder="Select"
+                required
+              />
+            </div>
+          )}
+        />
+        <Controller
+          name="ERMUniqueNumbering"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              label="* ERM Unique Numbering"
+              placeholder="Enter Number"
+              {...field}
+            />
+          )}
+        />
+        <Controller
+          name="PaymentType"
+          control={control}
+          render={({ field }) => (
+            <Dropdown
+              label="Payment Type"
+              options={lovOptions["Payment Type"] || []}
+              selectedKey={field.value}
+              onChange={(_, o) => field.onChange(o?.key)}
+              placeholder="Select"
               required
             />
           )}
         />
 
-        {dropdownFields.map((field) => (
-          <Controller
-            key={field}
-            name={field}
-            control={control}
-            render={({ field: f }) => (
-              <Dropdown
-                label={field}
-                options={lovOptions[field] || []}
-                selectedKey={f.value}
-                onChange={(_, o) => f.onChange(o?.key)}
-              />
-            )}
-          />
-        ))}
-
-        {inputFields.map(({ label, name }) => (
-          <Controller
-            key={name}
-            name={name}
-            control={control}
-            render={({ field }) => <TextField label={label} {...field} />}
-          />
-        ))}
-
-        {dateFields.map(({ label, name }) => (
-          <Controller
-            key={name}
-            name={name}
-            control={control}
-            render={({ field }) => (
-              <DatePicker
-                label={label}
-                value={field.value}
-                onSelectDate={field.onChange}
-                placeholder="Select a date"
-              />
-            )}
-          />
-        ))}
-
-        <div style={{ gridColumn: "span 3" }}>
-          <label style={{ fontWeight: 600 }}>Attachments</label>
+        {/* Row 6 - Attachments */}
+        <div>
+          <label style={{ fontWeight: 600 }}>
+            {requiredLabel("CPR - Attachments")}
+          </label>
           <input
             type="file"
             multiple
@@ -281,38 +428,19 @@ const UTPForm: React.FC<UTPFormProps> = ({
           </div>
         </div>
 
-        {booleanFields.map(({ label, name }) => (
-          <Controller
-            key={name}
-            name={name}
-            control={control}
-            render={({ field }) => (
-              <div>
-                <label style={{ fontWeight: 600 }}>{label}</label>
-                <div>
-                  <label>
-                    <input
-                      type="radio"
-                      value="true"
-                      checked={field.value === true}
-                      onChange={() => field.onChange(true)}
-                    />
-                    Yes
-                  </label>
-                  <label style={{ marginLeft: "10px" }}>
-                    <input
-                      type="radio"
-                      value="false"
-                      checked={field.value === false}
-                      onChange={() => field.onChange(false)}
-                    />
-                    No
-                  </label>
-                </div>
-              </div>
-            )}
-          />
-        ))}
+        {/* Row 7 - Date */}
+        <Controller
+          name="UTPDate"
+          control={control}
+          render={({ field }) => (
+            <DatePicker
+              label="* UTP Date"
+              value={field.value}
+              onSelectDate={field.onChange}
+              placeholder="Select"
+            />
+          )}
+        />
       </div>
     </form>
   );

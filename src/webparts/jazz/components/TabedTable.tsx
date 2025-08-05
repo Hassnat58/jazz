@@ -34,6 +34,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [correspondenceOutData, setCorrespondenceOutData] = useState<any[]>([]);
+  const [utpData, setUtpData] = useState<any[]>([]);
   const [activeFormType, setActiveFormType] = useState<
     "case" | "correspondenceOut" | "UTP" | null
   >(null);
@@ -45,6 +46,8 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       loadCasesData();
     } else if (activeTab === "Correspondence Out") {
       loadCorrespondenceOutData();
+    } else if (activeTab === "UTP Dashboard") {
+      loadUTPData();
     }
   }, [activeTab]);
   const loadCorrespondenceOutData = async () => {
@@ -97,6 +100,35 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       console.log("Cases data:", items);
     } catch (err) {
       console.error("Error fetching data from Cases list:", err);
+    }
+  };
+
+  const loadUTPData = async () => {
+    try {
+      const items = await sp.web.lists
+        .getByTitle("UTPData")
+        .items.select(
+          "*",
+          "ID",
+          "Title",
+          "UTPID",
+          "GMLRID",
+          "GRSCode",
+          "ERMUniqueNumbering",
+          "GrossExposure",
+          "CashFlowExposure",
+          "TaxMatter/Title",
+          "PaymentType/Title",
+          "Status",
+          "Author/Title",
+          "Editor/Title"
+        )
+        .orderBy("ID", false)
+        .expand("Author", "Editor")();
+      setUtpData(items);
+      console.log("UTP data:", items);
+    } catch (err) {
+      console.error("Error fetching data from UTP list:", err);
     }
   };
   const fetchAttachments = async (
@@ -216,8 +248,8 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
 
             <td>
               <Button
-                variant="link"
-                className={styles.eyeBtn}
+                variant="outline-warning"
+                size="sm"
                 title="View"
                 onClick={() => handleShow(item)}
               >
@@ -267,8 +299,8 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
             <td>{item.Status}</td>
             <td>
               <Button
-                variant="link"
-                className={styles.eyeBtn}
+                variant="outline-warning"
+                size="sm"
                 title="View"
                 onClick={() => handleShow(item)}
               >
@@ -281,6 +313,75 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
                 onClick={() => {
                   setSelectedCase(item);
                   setActiveFormType("correspondenceOut");
+                  setIsAddingNew(true);
+                }}
+              >
+                ✏️
+              </Button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+  const renderUTPTable = () => (
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th>UTP ID</th>
+          <th>GMLR ID</th>
+          <th>GRS Code</th>
+          <th>ERM Unique Numbering</th>
+          <th>Gross Exposure</th>
+          <th>Cash Flow Exposure</th>
+          <th>Tax Matter</th>
+          <th>Payment Type</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {utpData.map((item) => (
+          <tr key={item.ID}>
+            <td>{item.UTPID}</td>
+            <td>{item.GMLRID}</td>
+            <td>{item.GRSCode}</td>
+            <td>{item.ERMUniqueNumbering}</td>
+            <td>{item.GrossExposure}</td>
+            <td>{item.CashFlowExposure}</td>
+            <td>{item.TaxMatter}</td>
+            <td>{item.PaymentType}</td>
+            <td>
+              {item.Status && (
+                <div
+                  style={{
+                    backgroundColor:
+                      item.Status === "Open" ? "#5ebd74" : "#20a5bb",
+                    color: "white",
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  {item.Status}
+                </div>
+              )}
+            </td>
+            <td>
+              <Button
+                variant="outline-warning"
+                size="sm"
+                title="View"
+                onClick={() => handleShow(item)}
+              >
+                👁
+              </Button>
+              <Button
+                variant="link"
+                className={styles.editBtn}
+                title="Edit"
+                onClick={() => {
+                  setSelectedCase(item);
+                  setActiveFormType("UTP");
                   setIsAddingNew(true);
                 }}
               >
@@ -331,12 +432,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       case "Correspondence Out":
         return renderCorrespondenceOutTable();
       case "UTP Dashboard":
-        return (
-          <p>
-            UTP Dashboard is currently under construction. Please check back
-            later.
-          </p>
-        );
+        return renderUTPTable();
 
       case "Notification":
         return <p>No Notification data available yet.</p>;
