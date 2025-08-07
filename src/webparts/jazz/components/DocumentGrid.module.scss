@@ -1,0 +1,42 @@
+.documentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.documentCard {
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.fileIcon {
+  width: 45px;
+  height: auto;
+  margin-bottom: 8px;
+}
+
+.fileName {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.fileSize {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  font-size: 16px;
+}

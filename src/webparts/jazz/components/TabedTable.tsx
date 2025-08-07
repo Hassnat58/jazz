@@ -16,6 +16,7 @@ import ViewCorrespondenceOutForm from "./ViewCorrespondenceOut";
 import UTPForm from "./UTPForm";
 import ManagersTable from "./ManagersTable";
 import ViewUTPForm from "./ViewUTPForm";
+import DocumentGrid from "./DocumentGrid";
 
 const tabs = [
   "Notification",
@@ -439,7 +440,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         return <p>No Notification data available yet.</p>;
 
       case "Documents":
-        return <p>Upload or view documents here.</p>;
+        return <DocumentGrid SpfxContext={SpfxContext} />;
 
       case "Reports":
         return <p>Reports section under construction.</p>;
