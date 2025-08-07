@@ -15,6 +15,7 @@ import CorrespondenceOutForm from "./CorrespondenceOutForm";
 import ViewCorrespondenceOutForm from "./ViewCorrespondenceOut";
 import UTPForm from "./UTPForm";
 import ManagersTable from "./ManagersTable";
+import ViewUTPForm from "./ViewUTPForm";
 
 const tabs = [
   "Notification",
@@ -519,6 +520,15 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           {selectedCase && activeTab === "Correspondence Out" && (
             <ViewCorrespondenceOutForm
               caseData={selectedCase}
+              attachments={attachments}
+              onClose={handleClose}
+              show={false}
+            />
+          )}
+
+          {selectedCase && activeTab === "UTP Dashboard" && (
+            <ViewUTPForm
+              utpData={selectedCase}
               attachments={attachments}
               onClose={handleClose}
               show={false}
