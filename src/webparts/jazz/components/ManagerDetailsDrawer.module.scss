@@ -19,7 +19,13 @@
     font-weight: 500;
     background-color: #f8f8f8;
   }
-
+.statusActive {
+  background-color: #28a745;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
   .detailTable {
     width: 100%;
     border-collapse: collapse;

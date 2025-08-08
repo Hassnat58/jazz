@@ -89,8 +89,10 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
 
       <ManagerDetailsDrawer
         show={showDrawer}
+        SpfxContext={SpfxContext}
         onHide={() => setShowDrawer(false)}
         caseData={selectedCase}
+        loadCasesData={loadCasesData}
       />
     </>
   );
