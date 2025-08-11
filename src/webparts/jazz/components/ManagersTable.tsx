@@ -67,7 +67,11 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           {casesData.map((item, index) => (
             <tr key={item.ID}>
               <td>{index + 1}</td>
-              <td>CN-00{item.ID}</td>
+              <td>
+                {item.ParentCaseId
+                  ? `00-CN${item.ParentCaseId}`
+                  : `00-CN${item.ID}`}
+              </td>
               <td>{item.TaxAuthority}</td>
               <td>{item.Jurisdiction}</td>
               <td>{item.TaxConsultantAssigned}</td>

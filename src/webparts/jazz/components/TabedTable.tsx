@@ -215,7 +215,11 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       <tbody>
         {casesData.map((item) => (
           <tr key={item.ID}>
-            <td>00-CN{item.ID}</td>
+            <td>
+              {item.ParentCaseId
+                ? `00-CN${item.ParentCaseId}`
+                : `00-CN${item.ID}`}
+            </td>
             <td>{item.CorrespondenceType}</td>
             <td>{item.DateReceived?.split("T")[0]}</td>
             <td>{item.FinancialYear}</td>
@@ -444,7 +448,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         return <DocumentGrid SpfxContext={SpfxContext} />;
 
       case "Reports":
-        return <ReportsTable SpfxContext={SpfxContext}/>;
+        return <ReportsTable SpfxContext={SpfxContext} />;
 
       case "Managers":
         return <ManagersTable SpfxContext={SpfxContext} />;

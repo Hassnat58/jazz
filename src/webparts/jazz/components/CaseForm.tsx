@@ -41,8 +41,28 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
+  const [casesOptions, setCasesOptions] = React.useState<IDropdownOption[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
+  const [taxIssueEntries, setTaxIssueEntries] = useState<
+    {
+      id: any;
+      taxIssue: string;
+      amountContested: number;
+      grossTaxExposure: number;
+    }[]
+  >([]);
+  // const [currentTaxIssue, setCurrentTaxIssue] = useState<{
+  //   taxIssue: string;
+  //   id: any;
+  //   amountContested: number;
+  //   grossTaxExposure: number;
+  // }>({
+  //   taxIssue: "",
+  //   id: null,
+  //   amountContested: 0,
+  //   grossTaxExposure: 0,
+  // });
   const sp = spfi().using(SPFx(SpfxContext));
 
   const fieldMapping: { [key: string]: string } = {
@@ -61,7 +81,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   const dropdownFields = Object.keys(fieldMapping);
   const inputFields = [
-    { label: "Document Reference Number", name: "DocumentRefrenceNummber" },
+    { label: "Document Reference Number", name: "DocumentReferenceNumber" },
     { label: "Gross Tax Demanded/Exposure", name: "GrossTaxDemanded" },
     { label: "Email – Title", name: "Email" },
     { label: "Brief Description", name: "BriefDescription" },
@@ -84,7 +104,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     {
       type: "input",
       label: "Document Reference Nummber",
-      name: "DocumentRefrenceNummber",
+      name: "DocumentReferenceNumber",
     },
     { type: "dropdown", label: "Entity" },
     { type: "dropdown", label: "TaxAuthority" },
@@ -126,8 +146,17 @@ const CaseForm: React.FC<CaseFormProps> = ({
       });
       setLovOptions(grouped);
     };
-
     fetchLOVs();
+    sp.web.lists
+      .getByTitle("Cases")
+      .items.select("ID", "Title")()
+      .then((items) => {
+        const options = items.map((item) => ({
+          key: item.ID,
+          text: `CN--00${item.ID}`, // or Case Number field
+        }));
+        setCasesOptions(options);
+      });
   }, []);
 
   useEffect(() => {
@@ -138,6 +167,20 @@ const CaseForm: React.FC<CaseFormProps> = ({
           .items.filter(`CaseId eq ${selectedCase.ID}`)
           .select("FileLeafRef", "FileRef", "ID")();
         setExistingAttachments(files);
+      }
+      if (selectedCase?.ID) {
+        const taxItems = await sp.web.lists
+          .getByTitle("Tax Issues")
+          .items.filter(`CaseId eq ${selectedCase.ID}`)();
+
+        setTaxIssueEntries(
+          taxItems.map((item) => ({
+            id: item.Id, // store the SharePoint item ID
+            taxIssue: item.Title,
+            amountContested: item.AmountContested,
+            grossTaxExposure: item.GrossTaxExposure,
+          }))
+        );
       }
     };
 
@@ -163,6 +206,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         prefilledValues[name] = selectedCase[name] || "";
       });
       prefilledValues["CaseNumber"] = selectedCase["ID"] || "";
+      prefilledValues["ParentCaseId"] = selectedCase["ParentCaseId"] || "";
       reset(prefilledValues);
       loadExistingAttachments();
     }
@@ -174,6 +218,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       Title: String(data.CaseNumber || ""),
       IsDraft: isDraft,
       CaseStatus: isDraft ? "Draft" : "Active",
+      ParentCaseId: data.ParentCaseId || null,
     };
 
     dropdownFields.forEach((field) => {
@@ -198,9 +243,10 @@ const CaseForm: React.FC<CaseFormProps> = ({
     multilineFields.forEach(({ name }) => {
       itemData[name] = data[name] || "";
     });
-    if (data.LawyerAssigned && data.LawyerAssigned.id) {
-      itemData["LawyerAssignedId"] = data.LawyerAssigned.id;
+    if (data.LawyerAssigned && data.LawyerAssigned.Id) {
+      itemData["LawyerAssignedId"] = data.LawyerAssigned.Id;
     }
+
     console.log("LawyerAssignedId:", itemData["LawyerAssignedId"]);
     console.log("Final itemData before submit:", itemData);
 
@@ -217,6 +263,28 @@ const CaseForm: React.FC<CaseFormProps> = ({
           .getByTitle("Cases")
           .items.add(itemData);
         itemId = addResult.ID;
+      }
+      for (const entry of taxIssueEntries) {
+        if (entry.id) {
+          // Existing tax issue → update
+          await sp.web.lists
+            .getByTitle("Tax Issues")
+            .items.getById(entry.id)
+            .update({
+              Title: entry.taxIssue,
+              AmountContested: entry.amountContested,
+              GrossTaxExposure: entry.grossTaxExposure,
+              CaseId: itemId,
+            });
+        } else {
+          // New tax issue → add
+          await sp.web.lists.getByTitle("Tax Issues").items.add({
+            Title: entry.taxIssue,
+            AmountContested: entry.amountContested,
+            GrossTaxExposure: entry.grossTaxExposure,
+            CaseId: itemId,
+          });
+        }
       }
       for (const file of attachments) {
         const uploadResult = await sp.web.lists
@@ -267,10 +335,23 @@ const CaseForm: React.FC<CaseFormProps> = ({
           Save as Draft
         </button>
         <button className={styles.savebtn} type="submit">
-          {selectedCase ? "Update" : "Save"}
+          Submit
         </button>
       </div>
       <div style={formStyle}>
+        <Controller
+          name="ParentCaseId"
+          control={control}
+          render={({ field: f }) => (
+            <Dropdown
+              label="Case Number"
+              options={[{ key: "", text: "-- None --" }, ...casesOptions]}
+              selectedKey={f.value || ""}
+              onChange={(_, option) => f.onChange(option?.key || "")}
+              placeholder="Select existing case or leave blank"
+            />
+          )}
+        />
         {fieldOrder.map((field) => {
           if (field.type === "input")
             return (
@@ -479,16 +560,117 @@ const CaseForm: React.FC<CaseFormProps> = ({
           />
         ))}
       </div>
+      <div style={{ marginTop: "1rem" }}>
+        <h3>Tax Issues</h3>
 
-      {/* <div style={{ marginTop: "1rem", display: "flex", gap: "1rem" }}>
-        <button type="button" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit">{selectedCase ? "Update" : "Save"}</button>
-        <button type="button" onClick={() => submitForm(true)}>
-          Save as Draft
-        </button>
-      </div> */}
+        {taxIssueEntries.map((entry, idx) => (
+          <div
+            key={idx}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              marginBottom: "0.5rem",
+            }}
+          >
+            {/* Tax Issue Dropdown */}
+            <Dropdown
+              label="Tax Issue"
+              placeholder="Select Tax Issue"
+              options={lovOptions["Tax Issue"] || []}
+              selectedKey={entry.taxIssue}
+              styles={{ root: { flex: 2 } }}
+              onChange={(_, o) => {
+                const updated = [...taxIssueEntries];
+                updated[idx].taxIssue = o?.key as string;
+                setTaxIssueEntries(updated);
+              }}
+            />
+
+            {/* Amount Contested */}
+            <TextField
+              label="Amount Contested"
+              placeholder="Amount Contested"
+              type="number"
+              value={entry.amountContested?.toString() || ""}
+              styles={{ root: { flex: 1 } }}
+              onChange={(_, v) => {
+                const updated = [...taxIssueEntries];
+                updated[idx].amountContested = v ? parseFloat(v) : 0;
+                setTaxIssueEntries(updated);
+              }}
+            />
+
+            {/* Gross Tax Exposure */}
+            <TextField
+              label="Gross Tax Exposure"
+              placeholder="Gross Tax Exposure"
+              type="number"
+              value={entry.grossTaxExposure?.toString() || ""}
+              styles={{ root: { flex: 1 } }}
+              onChange={(_, v) => {
+                const updated = [...taxIssueEntries];
+                updated[idx].grossTaxExposure = v ? parseFloat(v) : 0;
+                setTaxIssueEntries(updated);
+              }}
+            />
+
+            {/* Remove Button */}
+            <button
+              type="button"
+              style={{
+                background: "none",
+                border: "none",
+                color: "red",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                const updated = [...taxIssueEntries];
+                updated.splice(idx, 1);
+                setTaxIssueEntries(updated);
+              }}
+            >
+              ❌
+            </button>
+          </div>
+        ))}
+
+        {/* Add New Button */}
+        {taxIssueEntries.length < (lovOptions["Tax Issue"]?.length || 0) && (
+          <button
+            type="button"
+            onClick={() => {
+              const used = taxIssueEntries.map((t) => t.taxIssue);
+              const available = (lovOptions["Tax Issue"] || []).find(
+                (opt) => !used.includes(opt.key as string)
+              );
+              if (available) {
+                setTaxIssueEntries((prev) => [
+                  ...prev,
+                  {
+                    id: null,
+                    taxIssue: available.key as string,
+                    amountContested: 0,
+                    grossTaxExposure: 0,
+                  },
+                ]);
+              }
+            }}
+            style={{
+              marginTop: "0.5rem",
+              padding: "0.5rem 1rem",
+              background: "#2563eb",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            ➕ Add New
+          </button>
+        )}
+      </div>
     </form>
   );
 };
