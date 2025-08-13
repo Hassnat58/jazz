@@ -39,14 +39,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [caseOptions, setCaseOptions] = useState<IDropdownOption[]>([]);
+  const [utpOptions, setUtpOptions] = useState<IDropdownOption[]>([]);
 
   const sp = spfi().using(SPFx(SpfxContext));
-
-  const requiredLabel = (label: string) => (
-    <span>
-      <span style={{ color: "red" }}>*</span> {label}
-    </span>
-  );
 
   const renderRadioGroup = (label: string, field: any) => (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -74,19 +69,31 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
   useEffect(() => {
     (async () => {
-      const [cases, lovs] = await Promise.all([
+      const [cases, utps, lovs] = await Promise.all([
         sp.web.lists.getByTitle("Cases").items.select("Id", "Title")(),
+        sp.web.lists.getByTitle("UTPData").items.select("Id", "Title")(),
         sp.web.lists
           .getByTitle("LOV Data")
           .items.select("Id", "Title", "Description", "Status")(),
       ]);
 
+      // Case dropdown
       setCaseOptions(
         cases
           .filter((item) => item.Title?.trim())
-          .map((item) => ({ key: item.Id, text: `CN-00${item.Id}` }))
+          .map((item) => ({
+            key: item.Id,
+            text: `CN-${item.Id.toString().padStart(4, "0")}`,
+          }))
+      );
+      setUtpOptions(
+        utps.map((item) => ({
+          key: item.Id,
+          text: `UTP-${item.Id.toString().padStart(3, "0")}`,
+        }))
       );
 
+      // LOV grouped options
       const activeLOVs = lovs.filter((item) => item.Status === "Active");
       const groupedLOVs: { [key: string]: IDropdownOption[] } = {};
       activeLOVs.forEach(({ Title, Description }) => {
@@ -105,7 +112,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
         (f) => (prefilled[f] = selectedCase[f] || "")
       );
       [
-        "UTPID",
         "GMLRID",
         "GRSCode",
         "ERMUniqueNumbering",
@@ -123,9 +129,17 @@ const UTPForm: React.FC<UTPFormProps> = ({
         "EBITDAExposureExists",
         "ContingencyNoteExists",
         "ProvisionRequired",
-      ].forEach((name) => (prefilled[name] = Boolean(selectedCase[name])));
+      ].forEach((name) => {
+        prefilled[name] =
+          selectedCase[name] === true
+            ? true
+            : selectedCase[name] === false
+            ? false
+            : null; // <-- keep null if no stored value
+      });
       prefilled.CaseNumber =
         selectedCase?.CaseNumber?.Id || selectedCase?.CaseNumberId || null;
+      prefilled.UTPId = selectedCase?.UTPId || null;
       reset(prefilled);
 
       const files = await sp.web.lists
@@ -143,12 +157,12 @@ const UTPForm: React.FC<UTPFormProps> = ({
       IsDraft: isDraft,
       Status: isDraft ? "Draft" : "Open",
       CaseNumberId: data.CaseNumber || null,
+      UTPId: data.UTPId || null,
     };
     ["UTPCategory", "TaxMatter", "RiskCategory", "PaymentType"].forEach(
       (key) => (itemData[key] = data[key] || "")
     );
     [
-      "UTPID",
       "GMLRID",
       "GRSCode",
       "ERMUniqueNumbering",
@@ -164,7 +178,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
       "EBITDAExposureExists",
       "ContingencyNoteExists",
       "ProvisionRequired",
-    ].forEach((name) => (itemData[name] = !!data[name]));
+    ].forEach((name) => {
+      itemData[name] =
+        data[name] !== null && data[name] !== undefined ? data[name] : null;
+    });
 
     try {
       let itemId = selectedCase?.ID;
@@ -244,22 +261,28 @@ const UTPForm: React.FC<UTPFormProps> = ({
           )}
         />
         <Controller
-          name="UTPID"
+          name="UTPId"
           control={control}
-          render={({ field }) => (
-            <div>
-              <label style={{ fontWeight: 600 }}>
-                <span style={{ color: "red" }}>*</span> UTP ID
-              </label>
-              <TextField placeholder="Enter ID" {...field} />
-            </div>
+          render={({ field: f }) => (
+            <Dropdown
+              label="UTP ID"
+              options={utpOptions}
+              selectedKey={f.value || ""}
+              onChange={(_, option) => f.onChange(option?.key || "")}
+              placeholder="Select existing UTP or leave blank"
+            />
           )}
         />
         <Controller
           name="GMLRID"
           control={control}
           render={({ field }) => (
-            <TextField label="* GMLR ID" placeholder="Enter ID" {...field} />
+            <TextField
+              label="GMLR ID"
+              placeholder="Enter ID"
+              {...field}
+              required
+            />
           )}
         />
 
@@ -347,7 +370,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
               <Dropdown
                 options={lovOptions["Risk Category"] || []}
                 selectedKey={field.value}
-                label="* Risk Category"
+                label="Risk Category"
                 onChange={(_, o) => field.onChange(o?.key)}
                 placeholder="Select"
                 required
@@ -383,9 +406,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
           control={control}
           render={({ field }) => (
             <TextField
-              label="* ERM Unique Numbering"
+              label="ERM Unique Numbering"
               placeholder="Enter Number"
               {...field}
+              required
             />
           )}
         />
@@ -405,25 +429,103 @@ const UTPForm: React.FC<UTPFormProps> = ({
         />
 
         {/* Row 6 - Attachments */}
-        <div>
-          <label style={{ fontWeight: 600 }}>
-            {requiredLabel("CPR - Attachments")}
-          </label>
-          <input
-            type="file"
-            multiple
-            onChange={(e) => setAttachments(Array.from(e.target.files || []))}
-          />
-          <div>
+        <div style={{ gridColumn: "span 3" }}>
+          <label style={{ fontWeight: 600 }}> Attachments</label>
+
+          {/* Upload Box */}
+          <div
+            style={{
+              width: 400,
+              border: "1px solid #d1d5db",
+              borderRadius: 6,
+              padding: 10,
+              marginTop: 5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 30,
+              cursor: "pointer",
+              background: "#f9fafb",
+            }}
+            onClick={() => document.getElementById("file-upload")?.click()}
+          >
+            <span style={{ color: "#9ca3af" }}>⬆️ Upload</span>
+            <input
+              id="file-upload"
+              type="file"
+              multiple
+              onChange={(e) => setAttachments(Array.from(e.target.files || []))}
+              style={{ display: "none" }}
+            />
+          </div>
+
+          {/* File List */}
+          <div style={{ marginTop: 10 }}>
             {existingAttachments.map((file) => (
-              <div key={file.ID}>
-                <a href={file.FileRef} target="_blank" rel="noreferrer">
+              <div
+                key={file.ID}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 5,
+                  color: "#374151",
+                  fontSize: 14,
+                }}
+              >
+                <span
+                  style={{
+                    color: "red",
+                    fontWeight: "bold",
+                    cursor: "not-allowed",
+                  }}
+                >
+                  ✖
+                </span>
+                <a
+                  href={file.FileRef}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "#2563eb", textDecoration: "none" }}
+                >
                   {file.FileLeafRef}
                 </a>
               </div>
             ))}
+
             {attachments.map((file, idx) => (
-              <div key={`new-${idx}`}>{file.name}</div>
+              <div
+                key={`new-${idx}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 5,
+                  color: "#374151",
+                  fontSize: 14,
+                }}
+              >
+                <button
+                  onClick={() => {
+                    const updated = [...attachments];
+                    updated.splice(idx, 1);
+                    setAttachments(updated);
+                  }}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    color: "red",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                  }}
+                >
+                  ✖
+                </button>
+                <span>{file.name}</span>
+                <span style={{ color: "#9ca3af", fontSize: 12 }}>
+                  {(file.size / (1024 * 1024)).toFixed(1)}MB
+                </span>
+              </div>
             ))}
           </div>
         </div>

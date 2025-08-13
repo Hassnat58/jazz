@@ -18,6 +18,7 @@ import ManagersTable from "./ManagersTable";
 import ViewUTPForm from "./ViewUTPForm";
 import DocumentGrid from "./DocumentGrid";
 import ReportsTable from "./ReportsTable";
+import LOVManagement from "./LOVManagement";
 
 const tabs = [
   "Notification",
@@ -29,7 +30,11 @@ const tabs = [
   "Managers",
 ];
 
-const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
+const TabbedTables: React.FC<{
+  showLOVManagement: boolean;
+  setShowLOVManagement: React.Dispatch<React.SetStateAction<boolean>>;
+  SpfxContext: any;
+}> = ({ SpfxContext, showLOVManagement, setShowLOVManagement }) => {
   const [activeTab, setActiveTab] = useState("Correspondence In");
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [casesData, setCasesData] = useState<any[]>([]);
@@ -41,6 +46,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const [activeFormType, setActiveFormType] = useState<
     "case" | "correspondenceOut" | "UTP" | null
   >(null);
+  // const [showLOVManagement, setShowLOVManagement] = useState(false);
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -114,7 +120,6 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           "*",
           "ID",
           "Title",
-          "UTPID",
           "GMLRID",
           "GRSCode",
           "ERMUniqueNumbering",
@@ -124,10 +129,12 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           "PaymentType/Title",
           "Status",
           "Author/Title",
-          "Editor/Title"
+          "Editor/Title",
+          "UTP/Title",
+          "UTP/Id"
         )
         .orderBy("ID", false)
-        .expand("Author", "Editor")();
+        .expand("Author", "Editor", "UTP")();
       setUtpData(items);
       console.log("UTP data:", items);
     } catch (err) {
@@ -350,7 +357,7 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       <tbody>
         {utpData.map((item) => (
           <tr key={item.ID}>
-            <td>{item.UTPID}</td>
+            <td>{item.UTPId ? `00-UTP${item.UTPId}` : `00-UTP${item.ID}`}</td>
             <td>{item.GMLRID}</td>
             <td>{item.GRSCode}</td>
             <td>{item.ERMUniqueNumbering}</td>
@@ -402,6 +409,9 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   );
 
   const renderTabContent = () => {
+    if (showLOVManagement) {
+      return <LOVManagement SpfxContext={SpfxContext} />;
+    }
     if (isAddingNew) {
       if (activeFormType === "case") {
         return (
@@ -465,11 +475,12 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           <button
             key={tab}
             className={`${styles.tab} ${
-              activeTab === tab ? styles.activeTab : ""
+              !showLOVManagement && activeTab === tab ? styles.activeTab : ""
             }`}
             onClick={() => {
               setActiveTab(tab);
               setIsAddingNew(false);
+              setShowLOVManagement(false); // back to normal mode
             }}
           >
             {tab}
@@ -478,7 +489,9 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       </div>
 
       <div className={styles.headerRow}>
-        <h3 className={styles.activeTabTitle}>{activeTab}</h3>
+        <h3 className={styles.activeTabTitle}>
+          {showLOVManagement ? "LOV Management" : activeTab}
+        </h3>
         {(activeTab === "Correspondence In" ||
           activeTab === "Correspondence Out" ||
           activeTab === "UTP Dashboard") &&
