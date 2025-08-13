@@ -11,7 +11,7 @@ import "@pnp/sp/files";
 import "@pnp/sp/folders";
 import "@pnp/sp/attachments";
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
-
+import * as XLSX from "xlsx";
 interface CaseItem {
   caseNo: string;
   docRef: string;
@@ -224,7 +224,36 @@ const ReportsTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
     taxAuthority: "",
     entity: ""
   });
+const handleExport = () => {
+  const exportData = filteredData.map((item) => ({
+    "Case No.": item.caseNo,
+    "Doc Reference No.": item.docRef,
+    "Correspondence Type": item.type,
+    "Attachment": item.attachment,
+    "Date Received": item.dateReceived,
+    "Financial Year": item.fy,
+    "Compliance Date": item.complianceDate,
+    "Lawyer": item.lawyer,
+    "Amount": item.amount,
+    "Status": item.status,
+    "Entity": item.entity,
+    "Tax Authority": item.taxAuthority,
+    "Jurisdiction": item.jurisdiction,
+    "Concerning Law": item.concerningLaw,
+    "Brief Description": item.briefDescription,
+    "Issued By": item.issuedBy,
+    "Tax Consultant": item.taxConsultant,
+    "Tax Type": item.taxType,
+    "Category": item.category,
+    "Tax Year": item.taxYear,
+    "Last Updated": item.lastUpdated,
+  }));
 
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered_Report");
+  XLSX.writeFile(workbook, "Filtered_Tax_Report.xlsx");
+};
 
   const [filteredData, setFilteredData] = useState<CaseItem[]>(dummyData);
   const sp = spfi().using(SPFx(SpfxContext));
@@ -306,7 +335,7 @@ const ReportsTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           label="Entity"
           placeholder="Select Entity"
           options={lovOptions["Entity"] || []}
-          selectedKey={filters.financialYear || null}
+          selectedKey={filters.entity || null}
           onChange={(_, option) => handleFilterChange("entity", option?.key as string)}
           styles={{ root: { minWidth: 160 } }}
         />
@@ -315,7 +344,7 @@ const ReportsTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           label="Tax Type"
           placeholder="Select Tax Type"
           options={lovOptions["Tax Matter"] || []}
-          selectedKey={filters.financialYear || null}
+          selectedKey={filters.taxType || null}
           onChange={(_, option) => handleFilterChange("taxType", option?.key as string)}
           styles={{ root: { minWidth: 160 } }}
         />
@@ -323,7 +352,7 @@ const ReportsTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           label="Tax Authority"
           placeholder="Select Tax Authority"
           options={lovOptions["TaxAuthority"] || []}
-          selectedKey={filters.financialYear || null}
+          selectedKey={filters.taxAuthority || null}
           onChange={(_, option) => handleFilterChange("taxAuthority", option?.key as string)}
           styles={{ root: { minWidth: 160 } }}
         />
@@ -357,7 +386,7 @@ const ReportsTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         />
 
  <div className={styles.buttonGroup}>
-    <button className={styles.exportButton} >
+    <button className={styles.exportButton} onClick={handleExport} >
       Export Report
     </button>
     <button className={styles.refreshButton} >

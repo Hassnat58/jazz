@@ -18,9 +18,9 @@ import ManagersTable from "./ManagersTable";
 import ViewUTPForm from "./ViewUTPForm";
 import DocumentGrid from "./DocumentGrid";
 import ReportsTable from "./ReportsTable";
-
+import Notifications from "./Notofications"
 const tabs = [
-  "Notification",
+  "Email Notification",
   "Correspondence In",
   "Correspondence Out",
   "UTP Dashboard",
@@ -441,8 +441,8 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       case "UTP Dashboard":
         return renderUTPTable();
 
-      case "Notification":
-        return <p>No Notification data available yet.</p>;
+      case "Email Notification":
+        return <Notifications  newAdd={()=>setIsAddingNew(true)} SpfxContext={SpfxContext}  activeForm={()=>setActiveFormType("case")} />;
 
       case "Documents":
         return <DocumentGrid SpfxContext={SpfxContext} />;
@@ -500,7 +500,11 @@ const TabbedTables: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
             </button>
           )}
       </div>
+<div className={styles.headerRow}>
+        <h6 className={styles.activeTabTitle2}>Home <span style={{color:"red"}}>&gt;</span> {activeTab}</h6>
 
+        
+      </div>
       <div className={styles.tableContainer}>{renderTabContent()}</div>
 
       {/* Offcanvas for viewing case details */}

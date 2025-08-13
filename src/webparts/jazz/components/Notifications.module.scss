@@ -1,0 +1,81 @@
+.notificationsContainer {
+  padding: 1rem;
+}
+
+.tabs {
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #eee;
+  button {
+    border:none;
+    padding: 7px 15px;
+    background-color: #fff;
+    outline: none;
+    &.activeTab {
+      font-weight: bold;
+      border-bottom: 2px solid red;
+    }
+  }
+}
+
+.notificationCard {
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  background: #fff;
+
+  h6 {
+    font-weight: bold;
+  }
+
+  p {
+    font-size: 0.875rem;
+    color: #555;
+  }
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  background: #f06292;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  margin-right: 10px;
+  font-weight: bold;
+}
+
+.detailsOffcanvas {
+  width: 900px;
+}
+
+.detailsCard {
+  h5 {
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+}
+
+.metaInfo {
+  background: #f9f9f9;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+
+.attachments button {
+  font-size: 0.85rem;
+}
+ .header {
+    text-align: center;
+    .logo {
+      height: 50px;
+    }
+  }
+.custombg {
+  background-color: #F8F8F8;
+  margin-bottom: 15px;
+}
