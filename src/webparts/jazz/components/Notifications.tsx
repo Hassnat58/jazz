@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/no-floating-promises */
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { spfi, SPFx } from "@pnp/sp"; // already in your imports
@@ -12,11 +14,11 @@ interface Notification {
   id: number;
   title: string;
   description: string; // will map from Content
-  time: string;        // derived from ReceivedDate
-  from: string;        // maps from Sender
-  date: string;        // maps from ReceivedDate
-  reference: string;   // maps from LinkedCaseID
-  body: string;        // maps from Content
+  time: string; // derived from ReceivedDate
+  from: string; // maps from Sender
+  date: string; // maps from ReceivedDate
+  reference: string; // maps from LinkedCaseID
+  body: string; // maps from Content
   attachments: string[];
   status: "unread" | "read";
 }
@@ -24,10 +26,14 @@ interface Notification {
 interface NotificationsProps {
   newAdd: () => void;
   activeForm: () => void;
-  SpfxContext:any
+  SpfxContext: any;
 }
 
-const Notifications: React.FC<NotificationsProps> = ({ newAdd, activeForm,SpfxContext }) => {
+const Notifications: React.FC<NotificationsProps> = ({
+  newAdd,
+  activeForm,
+  SpfxContext,
+}) => {
   const [show, setShow] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("read");
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -37,17 +43,18 @@ const Notifications: React.FC<NotificationsProps> = ({ newAdd, activeForm,SpfxCo
   useEffect(() => {
     const fetchInboxData = async () => {
       try {
-        const sp = spfi().using(SPFx( SpfxContext));
+        const sp = spfi().using(SPFx(SpfxContext));
         const items = await sp.web.lists
           .getByTitle("Inbox")
-          .items
-          .select("*")
+          .items.select("*")
           .expand("AttachmentFiles")();
 
         const mapped: Notification[] = items.map((item: any) => ({
           id: item.Id,
           title: item.Title || "",
-          description: item.Content ? item.Content.substring(0, 100) + "..." : "",
+          description: item.Content
+            ? item.Content.substring(0, 100) + "..."
+            : "",
           time: item.ReceivedDate
             ? new Date(item.ReceivedDate).toLocaleTimeString()
             : "",
@@ -58,7 +65,7 @@ const Notifications: React.FC<NotificationsProps> = ({ newAdd, activeForm,SpfxCo
           attachments: item.AttachmentFiles
             ? item.AttachmentFiles.map((f: any) => f.FileName)
             : [],
-          status: item.Status?.toLowerCase() === "read" ? "read" : "unread"
+          status: item.Status?.toLowerCase() === "read" ? "read" : "unread",
         }));
 
         setNotifications(mapped);
@@ -69,23 +76,21 @@ const Notifications: React.FC<NotificationsProps> = ({ newAdd, activeForm,SpfxCo
 
     fetchInboxData();
   }, []);
-const markAsRead = async (id: number) => {
-  try {
-    const sp = spfi().using(SPFx(SpfxContext));
-    await sp.web.lists.getByTitle("Inbox").items.getById(id).update({
-      Status: "Read"
-    });
+  const markAsRead = async (id: number) => {
+    try {
+      const sp = spfi().using(SPFx(SpfxContext));
+      await sp.web.lists.getByTitle("Inbox").items.getById(id).update({
+        Status: "Read",
+      });
 
-    // Update local state so UI updates immediately
-    setNotifications(prev =>
-      prev.map(n =>
-        n.id === id ? { ...n, status: "read" } : n
-      )
-    );
-  } catch (err) {
-    console.error("Error updating notification status:", err);
-  }
-};
+      // Update local state so UI updates immediately
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, status: "read" } : n))
+      );
+    } catch (err) {
+      console.error("Error updating notification status:", err);
+    }
+  };
 
   const handleView = (notification: Notification) => {
     setSelectedNotification(notification);
@@ -96,14 +101,13 @@ const markAsRead = async (id: number) => {
     <div className={styles.notificationsContainer}>
       {/* Tabs */}
       <div className={styles.tabs}>
-       
         <button
           className={filter === "read" ? styles.activeTab : ""}
           onClick={() => setFilter("read")}
         >
           Read
         </button>
-         <button
+        <button
           className={filter === "unread" ? styles.activeTab : ""}
           onClick={() => setFilter("unread")}
         >
@@ -113,7 +117,7 @@ const markAsRead = async (id: number) => {
 
       {/* Notification List */}
       {notifications
-        .filter(n => filter === "all" || n.status === filter)
+        .filter((n) => filter === "all" || n.status === filter)
         .map((n) => (
           <div
             key={n.id}
@@ -161,8 +165,12 @@ const markAsRead = async (id: number) => {
         <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
           <h6 className="m-0">FY 2023-24</h6>
           <div className="d-flex gap-2">
-            <Button variant="warning" size="sm">📄 Download PDF</Button>
-            <Button variant="light" size="sm" onClick={() => setShow(false)}>Close</Button>
+            <Button variant="warning" size="sm">
+              📄 Download PDF
+            </Button>
+            <Button variant="light" size="sm" onClick={() => setShow(false)}>
+              Close
+            </Button>
           </div>
         </div>
         <Offcanvas.Body>
@@ -175,13 +183,31 @@ const markAsRead = async (id: number) => {
                 </div>
 
                 <Row className={`mt-4 mb- ${styles.custombg}`}>
-                  <Col><span>From</span><div><strong>{selectedNotification.from}</strong></div></Col>
-                  <Col><span>Received Date:</span><div><strong>{new Date(selectedNotification.date).toLocaleDateString()}</strong></div></Col>
-                  <Col><span>Reference Number:</span><div><b>{selectedNotification.reference}</b></div></Col>
+                  <Col>
+                    <span>From</span>
+                    <div>
+                      <strong>{selectedNotification.from}</strong>
+                    </div>
+                  </Col>
+                  <Col>
+                    <span>Received Date:</span>
+                    <div>
+                      <strong>
+                        {new Date(
+                          selectedNotification.date
+                        ).toLocaleDateString()}
+                      </strong>
+                    </div>
+                  </Col>
+                  <Col>
+                    <span>Reference Number:</span>
+                    <div>
+                      <b>{selectedNotification.reference}</b>
+                    </div>
+                  </Col>
                 </Row>
 
                 <pre>{selectedNotification.body}</pre>
-                  
 
                 <h6>Attachments:</h6>
                 <div className={styles.attachments}>
@@ -197,13 +223,17 @@ const markAsRead = async (id: number) => {
                   ))}
                 </div>
 
-                <Button variant="warning" className="mt-3" onClick={async () => { 
-    if (selectedNotification?.status === "unread") {
-      await markAsRead(selectedNotification.id);
-    }
-    newAdd();
-    activeForm();
-  }}>
+                <Button
+                  variant="warning"
+                  className="mt-3"
+                  onClick={async () => {
+                    if (selectedNotification?.status === "unread") {
+                      await markAsRead(selectedNotification.id);
+                    }
+                    newAdd();
+                    activeForm();
+                  }}
+                >
                   Create Case
                 </Button>
               </div>

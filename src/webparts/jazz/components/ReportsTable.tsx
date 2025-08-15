@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import * as React from "react";
 import { useState, useEffect } from "react";
 import styles from "./Reports.module.scss";
@@ -38,10 +41,9 @@ interface CaseItem {
   lastUpdated: string;
   owner: string;
   taxType: string;
-  category:string;
-  taxYear:string;
+  category: string;
+  taxYear: string;
 }
-
 
 const dummyData: CaseItem[] = [
   {
@@ -71,9 +73,8 @@ const dummyData: CaseItem[] = [
     lastUpdated: "07-14-2025",
     owner: "John Doe",
     taxType: "Income Tax",
-    category:"",
-    taxYear:"",
-
+    category: "",
+    taxYear: "",
   },
   {
     caseNo: "00-CN322",
@@ -102,10 +103,8 @@ const dummyData: CaseItem[] = [
     lastUpdated: "07-15-2025",
     owner: "Sarah Lee",
     taxType: "Income Tax",
-    category:"Probable",
-    taxYear:"2020",
-
-
+    category: "Probable",
+    taxYear: "2020",
   },
   {
     caseNo: "00-CN323",
@@ -124,8 +123,7 @@ const dummyData: CaseItem[] = [
     concerningLaw: "Corporate Tax Rules",
     briefDescription: "Unreported offshore transactions.",
     issuedBy: "IRS Compliance",
-    caseBriefDescription:
-      "Company did not disclose foreign income properly.",
+    caseBriefDescription: "Company did not disclose foreign income properly.",
     taxConsultant: "Tom Hardy",
     emailTitle: "Show Cause Notice",
     hearingDate: "06-01-2025",
@@ -134,11 +132,8 @@ const dummyData: CaseItem[] = [
     lastUpdated: "07-20-2025",
     owner: "Tom Hardy",
     taxType: "Income Tax",
-    category:"",
-    taxYear:"",
-
-
-
+    category: "",
+    taxYear: "",
   },
   {
     caseNo: "00-CN324",
@@ -167,10 +162,8 @@ const dummyData: CaseItem[] = [
     lastUpdated: "07-30-2025",
     owner: "Michael Scott",
     taxType: "Income Tax",
-    category:"",
-    taxYear:"",
-
-
+    category: "",
+    taxYear: "",
   },
   {
     caseNo: "00-CN325",
@@ -199,14 +192,10 @@ const dummyData: CaseItem[] = [
     lastUpdated: "08-01-2025",
     owner: "Rachel Adams",
     taxType: "Income Tax",
-    category:"",
-    taxYear:"",
-
-
-  }
+    category: "",
+    taxYear: "",
+  },
 ];
-
-
 
 const ReportsTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const [show, setShow] = useState(false);
@@ -222,38 +211,38 @@ const ReportsTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
     taxYear: "",
     taxType: "",
     taxAuthority: "",
-    entity: ""
+    entity: "",
   });
-const handleExport = () => {
-  const exportData = filteredData.map((item) => ({
-    "Case No.": item.caseNo,
-    "Doc Reference No.": item.docRef,
-    "Correspondence Type": item.type,
-    "Attachment": item.attachment,
-    "Date Received": item.dateReceived,
-    "Financial Year": item.fy,
-    "Compliance Date": item.complianceDate,
-    "Lawyer": item.lawyer,
-    "Amount": item.amount,
-    "Status": item.status,
-    "Entity": item.entity,
-    "Tax Authority": item.taxAuthority,
-    "Jurisdiction": item.jurisdiction,
-    "Concerning Law": item.concerningLaw,
-    "Brief Description": item.briefDescription,
-    "Issued By": item.issuedBy,
-    "Tax Consultant": item.taxConsultant,
-    "Tax Type": item.taxType,
-    "Category": item.category,
-    "Tax Year": item.taxYear,
-    "Last Updated": item.lastUpdated,
-  }));
+  const handleExport = () => {
+    const exportData = filteredData.map((item) => ({
+      "Case No.": item.caseNo,
+      "Doc Reference No.": item.docRef,
+      "Correspondence Type": item.type,
+      Attachment: item.attachment,
+      "Date Received": item.dateReceived,
+      "Financial Year": item.fy,
+      "Compliance Date": item.complianceDate,
+      Lawyer: item.lawyer,
+      Amount: item.amount,
+      Status: item.status,
+      Entity: item.entity,
+      "Tax Authority": item.taxAuthority,
+      Jurisdiction: item.jurisdiction,
+      "Concerning Law": item.concerningLaw,
+      "Brief Description": item.briefDescription,
+      "Issued By": item.issuedBy,
+      "Tax Consultant": item.taxConsultant,
+      "Tax Type": item.taxType,
+      Category: item.category,
+      "Tax Year": item.taxYear,
+      "Last Updated": item.lastUpdated,
+    }));
 
-  const worksheet = XLSX.utils.json_to_sheet(exportData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered_Report");
-  XLSX.writeFile(workbook, "Filtered_Tax_Report.xlsx");
-};
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered_Report");
+    XLSX.writeFile(workbook, "Filtered_Tax_Report.xlsx");
+  };
 
   const [filteredData, setFilteredData] = useState<CaseItem[]>(dummyData);
   const sp = spfi().using(SPFx(SpfxContext));
@@ -286,7 +275,7 @@ const handleExport = () => {
     const updatedFilters = { ...filters, [key]: value };
     setFilters(updatedFilters);
 
-    const filtered = dummyData.filter(item => {
+    const filtered = dummyData.filter((item) => {
       const itemDate = new Date(item.dateReceived);
 
       const startCheck = updatedFilters.dateStart
@@ -300,13 +289,14 @@ const handleExport = () => {
       return (
         startCheck &&
         endCheck &&
-        (!updatedFilters.category || item.category === updatedFilters.category) &&
-        (!updatedFilters.financialYear || item.fy === updatedFilters.financialYear) &&
-
+        (!updatedFilters.category ||
+          item.category === updatedFilters.category) &&
+        (!updatedFilters.financialYear ||
+          item.fy === updatedFilters.financialYear) &&
         (!updatedFilters.taxYear || item.taxYear === updatedFilters.taxYear) &&
         (!updatedFilters.taxType || item.taxType === updatedFilters.taxType) &&
-        (!updatedFilters.taxAuthority || item.taxAuthority === updatedFilters.taxAuthority) &&
-
+        (!updatedFilters.taxAuthority ||
+          item.taxAuthority === updatedFilters.taxAuthority) &&
         (!updatedFilters.entity || item.entity === updatedFilters.entity)
       );
     });
@@ -315,7 +305,6 @@ const handleExport = () => {
   };
 
   return (
-
     <>
       <div className={styles.filtersRow}>
         {/* Date Range */}
@@ -331,12 +320,14 @@ const handleExport = () => {
     onChange={(e) => handleFilterChange("dateEnd", e.target.value)}
     className={styles.filterInput}
   /> */}
- <Dropdown
+        <Dropdown
           label="Entity"
           placeholder="Select Entity"
           options={lovOptions["Entity"] || []}
           selectedKey={filters.entity || null}
-          onChange={(_, option) => handleFilterChange("entity", option?.key as string)}
+          onChange={(_, option) =>
+            handleFilterChange("entity", option?.key as string)
+          }
           styles={{ root: { minWidth: 160 } }}
         />
 
@@ -345,7 +336,9 @@ const handleExport = () => {
           placeholder="Select Tax Type"
           options={lovOptions["Tax Matter"] || []}
           selectedKey={filters.taxType || null}
-          onChange={(_, option) => handleFilterChange("taxType", option?.key as string)}
+          onChange={(_, option) =>
+            handleFilterChange("taxType", option?.key as string)
+          }
           styles={{ root: { minWidth: 160 } }}
         />
         <Dropdown
@@ -353,18 +346,20 @@ const handleExport = () => {
           placeholder="Select Tax Authority"
           options={lovOptions["TaxAuthority"] || []}
           selectedKey={filters.taxAuthority || null}
-          onChange={(_, option) => handleFilterChange("taxAuthority", option?.key as string)}
+          onChange={(_, option) =>
+            handleFilterChange("taxAuthority", option?.key as string)
+          }
           styles={{ root: { minWidth: 160 } }}
         />
-       
-
 
         <Dropdown
           label="Tax Year"
           placeholder="Select Tax Year"
           options={lovOptions["Tax Year"] || []}
           selectedKey={filters.taxYear || null}
-          onChange={(_, option) => handleFilterChange("taxYear", option?.key as string)}
+          onChange={(_, option) =>
+            handleFilterChange("taxYear", option?.key as string)
+          }
           styles={{ root: { minWidth: 160 } }}
         />
 
@@ -373,7 +368,9 @@ const handleExport = () => {
           placeholder="Select Financial Year"
           options={lovOptions["Financial Year"] || []}
           selectedKey={filters.financialYear || null}
-          onChange={(_, option) => handleFilterChange("financialYear", option?.key as string)}
+          onChange={(_, option) =>
+            handleFilterChange("financialYear", option?.key as string)
+          }
           styles={{ root: { minWidth: 160 } }}
         />
         <Dropdown
@@ -381,20 +378,19 @@ const handleExport = () => {
           placeholder="Select Category"
           options={lovOptions["Category"] || []}
           selectedKey={filters.category || null}
-          onChange={(_, option) => handleFilterChange("category", option?.key as string)}
+          onChange={(_, option) =>
+            handleFilterChange("category", option?.key as string)
+          }
           styles={{ root: { minWidth: 160 } }}
         />
 
- <div className={styles.buttonGroup}>
-    <button className={styles.exportButton} onClick={handleExport} >
-      Export Report
-    </button>
-    <button className={styles.refreshButton} >
-      ⟳
-    </button>
-  </div>
+        <div className={styles.buttonGroup}>
+          <button className={styles.exportButton} onClick={handleExport}>
+            Export Report
+          </button>
+          <button className={styles.refreshButton}>⟳</button>
+        </div>
       </div>
-
 
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
@@ -437,12 +433,13 @@ const handleExport = () => {
                   </span>
                 </td>
                 <td>
-
                   <Button
                     variant="outline-warning"
-                    size="sm" onClick={() => handleShow(item)}
+                    size="sm"
+                    onClick={() => handleShow(item)}
                   >
-                    👁                </Button>
+                    👁{" "}
+                  </Button>
                 </td>
               </tr>
             ))}
