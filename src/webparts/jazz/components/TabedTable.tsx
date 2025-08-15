@@ -20,6 +20,7 @@ import DocumentGrid from "./DocumentGrid";
 import ReportsTable from "./ReportsTable";
 import LOVManagement from "./LOVManagement";
 import Notifications from "./Notifications";
+import LOVForm from "./LOVForm";
 
 const tabs = [
   "Email Notification",
@@ -45,7 +46,7 @@ const TabbedTables: React.FC<{
   const [correspondenceOutData, setCorrespondenceOutData] = useState<any[]>([]);
   const [utpData, setUtpData] = useState<any[]>([]);
   const [activeFormType, setActiveFormType] = useState<
-    "case" | "correspondenceOut" | "UTP" | null
+    "case" | "correspondenceOut" | "UTP" | "LOV" | null
   >(null);
   // const [showLOVManagement, setShowLOVManagement] = useState(false);
 
@@ -131,11 +132,10 @@ const TabbedTables: React.FC<{
           "Status",
           "Author/Title",
           "Editor/Title",
-          "UTP/Title",
-          "UTP/Id"
+          "UTPId"
         )
         .orderBy("ID", false)
-        .expand("Author", "Editor", "UTP")();
+        .expand("Author", "Editor")();
       setUtpData(items);
       console.log("UTP data:", items);
     } catch (err) {
@@ -358,7 +358,7 @@ const TabbedTables: React.FC<{
       <tbody>
         {utpData.map((item) => (
           <tr key={item.ID}>
-            <td>{item.UTPId ? `00-UTP${item.UTPId}` : `00-UTP${item.ID}`}</td>
+            <td>UTP-00{item.ID}</td>
             <td>{item.GMLRID}</td>
             <td>{item.GRSCode}</td>
             <td>{item.ERMUniqueNumbering}</td>
@@ -411,8 +411,12 @@ const TabbedTables: React.FC<{
 
   const renderTabContent = () => {
     if (showLOVManagement) {
+      if (isAddingNew && activeFormType === "LOV") {
+        return <LOVForm SpfxContext={SpfxContext} onCancel={handleCancel} />;
+      }
       return <LOVManagement SpfxContext={SpfxContext} />;
     }
+
     if (isAddingNew) {
       if (activeFormType === "case") {
         return (
@@ -439,6 +443,7 @@ const TabbedTables: React.FC<{
             onCancel={handleCancel}
             onSave={handleSave}
             selectedCase={selectedCase}
+            loadUtpData={loadUTPData()}
           />
         );
       }
@@ -501,12 +506,15 @@ const TabbedTables: React.FC<{
         </h3>
         {(activeTab === "Correspondence In" ||
           activeTab === "Correspondence Out" ||
-          activeTab === "UTP Dashboard") &&
+          activeTab === "UTP Dashboard" ||
+          showLOVManagement) &&
           !isAddingNew && (
             <button
               className={styles.addBtn}
               onClick={() => {
-                if (activeTab === "Correspondence In") {
+                if (showLOVManagement) {
+                  setActiveFormType("LOV");
+                } else if (activeTab === "Correspondence In") {
                   setActiveFormType("case");
                 } else if (activeTab === "Correspondence Out") {
                   setActiveFormType("correspondenceOut");
@@ -522,7 +530,8 @@ const TabbedTables: React.FC<{
       </div>
       <div className={styles.headerRow}>
         <h6 className={styles.activeTabTitle2}>
-          Home <span style={{ color: "red" }}>&gt;</span> {activeTab}
+          Home <span style={{ color: "red" }}>&gt;</span>{" "}
+          {showLOVManagement ? "LOV Management" : activeTab}
         </h6>
       </div>
       <div className={styles.tableContainer}>{renderTabContent()}</div>

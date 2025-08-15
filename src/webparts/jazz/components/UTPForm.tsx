@@ -1,10 +1,11 @@
+/* eslint-disable no-unused-expressions */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable dot-notation */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { spfi, SPFx } from "@pnp/sp";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
@@ -24,6 +25,7 @@ interface UTPFormProps {
   onSave: (data: any) => void;
   SpfxContext: any;
   selectedCase?: any;
+  loadUtpData: any;
 }
 
 const UTPForm: React.FC<UTPFormProps> = ({
@@ -31,6 +33,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
   onCancel,
   onSave,
   selectedCase,
+  loadUtpData,
 }) => {
   const { control, handleSubmit, reset, getValues } = useForm();
   const [lovOptions, setLovOptions] = useState<{
@@ -39,7 +42,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [caseOptions, setCaseOptions] = useState<IDropdownOption[]>([]);
-  const [utpOptions, setUtpOptions] = useState<IDropdownOption[]>([]);
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -69,9 +71,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
   useEffect(() => {
     (async () => {
-      const [cases, utps, lovs] = await Promise.all([
+      const [cases, lovs] = await Promise.all([
         sp.web.lists.getByTitle("Cases").items.select("Id", "Title")(),
-        sp.web.lists.getByTitle("UTPData").items.select("Id", "Title")(),
         sp.web.lists
           .getByTitle("LOV Data")
           .items.select("Id", "Title", "Description", "Status")(),
@@ -85,12 +86,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
             key: item.Id,
             text: `CN-${item.Id.toString().padStart(4, "0")}`,
           }))
-      );
-      setUtpOptions(
-        utps.map((item) => ({
-          key: item.Id,
-          text: `UTP-${item.Id.toString().padStart(3, "0")}`,
-        }))
       );
 
       // LOV grouped options
@@ -140,6 +135,21 @@ const UTPForm: React.FC<UTPFormProps> = ({
       prefilled.CaseNumber =
         selectedCase?.CaseNumber?.Id || selectedCase?.CaseNumberId || null;
       prefilled.UTPId = selectedCase?.UTPId || null;
+      prefilled.GMLRID = selectedCase?.GMLRID || null;
+      prefilled.PLExposure =
+        selectedCase.PLExposure !== undefined &&
+        selectedCase.PLExposure !== null
+          ? Number(selectedCase.PLExposure)
+          : "";
+
+      prefilled.EBITDAExposure =
+        selectedCase.EBITDAExposure !== undefined &&
+        selectedCase.EBITDAExposure !== null
+          ? Number(selectedCase.EBITDAExposure)
+          : "";
+
+      // Text field
+      prefilled.ContigencyNote = selectedCase.ContigencyNote || "";
       reset(prefilled);
 
       const files = await sp.web.lists
@@ -157,13 +167,13 @@ const UTPForm: React.FC<UTPFormProps> = ({
       IsDraft: isDraft,
       Status: isDraft ? "Draft" : "Open",
       CaseNumberId: data.CaseNumber || null,
-      UTPId: data.UTPId || null,
+      UTPId: `UTP-00${data.Id}`,
+      GMLRID: `GMLR-00${data.Id}`,
     };
     ["UTPCategory", "TaxMatter", "RiskCategory", "PaymentType"].forEach(
       (key) => (itemData[key] = data[key] || "")
     );
     [
-      "GMLRID",
       "GRSCode",
       "ERMUniqueNumbering",
       "GrossExposure",
@@ -182,6 +192,18 @@ const UTPForm: React.FC<UTPFormProps> = ({
       itemData[name] =
         data[name] !== null && data[name] !== undefined ? data[name] : null;
     });
+    itemData.PLExposure =
+      data.PLExposure !== undefined && data.PLExposure !== ""
+        ? Number(data.PLExposure)
+        : null;
+
+    itemData.EBITDAExposure =
+      data.EBITDAExposure !== undefined && data.EBITDAExposure !== ""
+        ? Number(data.EBITDAExposure)
+        : null;
+
+    // Text column
+    itemData.ContigencyNote = data.ContigencyNote || "";
 
     try {
       let itemId = selectedCase?.ID;
@@ -195,6 +217,13 @@ const UTPForm: React.FC<UTPFormProps> = ({
           .getByTitle("UTPData")
           .items.add(itemData);
         itemId = result.ID;
+        await sp.web.lists
+          .getByTitle("UTPData")
+          .items.getById(itemId)
+          .update({
+            UTPId: `UTP-00${itemId}`,
+            GMLRID: `GMLR-00${itemId}`,
+          });
       }
 
       for (const file of attachments) {
@@ -209,6 +238,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
       alert(isDraft ? "Draft saved" : "UTP submitted");
       onSave(data);
+      loadUtpData;
       reset();
       setAttachments([]);
     } catch (error) {
@@ -216,6 +246,40 @@ const UTPForm: React.FC<UTPFormProps> = ({
       alert("Error submitting UTP");
     }
   };
+
+  const contingencyNoteExists = useWatch({
+    control,
+    name: "ContingencyNoteExists",
+  });
+
+  const plexposureExists = useWatch({
+    control,
+    name: "PLExposureExists",
+  });
+  const ebitdaExposureExists = useWatch({
+    control,
+    name: "EBITDAExposureExists",
+  });
+  useEffect(() => {
+    const loadDefaults = async () => {
+      if (!selectedCase) {
+        // Only for new item
+        const lastItem = await sp.web.lists
+          .getByTitle("UTPData")
+          .items.orderBy("ID", false) // false = descending
+          .top(1)();
+
+        const nextId = lastItem.length > 0 ? lastItem[0].ID + 1 : 1;
+
+        reset({
+          UTPId: nextId,
+          GMLRID: nextId,
+        });
+      }
+    };
+
+    loadDefaults();
+  }, [selectedCase]);
 
   return (
     <form
@@ -263,25 +327,23 @@ const UTPForm: React.FC<UTPFormProps> = ({
         <Controller
           name="UTPId"
           control={control}
-          render={({ field: f }) => (
-            <Dropdown
+          render={({ field }) => (
+            <TextField
               label="UTP ID"
-              options={utpOptions}
-              selectedKey={f.value || ""}
-              onChange={(_, option) => f.onChange(option?.key || "")}
-              placeholder="Select existing UTP or leave blank"
+              readOnly
+              value={`UTP-00${field.value || ""}`}
             />
           )}
         />
+
         <Controller
           name="GMLRID"
           control={control}
           render={({ field }) => (
             <TextField
               label="GMLR ID"
-              placeholder="Enter ID"
-              {...field}
-              required
+              readOnly
+              value={`GMLR-00${field.value || ""}`}
             />
           )}
         />
@@ -347,11 +409,36 @@ const UTPForm: React.FC<UTPFormProps> = ({
           render={({ field }) => renderRadioGroup("P&L Exposure Exists", field)}
         />
         <Controller
+          name="PLExposure"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              label="P&L Exposure"
+              placeholder="Enter Value"
+              {...field}
+              disabled={plexposureExists !== true}
+            />
+          )}
+        />
+        <Controller
           name="EBITDAExposureExists"
           control={control}
           render={({ field }) =>
             renderRadioGroup("EBITDA Exposure Exists", field)
           }
+        />
+
+        <Controller
+          name="EBITDAExposure"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              label="EBITDA Exposure"
+              placeholder="Enter Value"
+              {...field}
+              disabled={ebitdaExposureExists !== true}
+            />
+          )}
         />
 
         {/* Row 4 */}
@@ -361,6 +448,18 @@ const UTPForm: React.FC<UTPFormProps> = ({
           render={({ field }) =>
             renderRadioGroup("Contingency Note Exists", field)
           }
+        />
+        <Controller
+          name="ContigencyNote"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              label="Contigency Note"
+              placeholder="Enter Note"
+              {...field}
+              disabled={contingencyNoteExists !== true}
+            />
+          )}
         />
         <Controller
           name="RiskCategory"

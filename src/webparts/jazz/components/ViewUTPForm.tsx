@@ -36,7 +36,7 @@ const ViewUTPForm: React.FC<{
             <td>
               <strong>UTP ID:</strong>
             </td>
-            <td>{data.UTPID}</td>
+            <td>UTP-0{data.Id}</td>
           </tr>
           <tr>
             <td>
@@ -60,31 +60,19 @@ const ViewUTPForm: React.FC<{
           </tr>
           <tr>
             <td>
-              <strong>Jurisdiction:</strong>
-            </td>
-            <td>{data.Jurisdiction}</td>
-            <td>
-              <strong>Concerning Law:</strong>
-            </td>
-            <td>{data.ConcerningLaw}</td>
-          </tr>
-          <tr>
-            <td>
               <strong>Cash Flow Exposure:</strong>
             </td>
             <td>{data.CashFlowExposure}</td>
             <td>
               <strong>P&amp;L Exposure Exists:</strong>
             </td>
-            <td>{data.PLExposureExists}</td>
+            {data.PLExposureExists ? <span>Yes</span> : <span>No</span>}
           </tr>
           <tr>
             <td>
               <strong>P&amp;L Exposure:</strong>
             </td>
-            <td>
-              {data.PLExposureExists ? <span>Yes</span> : <span>No</span>}
-            </td>
+            <td>{data.PLExposure}</td>
             <td>
               <strong>EBITDA Exposure Exists:</strong>
             </td>
