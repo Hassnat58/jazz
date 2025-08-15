@@ -1,6 +1,16 @@
-@import '~@fluentui/react/dist/sass/References.scss';
+@import "~@fluentui/react/dist/sass/References.scss";
 :global {
-  #workbenchPageContent, .CanvasComponent.LCS .CanvasZone {
+  #workbenchPageContent,
+  .CanvasComponent.LCS .CanvasZone {
     max-width: 100% !important;
+  }
+  #spSiteHeader {
+    display: none !important;
+  }
+  #spCommandBar {
+    display: none !important;
+  }
+  .spAppAndPropertyPanelContainer .sp-appBar {
+    display: none !important;
   }
 }
