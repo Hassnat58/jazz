@@ -28,52 +28,65 @@ interface NotificationsProps {
   newAdd: () => void;
   activeForm: () => void;
   SpfxContext: any;
+  setNotiID: any
 }
 
 const Notifications: React.FC<NotificationsProps> = ({
   newAdd,
   activeForm,
   SpfxContext,
+  setNotiID
 }) => {
   const [show, setShow] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("read");
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
+  const fetchInboxData = async () => {
+    try {
+      const sp = spfi().using(SPFx(SpfxContext));
+      const items = await sp.web.lists
+        .getByTitle("Inbox")
+        .items.select("*")
+        .expand("AttachmentFiles")();
 
+      const mapped: Notification[] = items.map((item: any) => ({
+        id: item.Id,
+        title: item.Title || "",
+        description: item.Content
+          ? item.Content.substring(0, 100) + "..."
+          : "",
+        time: item.ReceivedDate
+          ? new Date(item.ReceivedDate).toLocaleTimeString()
+          : "",
+        from: item.Sender || "",
+        date: item.ReceivedDate || "",
+        reference: item.LinkedCaseIDId || "",
+        body: item.Content || "",
+        attachments: item.AttachmentFiles
+          ? item.AttachmentFiles.map((f: any) => f.FileName)
+          : [],
+        status: item.Status?.toLowerCase() === "read" ? "read" : "unread",
+      }));
+
+      setNotifications(mapped);
+    } catch (err) {
+      console.error("Error fetching Inbox list:", err);
+    }
+  };
+  const deleteNotification = async (id: number) => {
+    try {
+      const sp = spfi().using(SPFx(SpfxContext));
+      await sp.web.lists.getByTitle("Inbox").items.getById(id).delete();
+
+      alert("Notification deleted");
+      fetchInboxData(); // refresh the list
+    } catch (err) {
+      console.error("Error deleting notification:", err);
+    }
+  };
   useEffect(() => {
-    const fetchInboxData = async () => {
-      try {
-        const sp = spfi().using(SPFx(SpfxContext));
-        const items = await sp.web.lists
-          .getByTitle("Inbox")
-          .items.select("*")
-          .expand("AttachmentFiles")();
 
-        const mapped: Notification[] = items.map((item: any) => ({
-          id: item.Id,
-          title: item.Title || "",
-          description: item.Content
-            ? item.Content.substring(0, 100) + "..."
-            : "",
-          time: item.ReceivedDate
-            ? new Date(item.ReceivedDate).toLocaleTimeString()
-            : "",
-          from: item.Sender || "",
-          date: item.ReceivedDate || "",
-          reference: item.LinkedCaseIDId || "",
-          body: item.Content || "",
-          attachments: item.AttachmentFiles
-            ? item.AttachmentFiles.map((f: any) => f.FileName)
-            : [],
-          status: item.Status?.toLowerCase() === "read" ? "read" : "unread",
-        }));
-
-        setNotifications(mapped);
-      } catch (err) {
-        console.error("Error fetching Inbox list:", err);
-      }
-    };
 
     fetchInboxData();
   }, []);
@@ -143,13 +156,19 @@ const Notifications: React.FC<NotificationsProps> = ({
                   variant="outline-warning"
                   size="sm"
                   className="me-2"
-                  onClick={() => handleView(n)}
+                  onClick={() => { setNotiID(n.id); handleView(n) }}
                 >
                   👁
                 </Button>
-                <Button variant="outline-danger" size="sm">
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={() => deleteNotification(n.id)}
+                >
                   🗑
                 </Button>
+
+
               </div>
             </div>
           </div>

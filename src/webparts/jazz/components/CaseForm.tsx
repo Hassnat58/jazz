@@ -29,6 +29,7 @@ interface CaseFormProps {
   onSave: (data: any) => void;
   SpfxContext: any;
   selectedCase?: any;
+  notiID?:any
 }
 
 const CaseForm: React.FC<CaseFormProps> = ({
@@ -36,6 +37,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   onCancel,
   onSave,
   selectedCase,
+  notiID
 }) => {
   const { control, handleSubmit, reset, getValues } = useForm();
   const [lovOptions, setLovOptions] = useState<{
@@ -261,7 +263,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       } else {
         const addResult = await sp.web.lists
           .getByTitle("Cases")
-          .items.add(itemData);
+          .items.add({...itemData,LinkedNotificationIDId:notiID?notiID:""});
         itemId = addResult.ID;
       }
       for (const entry of taxIssueEntries) {
@@ -283,6 +285,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
             AmountContested: entry.amountContested,
             GrossTaxExposure: entry.grossTaxExposure,
             CaseId: itemId,
+            
           });
         }
       }

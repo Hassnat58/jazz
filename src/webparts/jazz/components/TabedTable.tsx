@@ -41,6 +41,7 @@ const TabbedTables: React.FC<{
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [casesData, setCasesData] = useState<any[]>([]);
   const [selectedCase, setSelectedCase] = useState<any>(null);
+  const [notiID, setNotiID] = useState<any>(null);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [correspondenceOutData, setCorrespondenceOutData] = useState<any[]>([]);
@@ -425,6 +426,7 @@ const TabbedTables: React.FC<{
             onCancel={handleCancel}
             onSave={handleSave}
             selectedCase={selectedCase}
+            notiID={notiID}
           />
         );
       } else if (activeFormType === "correspondenceOut") {
@@ -462,6 +464,7 @@ const TabbedTables: React.FC<{
           <Notifications
             newAdd={() => setIsAddingNew(true)}
             SpfxContext={SpfxContext}
+            setNotiID={setNotiID}
             activeForm={() => setActiveFormType("case")}
           />
         );
@@ -512,6 +515,7 @@ const TabbedTables: React.FC<{
             <button
               className={styles.addBtn}
               onClick={() => {
+                setNotiID(null)
                 if (showLOVManagement) {
                   setActiveFormType("LOV");
                 } else if (activeTab === "Correspondence In") {
