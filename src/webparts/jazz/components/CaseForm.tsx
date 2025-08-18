@@ -29,7 +29,7 @@ interface CaseFormProps {
   onSave: (data: any) => void;
   SpfxContext: any;
   selectedCase?: any;
-  notiID?:any
+  notiID?: any;
 }
 
 const CaseForm: React.FC<CaseFormProps> = ({
@@ -37,7 +37,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   onCancel,
   onSave,
   selectedCase,
-  notiID
+  notiID,
 }) => {
   const { control, handleSubmit, reset, getValues } = useForm();
   const [lovOptions, setLovOptions] = useState<{
@@ -121,7 +121,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { type: "date", label: "Date of Compliance", name: "DateofCompliance" },
     { type: "date", label: "Hearing Date", name: "Hearingdate" },
     { type: "dropdown", label: "Tax exposure Stage" },
-
     { type: "dropdown", label: "Tax Consultant Assigned" },
     { type: "dropdown", label: "Exposure Issues" },
     {
@@ -155,7 +154,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       .then((items) => {
         const options = items.map((item) => ({
           key: item.ID,
-          text: `CN--00${item.ID}`, // or Case Number field
+          text: `CN--00${item.ID}`,
         }));
         setCasesOptions(options);
       });
@@ -261,9 +260,10 @@ const CaseForm: React.FC<CaseFormProps> = ({
           .update(itemData);
         itemId = selectedCase.ID;
       } else {
-        const addResult = await sp.web.lists
-          .getByTitle("Cases")
-          .items.add({...itemData,LinkedNotificationIDId:notiID?notiID:""});
+        const addResult = await sp.web.lists.getByTitle("Cases").items.add({
+          ...itemData,
+          LinkedNotificationIDId: notiID ? notiID : "",
+        });
         itemId = addResult.ID;
       }
       for (const entry of taxIssueEntries) {
@@ -285,7 +285,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
             AmountContested: entry.amountContested,
             GrossTaxExposure: entry.grossTaxExposure,
             CaseId: itemId,
-            
           });
         }
       }

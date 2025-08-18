@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
 import { Offcanvas, Button, Row, Col } from "react-bootstrap";
-import jazzLogo from "../assets/jazz-logo (1).png";
+import jazzLogo from "../assets/jazz-logo.png";
 import styles from "../components/ManagerDetailsDrawer.module.scss";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";

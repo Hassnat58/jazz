@@ -7,7 +7,7 @@ import {
   faCog, // Settings icon
   faUser, // User icon
 } from "@fortawesome/free-solid-svg-icons";
-import logo from "../assets/jazz-logo (1).png";
+import logo from "../assets/jazz-logo.png";
 
 const Navbar: React.FC<{ onLOVManagementClick: () => void }> = ({
   onLOVManagementClick,

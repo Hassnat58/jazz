@@ -107,7 +107,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
         (f) => (prefilled[f] = selectedCase[f] || "")
       );
       [
-        "GMLRID",
         "GRSCode",
         "ERMUniqueNumbering",
         "GrossExposure",
@@ -328,11 +327,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           name="UTPId"
           control={control}
           render={({ field }) => (
-            <TextField
-              label="UTP ID"
-              readOnly
-              value={`UTP-00${field.value || ""}`}
-            />
+            <TextField label="UTP ID" readOnly value={field.value || ""} />
           )}
         />
 
@@ -340,11 +335,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           name="GMLRID"
           control={control}
           render={({ field }) => (
-            <TextField
-              label="GMLR ID"
-              readOnly
-              value={`GMLR-00${field.value || ""}`}
-            />
+            <TextField label="GMLR ID" readOnly value={field.value || ""} />
           )}
         />
 

@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
 import styles from "../components/ViewCaseFor.module.scss";
-import jazzLogo from "../assets/jazz-logo (1).png";
+import jazzLogo from "../assets/jazz-logo.png";
 import pdfIcon from "../assets/pdf.png";
 import wordIcon from "../assets/word.png";
 import xlsIcon from "../assets/xls.png";
-import imageIcon from "../assets/image (2).png";
+import imageIcon from "../assets/image.png";
 import genericIcon from "../assets/document.png"; // fallback
 
 const ViewCorrespondenceOutOffcanvas: React.FC<{

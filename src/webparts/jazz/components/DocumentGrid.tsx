@@ -10,7 +10,7 @@ import pdfIcon from "../assets/pdf.png";
 import wordIcon from "../assets/word.png";
 import xlsIcon from "../assets/xls.png";
 import defaultIcon from "../assets/document.png";
-import imageIcon from "../assets/image (2).png";
+import imageIcon from "../assets/image.png";
 import { Button } from "react-bootstrap";
 // import { FiDownload } from "react-icons/fi";
 import "bootstrap/dist/css/bootstrap.min.css";

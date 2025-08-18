@@ -7,7 +7,7 @@ import { spfi, SPFx } from "@pnp/sp"; // already in your imports
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
-import jazzLogo from "../assets/jazz-logo (1).png";
+import jazzLogo from "../assets/jazz-logo.png";
 import { Offcanvas, Button, Badge, Row, Col } from "react-bootstrap";
 import styles from "./Notifications.module.scss";
 
@@ -28,14 +28,14 @@ interface NotificationsProps {
   newAdd: () => void;
   activeForm: () => void;
   SpfxContext: any;
-  setNotiID: any
+  setNotiID: any;
 }
 
 const Notifications: React.FC<NotificationsProps> = ({
   newAdd,
   activeForm,
   SpfxContext,
-  setNotiID
+  setNotiID,
 }) => {
   const [show, setShow] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("read");
@@ -53,9 +53,7 @@ const Notifications: React.FC<NotificationsProps> = ({
       const mapped: Notification[] = items.map((item: any) => ({
         id: item.Id,
         title: item.Title || "",
-        description: item.Content
-          ? item.Content.substring(0, 100) + "..."
-          : "",
+        description: item.Content ? item.Content.substring(0, 100) + "..." : "",
         time: item.ReceivedDate
           ? new Date(item.ReceivedDate).toLocaleTimeString()
           : "",
@@ -86,8 +84,6 @@ const Notifications: React.FC<NotificationsProps> = ({
     }
   };
   useEffect(() => {
-
-
     fetchInboxData();
   }, []);
   const markAsRead = async (id: number) => {
@@ -156,7 +152,10 @@ const Notifications: React.FC<NotificationsProps> = ({
                   variant="outline-warning"
                   size="sm"
                   className="me-2"
-                  onClick={() => { setNotiID(n.id); handleView(n) }}
+                  onClick={() => {
+                    setNotiID(n.id);
+                    handleView(n);
+                  }}
                 >
                   👁
                 </Button>
@@ -167,8 +166,6 @@ const Notifications: React.FC<NotificationsProps> = ({
                 >
                   🗑
                 </Button>
-
-
               </div>
             </div>
           </div>

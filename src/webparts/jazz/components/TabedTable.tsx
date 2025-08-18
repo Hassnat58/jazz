@@ -180,7 +180,13 @@ const TabbedTables: React.FC<{
     console.log("Form Submitted:", formData);
     setIsAddingNew(false);
     setSelectedCase(null);
-    loadCasesData();
+    if (activeFormType === "case") loadCasesData();
+    else if (activeFormType === "correspondenceOut")
+      loadCorrespondenceOutData();
+    if (activeFormType === "UTP") loadUTPData();
+    if (activeFormType === "LOV") {
+      setShowLOVManagement(true);
+    }
   };
 
   const handleShow = async (item: any) => {
@@ -515,7 +521,7 @@ const TabbedTables: React.FC<{
             <button
               className={styles.addBtn}
               onClick={() => {
-                setNotiID(null)
+                setNotiID(null);
                 if (showLOVManagement) {
                   setActiveFormType("LOV");
                 } else if (activeTab === "Correspondence In") {
