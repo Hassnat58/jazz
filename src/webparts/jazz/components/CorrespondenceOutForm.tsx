@@ -209,7 +209,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           Save as Draft
         </button>
         <button type="submit" className={styles.savebtn}>
-          {selectedCase ? "Update" : "Save"}
+          Submit
         </button>
       </div>
 

@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /* eslint-disable dot-notation */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
@@ -13,7 +14,7 @@ import "@pnp/sp/items";
 import "@pnp/sp/files";
 import "@pnp/sp/folders";
 import "@pnp/sp/attachments";
-
+import "react-datepicker/dist/react-datepicker.css";
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
 import { DatePicker } from "@fluentui/react/lib/DatePicker";
@@ -23,6 +24,7 @@ import {
   PeoplePicker,
   PrincipalType,
 } from "@pnp/spfx-controls-react/lib/PeoplePicker";
+import { ComboBox, IComboBoxOption } from "@fluentui/react";
 
 interface CaseFormProps {
   onCancel: () => void;
@@ -43,9 +45,10 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
-  const [casesOptions, setCasesOptions] = React.useState<IDropdownOption[]>([]);
+  const [casesOptions, setCasesOptions] = React.useState<IComboBoxOption[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
+  const [caseSearch, setCaseSearch] = useState("");
   const [taxIssueEntries, setTaxIssueEntries] = useState<
     {
       id: any;
@@ -54,6 +57,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       grossTaxExposure: number;
     }[]
   >([]);
+  const [nextCaseNumber, setNextCaseNumber] = useState<number | null>(null);
   // const [currentTaxIssue, setCurrentTaxIssue] = useState<{
   //   taxIssue: string;
   //   id: any;
@@ -152,13 +156,20 @@ const CaseForm: React.FC<CaseFormProps> = ({
       .getByTitle("Cases")
       .items.select("ID", "Title")()
       .then((items) => {
-        const options = items.map((item) => ({
-          key: item.ID,
-          text: `CN--00${item.ID}`,
+        const options: IComboBoxOption[] = items.map((item) => ({
+          key: item.ID.toString(), // ← string key
+          text: `CN--00${item.ID}`, // ← text is the Case Number
         }));
         setCasesOptions(options);
       });
   }, []);
+  const filteredCaseOptions = React.useMemo(() => {
+    if (!caseSearch) return casesOptions;
+    const q = caseSearch.toLowerCase();
+    return casesOptions.filter((o) =>
+      (o.text as string).toLowerCase().includes(q)
+    );
+  }, [caseSearch, casesOptions]);
 
   useEffect(() => {
     const loadExistingAttachments = async () => {
@@ -212,82 +223,84 @@ const CaseForm: React.FC<CaseFormProps> = ({
       loadExistingAttachments();
     }
   }, [selectedCase, reset]);
+  useEffect(() => {
+    if (!selectedCase) {
+      // Fetch last Case ID
+      sp.web.lists
+        .getByTitle("Cases")
+        .items.top(1)
+        .orderBy("ID", false)() // descending
+        .then((items) => {
+          const lastId = items.length > 0 ? items[0].ID : 0;
+          setNextCaseNumber(lastId + 1);
+        });
+    }
+  }, [selectedCase]);
 
   const submitForm = async (isDraft: boolean) => {
     const data = getValues();
+
     const itemData: any = {
-      Title: String(data.CaseNumber || ""),
+      Title: `CN--00${nextCaseNumber}`, // always new case number
       IsDraft: isDraft,
       CaseStatus: isDraft ? "Draft" : "Active",
-      ParentCaseId: data.ParentCaseId || null,
+      ParentCaseId: selectedCase ? Number(selectedCase.ID) : null, // link back if cloning
     };
 
+    // dropdowns
     dropdownFields.forEach((field) => {
       const key = fieldMapping[field];
       const value = data[key];
-
       itemData[key] =
         typeof value === "string"
           ? value
           : value?.text || value?.Description || value?.toString?.() || "";
     });
 
+    // inputs
     inputFields.forEach(({ name }) => {
       itemData[name] =
         name === "GrossTaxDemanded"
           ? parseFloat(data[name]) || 0
           : data[name] || "";
     });
+
+    // dates
     dateFields.forEach(({ name }) => {
       itemData[name] = data[name] || null;
     });
+
+    // multi-line text
     multilineFields.forEach(({ name }) => {
       itemData[name] = data[name] || "";
     });
-    if (data.LawyerAssigned && data.LawyerAssigned.Id) {
-      itemData["LawyerAssignedId"] = data.LawyerAssigned.Id;
+
+    if (data.LawyerAssigned) {
+      itemData["LawyerAssignedId"] =
+        data.LawyerAssigned.Id || data.LawyerAssigned.id || null;
     }
 
-    console.log("LawyerAssignedId:", itemData["LawyerAssignedId"]);
     console.log("Final itemData before submit:", itemData);
 
     try {
-      let itemId;
-      if (selectedCase?.ID) {
-        await sp.web.lists
-          .getByTitle("Cases")
-          .items.getById(selectedCase.ID)
-          .update(itemData);
-        itemId = selectedCase.ID;
-      } else {
-        const addResult = await sp.web.lists.getByTitle("Cases").items.add({
-          ...itemData,
-          LinkedNotificationIDId: notiID ? notiID : "",
-        });
-        itemId = addResult.ID;
-      }
+      const addResult = await sp.web.lists.getByTitle("Cases").items.add({
+        ...itemData,
+        LinkedNotificationIDId: notiID || null,
+      });
+
+      const itemId = addResult.ID;
+
+      // add tax issues
       for (const entry of taxIssueEntries) {
-        if (entry.id) {
-          // Existing tax issue → update
-          await sp.web.lists
-            .getByTitle("Tax Issues")
-            .items.getById(entry.id)
-            .update({
-              Title: entry.taxIssue,
-              AmountContested: entry.amountContested,
-              GrossTaxExposure: entry.grossTaxExposure,
-              CaseId: itemId,
-            });
-        } else {
-          // New tax issue → add
-          await sp.web.lists.getByTitle("Tax Issues").items.add({
-            Title: entry.taxIssue,
-            AmountContested: entry.amountContested,
-            GrossTaxExposure: entry.grossTaxExposure,
-            CaseId: itemId,
-          });
-        }
+        await sp.web.lists.getByTitle("Tax Issues").items.add({
+          Title: entry.taxIssue,
+          AmountContested: entry.amountContested,
+          GrossTaxExposure: entry.grossTaxExposure,
+          CaseId: itemId,
+        });
       }
+
+      // upload attachments
       for (const file of attachments) {
         const uploadResult = await sp.web.lists
           .getByTitle("Core Data Repositories")
@@ -299,9 +312,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
           .getFileByServerRelativePath(serverRelativeUrl)
           .getItem();
 
-        await fileItem.update({
-          CaseId: itemId,
-        });
+        await fileItem.update({ CaseId: itemId });
       }
 
       alert(isDraft ? "Draft saved" : "Case submitted");
@@ -341,19 +352,46 @@ const CaseForm: React.FC<CaseFormProps> = ({
         </button>
       </div>
       <div style={formStyle}>
-        <Controller
-          name="ParentCaseId"
-          control={control}
-          render={({ field: f }) => (
-            <Dropdown
-              label="Case Number"
-              options={[{ key: "", text: "-- None --" }, ...casesOptions]}
-              selectedKey={f.value || ""}
-              onChange={(_, option) => f.onChange(option?.key || "")}
-              placeholder="Select existing case or leave blank"
-            />
-          )}
-        />
+        {!selectedCase ? (
+          // New Case → readonly Case Number
+          <TextField
+            label="Case Number"
+            value={nextCaseNumber ? `CN--00${nextCaseNumber}` : "Loading..."}
+            readOnly
+          />
+        ) : (
+          // Editing Case → Dropdown for ParentCaseId
+
+          <Controller
+            name="ParentCaseId"
+            control={control}
+            render={({ field: f }) => (
+              <ComboBox
+                label="Case Number"
+                options={[
+                  { key: "", text: "-- None --" },
+                  ...filteredCaseOptions,
+                ]}
+                // store as string in the form; convert later when you need a number
+                selectedKey={f.value?.toString() ?? ""}
+                onChange={(_, option) =>
+                  f.onChange((option?.key as string) || "")
+                }
+                placeholder="Type to search case number (e.g. CN--0015)"
+                // lets the user type freely; value is committed only when an option is picked
+                allowFreeform
+                // track the typed text and filter options
+                onInputValueChange={(text) => setCaseSearch(text || "")}
+                // optional: clear the search when menu closes so full list shows next time
+                onMenuDismissed={() => setCaseSearch("")}
+                // optional niceties
+                openOnKeyboardFocus
+                useComboBoxAsMenuWidth
+              />
+            )}
+          />
+        )}
+
         {fieldOrder.map((field) => {
           if (field.type === "input")
             return (
@@ -564,7 +602,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
       </div>
       <div style={{ marginTop: "1rem" }}>
         <h3>Tax Issues</h3>
-
         {taxIssueEntries.map((entry, idx) => (
           <div
             key={idx}

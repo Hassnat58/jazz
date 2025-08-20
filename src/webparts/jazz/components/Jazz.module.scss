@@ -3,6 +3,7 @@
   #workbenchPageContent,
   .CanvasComponent.LCS .CanvasZone {
     max-width: 100% !important;
+    padding: 0% !important;
   }
   #spSiteHeader {
     display: none !important;
@@ -10,9 +11,9 @@
   #spCommandBar {
     display: none !important;
   }
-  .spAppAndPropertyPanelContainer .sp-appBar {
-    display: none !important;
-  }
+  // .spAppAndPropertyPanelContainer .sp-appBar {
+  //   display: none !important;
+  // }
   #SuiteNavWrapper {
     display: none !important;
   }

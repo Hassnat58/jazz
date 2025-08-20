@@ -21,6 +21,7 @@ import ReportsTable from "./ReportsTable";
 import LOVManagement from "./LOVManagement";
 import Notifications from "./Notifications";
 import LOVForm from "./LOVForm";
+import Pagination from "./Pagination";
 
 const tabs = [
   "Email Notification",
@@ -50,6 +51,11 @@ const TabbedTables: React.FC<{
     "case" | "correspondenceOut" | "UTP" | "LOV" | null
   >(null);
   // const [showLOVManagement, setShowLOVManagement] = useState(false);
+  const [casesPage, setCasesPage] = useState(1);
+  const [correspondencePage, setCorrespondencePage] = useState(1);
+  const [utpPage, setUtpPage] = useState(1);
+
+  const itemsPerPage = 10;
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -212,210 +218,249 @@ const TabbedTables: React.FC<{
     setSelectedCase(null);
   };
 
-  const renderCorrespondenceTable = () => (
-    <table className={styles.table}>
-      <thead>
-        <tr>
-          <th>Case No</th>
-          <th>Correspondence Type</th>
-          <th>Date Received</th>
-          <th>Financial Year</th>
-          <th>Date of Compliance</th>
-          <th>Lawyer Assigned</th>
-          <th>Gross Tax Demanded</th>
-          <th>Case Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {casesData.map((item) => (
-          <tr key={item.ID}>
-            <td>
-              {item.ParentCaseId
-                ? `00-CN${item.ParentCaseId}`
-                : `00-CN${item.ID}`}
-            </td>
-            <td>{item.CorrespondenceType}</td>
-            <td>{item.DateReceived?.split("T")[0]}</td>
-            <td>{item.FinancialYear}</td>
-            <td>{item.DateofCompliance?.split("T")[0]}</td>
-            <td>{item.LawyerAssigned?.Title}</td>
-            <td>{item.GrossTaxDemanded}</td>
-            <td>
-              {item.CaseStatus && (
-                <div
-                  style={{
-                    backgroundColor:
-                      item.CaseStatus === "Active" ? "#5ebd74" : "#20a5bb",
-                    color: "white",
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                  }}
-                >
-                  {item.CaseStatus}
-                </div>
-              )}
-              {/* <div
-                style={{
-                  backgroundColor:
-                    item.CaseStatus === "Active" ? "#5ebd74" : "#20a5bb",
-                  color: "white",
-                  padding: "4px 8px",
-                  borderRadius: "4px",
-                }}
-              >
-                {item.CaseStatus}
-              </div> */}
-            </td>
+  const renderCorrespondenceTable = () => {
+    const totalPages = Math.ceil(casesData.length / itemsPerPage);
+    const paginatedData = casesData.slice(
+      (casesPage - 1) * itemsPerPage,
+      casesPage * itemsPerPage
+    );
 
-            <td>
-              <Button
-                variant="outline-warning"
-                size="sm"
-                title="View"
-                onClick={() => handleShow(item)}
-              >
-                👁
-              </Button>
-              <Button
-                variant="link"
-                className={styles.editBtn}
-                title="Edit"
-                onClick={() => {
-                  setSelectedCase(item);
-                  setActiveFormType("case");
-                  setIsAddingNew(true);
-                }}
-              >
-                ✏️
-              </Button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-  const renderCorrespondenceOutTable = () => (
-    <table className={styles.table}>
-      <thead>
-        <tr>
-          <th>Case Number</th>
-          <th>CorrespondenceOut</th>
-          <th>Brief Description</th>
-          <th>Field Through</th>
-          <th>Field At</th>
-          <th>Date Of Filling</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {correspondenceOutData.map((item) => (
-          <tr key={item.ID}>
-            <td>00-CN{item.CaseNumber?.Title}</td>
-            <td>{item.CorrespondenceOut}</td>
-            <td>{item.BriefDescription}</td>
-            <td>{item.Filedthrough}</td>
-            <td>{item.FiledAt}</td>
-            <td>{item.Dateoffiling?.split("T")[0]}</td>
-            <td>{item.Status}</td>
-            <td>
-              <Button
-                variant="outline-warning"
-                size="sm"
-                title="View"
-                onClick={() => handleShow(item)}
-              >
-                👁
-              </Button>
-              <Button
-                variant="link"
-                className={styles.editBtn}
-                title="Edit"
-                onClick={() => {
-                  setSelectedCase(item);
-                  setActiveFormType("correspondenceOut");
-                  setIsAddingNew(true);
-                }}
-              >
-                ✏️
-              </Button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-  const renderUTPTable = () => (
-    <table className={styles.table}>
-      <thead>
-        <tr>
-          <th>UTP ID</th>
-          <th>GMLR ID</th>
-          <th>GRS Code</th>
-          <th>ERM Unique Numbering</th>
-          <th>Gross Exposure</th>
-          <th>Cash Flow Exposure</th>
-          <th>Tax Matter</th>
-          <th>Payment Type</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {utpData.map((item) => (
-          <tr key={item.ID}>
-            <td>UTP-00{item.ID}</td>
-            <td>{item.GMLRID}</td>
-            <td>{item.GRSCode}</td>
-            <td>{item.ERMUniqueNumbering}</td>
-            <td>{item.GrossExposure}</td>
-            <td>{item.CashFlowExposure}</td>
-            <td>{item.TaxMatter}</td>
-            <td>{item.PaymentType}</td>
-            <td>
-              {item.Status && (
-                <div
-                  style={{
-                    backgroundColor:
-                      item.Status === "Open" ? "#5ebd74" : "#20a5bb",
-                    color: "white",
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                  }}
-                >
-                  {item.Status}
-                </div>
-              )}
-            </td>
-            <td>
-              <Button
-                variant="outline-warning"
-                size="sm"
-                title="View"
-                onClick={() => handleShow(item)}
-              >
-                👁
-              </Button>
-              <Button
-                variant="link"
-                className={styles.editBtn}
-                title="Edit"
-                onClick={() => {
-                  setSelectedCase(item);
-                  setActiveFormType("UTP");
-                  setIsAddingNew(true);
-                }}
-              >
-                ✏️
-              </Button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+    return (
+      <>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Case No</th>
+              <th>Correspondence Type</th>
+              <th>Date Received</th>
+              <th>Financial Year</th>
+              <th>Date of Compliance</th>
+              <th>Lawyer Assigned</th>
+              <th>Gross Tax Demanded</th>
+              <th>Case Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedData.map((item) => (
+              <tr key={item.ID}>
+                <td>
+                  {item.ParentCaseId
+                    ? `00-CN${item.ParentCaseId}`
+                    : `00-CN${item.ID}`}
+                </td>
+                <td>{item.CorrespondenceType}</td>
+                <td>{item.DateReceived?.split("T")[0]}</td>
+                <td>{item.FinancialYear}</td>
+                <td>{item.DateofCompliance?.split("T")[0]}</td>
+                <td>{item.LawyerAssigned?.Title}</td>
+                <td>{item.GrossTaxDemanded}</td>
+                <td>
+                  {item.CaseStatus && (
+                    <div
+                      style={{
+                        backgroundColor:
+                          item.CaseStatus === "Active" ? "#5ebd74" : "#20a5bb",
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      {item.CaseStatus}
+                    </div>
+                  )}
+                </td>
+                <td>
+                  <Button
+                    variant="outline-warning"
+                    size="sm"
+                    title="View"
+                    onClick={() => handleShow(item)}
+                  >
+                    👁
+                  </Button>
+                  <Button
+                    variant="link"
+                    className={styles.editBtn}
+                    title="Edit"
+                    onClick={() => {
+                      setSelectedCase(item);
+                      setActiveFormType("case");
+                      setIsAddingNew(true);
+                    }}
+                  >
+                    ✏️
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
+        {/* Pagination for Cases */}
+        <Pagination
+          currentPage={casesPage}
+          totalPages={totalPages}
+          totalItems={casesData.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCasesPage}
+        />
+      </>
+    );
+  };
+
+  const renderCorrespondenceOutTable = () => {
+    const totalPages = Math.ceil(correspondenceOutData.length / itemsPerPage);
+    const paginatedData = correspondenceOutData.slice(
+      (correspondencePage - 1) * itemsPerPage,
+      correspondencePage * itemsPerPage
+    );
+    return (
+      <>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Case Number</th>
+              <th>CorrespondenceOut</th>
+              <th>Brief Description</th>
+              <th>Field Through</th>
+              <th>Field At</th>
+              <th>Date Of Filling</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedData.map((item) => (
+              <tr key={item.ID}>
+                <td>00-CN{item.CaseNumber?.Title}</td>
+                <td>{item.CorrespondenceOut}</td>
+                <td>{item.BriefDescription}</td>
+                <td>{item.Filedthrough}</td>
+                <td>{item.FiledAt}</td>
+                <td>{item.Dateoffiling?.split("T")[0]}</td>
+                <td>{item.Status}</td>
+                <td>
+                  <Button
+                    variant="outline-warning"
+                    size="sm"
+                    title="View"
+                    onClick={() => handleShow(item)}
+                  >
+                    👁
+                  </Button>
+                  <Button
+                    variant="link"
+                    className={styles.editBtn}
+                    title="Edit"
+                    onClick={() => {
+                      setSelectedCase(item);
+                      setActiveFormType("correspondenceOut");
+                      setIsAddingNew(true);
+                    }}
+                  >
+                    ✏️
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Pagination
+          currentPage={correspondencePage}
+          totalPages={totalPages}
+          totalItems={correspondenceOutData.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCorrespondencePage}
+        />
+      </>
+    );
+  };
+  const renderUTPTable = () => {
+    const totalPages = Math.ceil(utpData.length / itemsPerPage);
+    const paginatedData = utpData.slice(
+      (utpPage - 1) * itemsPerPage,
+      utpPage * itemsPerPage
+    );
+    return (
+      <>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>UTP ID</th>
+              <th>GMLR ID</th>
+              <th>GRS Code</th>
+              <th>ERM Unique Numbering</th>
+              <th>Gross Exposure</th>
+              <th>Cash Flow Exposure</th>
+              <th>Tax Matter</th>
+              <th>Payment Type</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedData.map((item) => (
+              <tr key={item.ID}>
+                <td>{item.UTPId}</td>
+                <td>{item.GMLRID}</td>
+                <td>{item.GRSCode}</td>
+                <td>{item.ERMUniqueNumbering}</td>
+                <td>{item.GrossExposure}</td>
+                <td>{item.CashFlowExposure}</td>
+                <td>{item.TaxMatter}</td>
+                <td>{item.PaymentType}</td>
+                <td>
+                  {item.Status && (
+                    <div
+                      style={{
+                        backgroundColor:
+                          item.Status === "Open" ? "#5ebd74" : "#20a5bb",
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      {item.Status}
+                    </div>
+                  )}
+                </td>
+                <td>
+                  <Button
+                    variant="outline-warning"
+                    size="sm"
+                    title="View"
+                    onClick={() => handleShow(item)}
+                  >
+                    👁
+                  </Button>
+                  <Button
+                    variant="link"
+                    className={styles.editBtn}
+                    title="Edit"
+                    onClick={() => {
+                      setSelectedCase(item);
+                      setActiveFormType("UTP");
+                      setIsAddingNew(true);
+                    }}
+                  >
+                    ✏️
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Pagination
+          currentPage={utpPage}
+          totalPages={totalPages}
+          totalItems={utpData.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setUtpPage}
+        />
+      </>
+    );
+  };
   const renderTabContent = () => {
     if (showLOVManagement) {
       if (isAddingNew && activeFormType === "LOV") {
@@ -501,6 +546,9 @@ const TabbedTables: React.FC<{
             onClick={() => {
               setActiveTab(tab);
               setIsAddingNew(false);
+              setSelectedCase(null); // reset form data
+              setActiveFormType(null); // reset form type
+              setNotiID(null); // clear notifications if any
               setShowLOVManagement(false); // back to normal mode
             }}
           >

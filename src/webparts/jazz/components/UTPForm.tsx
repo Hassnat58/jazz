@@ -103,7 +103,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
     const prefillForm = async () => {
       if (!selectedCase) return;
       const prefilled: any = {};
-      ["UTPCategory", "TaxMatter", "RiskCategory", "PaymentType"].forEach(
+      ["UTPCategory", "Tax Type", "RiskCategory", "PaymentType"].forEach(
         (f) => (prefilled[f] = selectedCase[f] || "")
       );
       [
@@ -149,6 +149,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
       // Text field
       prefilled.ContigencyNote = selectedCase.ContigencyNote || "";
+      prefilled.TaxMatter = selectedCase.TaxMatter || "";
       reset(prefilled);
 
       const files = await sp.web.lists
@@ -169,7 +170,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
       UTPId: `UTP-00${data.Id}`,
       GMLRID: `GMLR-00${data.Id}`,
     };
-    ["UTPCategory", "TaxMatter", "RiskCategory", "PaymentType"].forEach(
+    ["UTPCategory", "Tax Type", "RiskCategory", "PaymentType"].forEach(
       (key) => (itemData[key] = data[key] || "")
     );
     [
@@ -201,8 +202,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
         ? Number(data.EBITDAExposure)
         : null;
 
-    // Text column
     itemData.ContigencyNote = data.ContigencyNote || "";
+    itemData.TaxMatter = data.TaxMatter || "";
 
     try {
       let itemId = selectedCase?.ID;
@@ -297,7 +298,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           Save as Draft
         </button>
         <button type="submit" className={styles.savebtn}>
-          {selectedCase ? "Submit" : "Submit"}
+          Submit
         </button>
       </div>
 
@@ -476,14 +477,14 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
         {/* Row 5 */}
         <Controller
-          name="TaxMatter"
+          name="Tax Type"
           control={control}
           render={({ field }) => (
             <div>
               <Dropdown
-                options={lovOptions["Tax Matter"] || []}
+                options={lovOptions["Tax Type"] || []}
                 selectedKey={field.value}
-                label="Tax Matter"
+                label="Tax Type"
                 onChange={(_, o) => field.onChange(o?.key)}
                 placeholder="Select"
                 required
@@ -514,6 +515,18 @@ const UTPForm: React.FC<UTPFormProps> = ({
               onChange={(_, o) => field.onChange(o?.key)}
               placeholder="Select"
               required
+            />
+          )}
+        />
+        <Controller
+          name="TaxMatter"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              label="Tax Matter"
+              required
+              placeholder="Enter Value"
+              {...field}
             />
           )}
         />
