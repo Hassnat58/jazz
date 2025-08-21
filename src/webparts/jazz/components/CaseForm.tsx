@@ -30,11 +30,13 @@ interface CaseFormProps {
   SpfxContext: any;
   selectedCase?: any;
   notiID?: any;
+  loadCasesData:any;
 }
 
 const CaseForm: React.FC<CaseFormProps> = ({
   SpfxContext,
   onCancel,
+  loadCasesData,
   onSave,
   selectedCase,
   notiID,
@@ -66,6 +68,19 @@ const CaseForm: React.FC<CaseFormProps> = ({
   //   grossTaxExposure: 0,
   // });
   const sp = spfi().using(SPFx(SpfxContext));
+  const markAsRead = async (id: number) => {
+    try {
+      const sp = spfi().using(SPFx(SpfxContext));
+      await sp.web.lists.getByTitle("Inbox").items.getById(id).update({
+        Status: "Read",
+      });
+
+      // Update local state so UI updates immediately
+    
+    } catch (err) {
+      console.error("Error updating notification status:", err);
+    }
+  };
 
   const fieldMapping: { [key: string]: string } = {
     Entity: "Entity",
@@ -264,6 +279,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
           ...itemData,
           LinkedNotificationIDId: notiID ? notiID : "",
         });
+        markAsRead(notiID)
         itemId = addResult.ID;
       }
       for (const entry of taxIssueEntries) {
@@ -303,7 +319,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
           CaseId: itemId,
         });
       }
-
+loadCasesData();
       alert(isDraft ? "Draft saved" : "Case submitted");
       onSave(data);
       reset();

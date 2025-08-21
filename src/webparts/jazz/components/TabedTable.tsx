@@ -32,6 +32,15 @@ const tabs = [
   "Managers",
 ];
 
+type ReportType = 
+  | "UTP" 
+  | "Litigation" 
+  | "ActiveCases" 
+  | "Provisions1" 
+  | "Provisions2" 
+  | "Contingencies" 
+  | "ERM";
+
 const TabbedTables: React.FC<{
   showLOVManagement: boolean;
   setShowLOVManagement: React.Dispatch<React.SetStateAction<boolean>>;
@@ -46,6 +55,8 @@ const TabbedTables: React.FC<{
   const [attachments, setAttachments] = useState<any[]>([]);
   const [correspondenceOutData, setCorrespondenceOutData] = useState<any[]>([]);
   const [utpData, setUtpData] = useState<any[]>([]);
+   const [reportType, setReportType] = useState<ReportType>("UTP");
+
   const [activeFormType, setActiveFormType] = useState<
     "case" | "correspondenceOut" | "UTP" | "LOV" | null
   >(null);
@@ -431,6 +442,7 @@ const TabbedTables: React.FC<{
             SpfxContext={SpfxContext}
             onCancel={handleCancel}
             onSave={handleSave}
+            loadCasesData={loadCasesData}
             selectedCase={selectedCase}
             notiID={notiID}
           />
@@ -469,6 +481,7 @@ const TabbedTables: React.FC<{
         return (
           <Notifications
             newAdd={() => setIsAddingNew(true)}
+            setSelectedCase={setSelectedCase}
             SpfxContext={SpfxContext}
             setNotiID={setNotiID}
             activeForm={() => setActiveFormType("case")}
@@ -479,7 +492,7 @@ const TabbedTables: React.FC<{
         return <DocumentGrid SpfxContext={SpfxContext} />;
 
       case "Reports":
-        return <ReportsTable SpfxContext={SpfxContext} />;
+        return <ReportsTable SpfxContext={SpfxContext} reportType={reportType}/>;
 
       case "Managers":
         return <ManagersTable SpfxContext={SpfxContext} />;
@@ -508,8 +521,8 @@ const TabbedTables: React.FC<{
           </button>
         ))}
       </div>
-
-      <div className={styles.headerRow}>
+<div>
+    <div className={styles.headerRow}>
         <h3 className={styles.activeTabTitle}>
           {showLOVManagement ? "LOV Management" : activeTab}
         </h3>
@@ -538,12 +551,38 @@ const TabbedTables: React.FC<{
             </button>
           )}
       </div>
-      <div className={styles.headerRow}>
+   <div className={styles.headerRow2}>
         <h6 className={styles.activeTabTitle2}>
           Home <span style={{ color: "red" }}>&gt;</span>{" "}
           {showLOVManagement ? "LOV Management" : activeTab}
         </h6>
+        {/* Report Type Tabs */}
+{activeTab=="Reports"&&<div className={styles.reportTabs}>
+  {([
+    { key: "UTP", text: "UTP Report" },
+    { key: "Litigation", text: "Litigation Report" },
+    { key: "ActiveCases", text: "Active Cases Weekly" },
+    { key: "Provisions1", text: "Provisions Report - 1" },
+    { key: "Provisions2", text: "Provisions Report - 2" },
+    { key: "Contingencies", text: "Contingencies Breakup" },
+    { key: "ERM", text: "ERM Foreign Currency" }
+  ] as { key: ReportType; text: string }[]).map(tab => (
+    <button
+      key={tab.key}
+      className={`${styles.tabButton} ${
+        reportType == tab.key ? styles.activeTab2 : ""
+      }`}
+      onClick={() => setReportType(tab.key)}
+    >
+      {tab.text}
+    </button>
+  ))}
+</div>}
+
       </div>
+</div>
+    
+     
       <div className={styles.tableContainer}>{renderTabContent()}</div>
 
       {/* Offcanvas for viewing case details */}
