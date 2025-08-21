@@ -36,6 +36,14 @@
   margin-bottom: 10px;
 }
 
+.headerRow2 {
+  display: flex;
+  justify-content: start;
+  align-items: center;
+  gap:10px;
+  margin-bottom: 10px;
+}
+
 .activeTabTitle {
   margin: 0;
   font-size: 20px;
@@ -162,4 +170,36 @@
   display: flex;
   flex-direction: column;
   font-weight: 500;
+}
+
+.reportTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.tabButton {
+  background: #960101;
+  padding: 8px 16px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color:white;
+  transition: background 0.2s;
+
+  &:hover {
+    background: white;
+    color: black;
+    border: 1px solid #ccc
+  }
+
+}
+
+
+  .activeTab2{
+  background: white;
+    color: black;
+     border: 1px solid #ccc
 }

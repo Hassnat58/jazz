@@ -33,6 +33,9 @@ interface CaseFormProps {
   selectedCase?: any;
   notiID?: any;
   loadCasesData:any;
+  
+  existing?: any;
+  setExisting:any;
 }
 
 const CaseForm: React.FC<CaseFormProps> = ({
@@ -42,6 +45,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
   onSave,
   selectedCase,
   notiID,
+  existing,
+  setExisting
 }) => {
   const { control, handleSubmit, reset, getValues } = useForm();
   const [lovOptions, setLovOptions] = useState<{
@@ -253,6 +258,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   }, [selectedCase]);
 
   const submitForm = async (isDraft: boolean) => {
+    
     const data = getValues();
 
     const itemData: any = {
@@ -330,6 +336,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         await fileItem.update({ CaseId: itemId });
       }
 loadCasesData();
+setExisting(false);
       alert(isDraft ? "Draft saved" : "Case submitted");
       onSave(data);
       reset();
@@ -345,6 +352,7 @@ loadCasesData();
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: "1rem",
   };
+console.log(selectedCase,"caseeee");
 
   return (
     <form
@@ -367,7 +375,7 @@ loadCasesData();
         </button>
       </div>
       <div style={formStyle}>
-        {!selectedCase ? (
+        {(!existing) ? (
           // New Case → readonly Case Number
           <TextField
             label="Case Number"

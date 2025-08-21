@@ -29,6 +29,8 @@ interface NotificationsProps {
   activeForm: () => void;
   SpfxContext: any;
   setNotiID: any;
+  setSelectedCase: any;
+  setExisting:any
 }
 
 const Notifications: React.FC<NotificationsProps> = ({
@@ -36,12 +38,48 @@ const Notifications: React.FC<NotificationsProps> = ({
   activeForm,
   SpfxContext,
   setNotiID,
+  setSelectedCase,
+  setExisting
 }) => {
   const [show, setShow] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("read");
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
+  //     const fetchCaseByNotification = async (notiId: number) => {
+  //   try {
+  //     const sp = spfi().using(SPFx(SpfxContext));
+
+  //     // query the Cases list for case where NotiLinkedId = notiId
+  //     const items = await sp.web.lists
+  //       .getByTitle("Cases")
+  //         .items.select(
+  //           "*",
+  //           "ID",
+  //           "Title",
+  //           "CorrespondenceType",
+  //           "DateReceived",
+  //           "FinancialYear",
+  //           "DateofCompliance",
+  //           "LawyerAssigned/Title",
+  //           "GrossTaxDemanded",
+  //           "CaseStatus",
+  //           "Author/Title",
+  //           "Editor/Title"
+  //         )
+  //         .expand("Author", "Editor", "LawyerAssigned")
+  //       .filter(`LinkedNotificationIDId eq ${notiId}`)(); 
+
+  //     if (items.length > 0) {
+  //       return items[0]; // return first matched case
+  //     }
+  //     return null;
+  //   } catch (err) {
+  //     console.error("Error fetching case:", err);
+  //     return null;
+  //   }
+  // };
+
   const fetchInboxData = async () => {
     try {
       const sp = spfi().using(SPFx(SpfxContext));
@@ -86,21 +124,6 @@ const Notifications: React.FC<NotificationsProps> = ({
   useEffect(() => {
     fetchInboxData();
   }, []);
-  const markAsRead = async (id: number) => {
-    try {
-      const sp = spfi().using(SPFx(SpfxContext));
-      await sp.web.lists.getByTitle("Inbox").items.getById(id).update({
-        Status: "Read",
-      });
-
-      // Update local state so UI updates immediately
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, status: "read" } : n))
-      );
-    } catch (err) {
-      console.error("Error updating notification status:", err);
-    }
-  };
 
   const handleView = (notification: Notification) => {
     setSelectedNotification(notification);
@@ -219,14 +242,14 @@ const Notifications: React.FC<NotificationsProps> = ({
                   <Col>
                     <span>Reference Number:</span>
                     <div>
-                      <b>{selectedNotification.reference}</b>
+                      <b>{selectedNotification.id}</b>
                     </div>
                   </Col>
                 </Row>
 
                 <pre>{selectedNotification.body}</pre>
 
-                <h6>Attachments:</h6>
+                {/* <h6>Attachments:</h6>
                 <div className={styles.attachments}>
                   {selectedNotification.attachments.map((file, i) => (
                     <Button
@@ -238,21 +261,41 @@ const Notifications: React.FC<NotificationsProps> = ({
                       📄 {file}
                     </Button>
                   ))}
-                </div>
+                </div> */}
 
                 <Button
                   variant="warning"
-                  className="mt-3"
+                  className="mt-3 me-3"
+                  disabled={selectedNotification.status === "read"}
                   onClick={async () => {
-                    if (selectedNotification?.status === "unread") {
-                      await markAsRead(selectedNotification.id);
-                    }
-                    newAdd();
+                    setNotiID(selectedNotification.id);
+                    newAdd();       // create case
                     activeForm();
+                    setSelectedCase({Email:selectedNotification.from})
+
                   }}
                 >
                   Create Case
                 </Button>
+                <Button
+                  variant="warning"
+                  className="mt-3 "
+                  disabled={selectedNotification.status === "read"}
+                  onClick={async () => {
+                    // Case found → open in update mode
+                    setNotiID(selectedNotification.id);
+                    setExisting(true);   // pass full case object to parent
+                    setSelectedCase({Email:selectedNotification.from})
+                    activeForm();
+                    newAdd();
+
+
+                  }}
+                >
+                  Add In Existing Case
+                </Button>
+
+
               </div>
             </>
           )}
