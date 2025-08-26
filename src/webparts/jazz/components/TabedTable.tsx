@@ -27,12 +27,14 @@ import Pagination from "./Pagination";
 import { Dropdown, IDropdownOption } from "@fluentui/react";
 import { ComboBox } from "@fluentui/react";
 import PowerBIDashboard from "./PowerBIDashboard";
+import ManageRole from "./ManageRole";
+import RoleForm from "./RoleForm";
 
 const tabs = [
   "Dashboard",
   "Email Notification",
-  "Correspondence In",
-  "Correspondence Out",
+  "Litigation",
+  "Response",
   "UTP Dashboard",
   "Documents",
   "Reports",
@@ -52,8 +54,16 @@ const TabbedTables: React.FC<{
   showLOVManagement: boolean;
   setShowLOVManagement: React.Dispatch<React.SetStateAction<boolean>>;
   SpfxContext: any;
-}> = ({ SpfxContext, showLOVManagement, setShowLOVManagement }) => {
-  const [activeTab, setActiveTab] = useState("Correspondence In");
+  showManageRole: any;
+  setShowManageRole: React.Dispatch<React.SetStateAction<boolean>>;
+}> = ({
+  SpfxContext,
+  showLOVManagement,
+  setShowLOVManagement,
+  showManageRole,
+  setShowManageRole,
+}) => {
+  const [activeTab, setActiveTab] = useState("Dashboard");
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [casesData, setCasesData] = useState<any[]>([]);
   const [selectedCase, setSelectedCase] = useState<any>(null);
@@ -91,7 +101,7 @@ const TabbedTables: React.FC<{
   });
   const [filteredUtpData, setFilteredUtpData] = useState<any[]>([]);
   const [activeFormType, setActiveFormType] = useState<
-    "case" | "correspondenceOut" | "UTP" | "LOV" | null
+    "case" | "correspondenceOut" | "UTP" | "LOV" | "Role" | null
   >(null);
   // const [showLOVManagement, setShowLOVManagement] = useState(false);
   const [casesPage, setCasesPage] = useState(1);
@@ -103,9 +113,9 @@ const TabbedTables: React.FC<{
   const sp = spfi().using(SPFx(SpfxContext));
 
   useEffect(() => {
-    if (activeTab === "Correspondence In") {
+    if (activeTab === "Litigation") {
       loadCasesData();
-    } else if (activeTab === "Correspondence Out") {
+    } else if (activeTab === "Response") {
       loadCorrespondenceOutData();
     } else if (activeTab === "UTP Dashboard") {
       loadUTPData();
@@ -243,15 +253,18 @@ const TabbedTables: React.FC<{
     if (activeFormType === "LOV") {
       setShowLOVManagement(true);
     }
+    if (activeFormType === "Role") {
+      setShowManageRole(true);
+    }
   };
 
   const handleShow = async (item: any) => {
     setSelectedCase(item);
 
     let type: "case" | "correspondenceOut" | "UTP";
-    if (activeTab === "Correspondence In") {
+    if (activeTab === "Litigation") {
       type = "case";
-    } else if (activeTab === "Correspondence Out") {
+    } else if (activeTab === "Response") {
       type = "correspondenceOut";
     } else if (activeTab === "UTP Dashboard") {
       type = "UTP";
@@ -318,6 +331,17 @@ const TabbedTables: React.FC<{
 
     fetchLOVs();
   }, []);
+  React.useEffect(() => {
+    if (showLOVManagement) {
+      setShowManageRole(false);
+    }
+  }, [showLOVManagement]);
+
+  React.useEffect(() => {
+    if (showManageRole) {
+      setShowLOVManagement(false);
+    }
+  }, [showManageRole]);
 
   const renderCorrespondenceTable = () => {
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -823,6 +847,12 @@ const TabbedTables: React.FC<{
       }
       return <LOVManagement SpfxContext={SpfxContext} />;
     }
+    if (showManageRole) {
+      if (isAddingNew && activeFormType === "Role") {
+        return <RoleForm SpfxContext={SpfxContext} onCancel={handleCancel} />;
+      }
+      return <ManageRole SpfxContext={SpfxContext} />;
+    }
 
     if (isAddingNew) {
       if (activeFormType === "case") {
@@ -863,9 +893,9 @@ const TabbedTables: React.FC<{
     switch (activeTab) {
       case "Dashboard":
         return <PowerBIDashboard />;
-      case "Correspondence In":
+      case "Litigation":
         return renderCorrespondenceTable();
-      case "Correspondence Out":
+      case "Response":
         return renderCorrespondenceOutTable();
       case "UTP Dashboard":
         return renderUTPTable();
@@ -905,7 +935,9 @@ const TabbedTables: React.FC<{
           <button
             key={tab}
             className={`${styles.tab} ${
-              !showLOVManagement && activeTab === tab ? styles.activeTab : ""
+              !showLOVManagement && !showManageRole && activeTab === tab
+                ? styles.activeTab
+                : ""
             }`}
             onClick={() => {
               setActiveTab(tab);
@@ -913,6 +945,8 @@ const TabbedTables: React.FC<{
               setSelectedCase(null);
               setActiveFormType(null);
               setNotiID(null);
+              setShowLOVManagement(false);
+              setShowManageRole(false);
               setShowLOVManagement(false);
               setUtpFilters({
                 entity: "",
@@ -940,22 +974,30 @@ const TabbedTables: React.FC<{
       <div>
         <div className={styles.headerRow}>
           <h3 className={styles.activeTabTitle}>
-            {showLOVManagement ? "LOV Management" : activeTab}
+            {showLOVManagement
+              ? "LOV Management"
+              : showManageRole
+              ? "Manage Role"
+              : activeTab}
           </h3>
-          {(activeTab === "Correspondence In" ||
-            activeTab === "Correspondence Out" ||
+          {(activeTab === "Litigation" ||
+            activeTab === "Response" ||
             activeTab === "UTP Dashboard" ||
-            showLOVManagement) &&
+            showLOVManagement ||
+            showManageRole) &&
             !isAddingNew && (
               <button
                 className={styles.addBtn}
                 onClick={() => {
                   setNotiID(null);
+
                   if (showLOVManagement) {
                     setActiveFormType("LOV");
-                  } else if (activeTab === "Correspondence In") {
+                  } else if (showManageRole) {
+                    setActiveFormType("Role");
+                  } else if (activeTab === "Litigation") {
                     setActiveFormType("case");
-                  } else if (activeTab === "Correspondence Out") {
+                  } else if (activeTab === "Response") {
                     setActiveFormType("correspondenceOut");
                   } else if (activeTab === "UTP Dashboard") {
                     setActiveFormType("UTP");
@@ -970,7 +1012,11 @@ const TabbedTables: React.FC<{
         <div className={styles.headerRow2}>
           <h6 className={styles.activeTabTitle2}>
             Home <span style={{ color: "red" }}>&gt;</span>{" "}
-            {showLOVManagement ? "LOV Management" : activeTab}
+            {showLOVManagement
+              ? "LOV Management"
+              : showManageRole
+              ? "Manage Role"
+              : activeTab}
           </h6>
           {/* Report Type Tabs */}
           {activeTab == "Reports" && (
@@ -1014,7 +1060,7 @@ const TabbedTables: React.FC<{
           <Offcanvas.Title>View Case Details</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
-          {selectedCase && activeTab === "Correspondence In" && (
+          {selectedCase && activeTab === "Litigation" && (
             <ViewCaseForm
               caseData={selectedCase}
               attachments={attachments}
@@ -1023,7 +1069,7 @@ const TabbedTables: React.FC<{
             />
           )}
 
-          {selectedCase && activeTab === "Correspondence Out" && (
+          {selectedCase && activeTab === "Response" && (
             <ViewCorrespondenceOutForm
               caseData={selectedCase}
               attachments={attachments}

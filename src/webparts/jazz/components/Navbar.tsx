@@ -9,9 +9,10 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import logo from "../assets/jazz-logo.png";
 
-const Navbar: React.FC<{ onLOVManagementClick: () => void }> = ({
-  onLOVManagementClick,
-}) => {
+const Navbar: React.FC<{
+  onLOVManagementClick: () => void;
+  onManageRoleClick: () => void;
+}> = ({ onLOVManagementClick, onManageRoleClick }) => {
   const [showDropdown, setShowDropdown] = React.useState(false);
 
   const toggleDropdown = () => {
@@ -57,7 +58,13 @@ const Navbar: React.FC<{ onLOVManagementClick: () => void }> = ({
                 />
                 LOV Management
               </div>
-              <div className={styles["dropdown-item"]}>
+              <div
+                className={styles["dropdown-item"]}
+                onClick={() => {
+                  onManageRoleClick();
+                  setShowDropdown(false);
+                }}
+              >
                 <FontAwesomeIcon
                   icon={faUser}
                   className={styles["dropdown-icon"]}

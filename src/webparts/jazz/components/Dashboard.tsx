@@ -7,13 +7,19 @@ import { useState } from "react";
 
 function Dashboard(props: any) {
   const [showLOVManagement, setShowLOVManagement] = useState(false);
+  const [showManageRole, setShowManageRole] = useState(false);
   return (
     <div>
-      <Navbar onLOVManagementClick={() => setShowLOVManagement(true)} />
+      <Navbar
+        onLOVManagementClick={() => setShowLOVManagement(true)}
+        onManageRoleClick={() => setShowManageRole(true)}
+      />
       <TabbedTables
         SpfxContext={props.SpfxContext}
         showLOVManagement={showLOVManagement}
         setShowLOVManagement={setShowLOVManagement}
+        showManageRole={showManageRole}
+        setShowManageRole={setShowManageRole}
       />
     </div>
   );

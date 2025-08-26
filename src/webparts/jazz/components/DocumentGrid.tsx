@@ -28,9 +28,9 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
   const [correspondenceOuts, setCorrespondenceOuts] = useState<any[]>([]);
   const [searchText, setSearchText] = useState("");
   const [filters, setFilters] = useState({
-    caseId: "",
-    utpId: "",
-    correspondenceId: "",
+    caseId: 0,
+    utpId: 0,
+    correspondenceId: 0,
   });
 
   const sp = spfi().using(SPFx(SpfxContext));
@@ -40,22 +40,28 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
     loadLookupValues();
   }, []);
 
+  // ✅ load files with lookup values
   const loadDocumentFiles = async () => {
     try {
-      const items = await sp.web
-        .getFolderByServerRelativePath("/sites/LMS/Core Data Repositories")
-        .files.select(
-          "Name",
-          "Length",
-          "ServerRelativeUrl",
-          "TimeCreated",
-          "TimeLastModified",
+      const items = await sp.web.lists
+        .getByTitle("Core Data Repositories")
+        .items.select(
+          "Id",
+          "FileLeafRef",
+          "File/Name",
+          "File/ServerRelativeUrl",
+          "File/Length",
+          "File/TimeCreated",
+          "File/TimeLastModified",
+          "Case/Id",
           "Case/Title",
-          "Case/ID",
+          "UTP/Id",
           "UTP/Title",
+          "CorrespondenceOut/Id",
           "CorrespondenceOut/Title"
         )
-        .expand("Case", "UTP", "CorrespondenceOut")();
+        .expand("File", "Case", "UTP", "CorrespondenceOut")();
+
       console.log("DOCS", items);
 
       setDocumentFiles(items);
@@ -65,6 +71,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
     }
   };
 
+  // ✅ load lookup dropdown values
   const loadLookupValues = async () => {
     try {
       const caseItems = await sp.web.lists
@@ -79,54 +86,66 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
         .getByTitle("CorrespondenceOut")
         .items.select("Id", "Title")();
 
-      setCases(caseItems);
-      setUtps(utpItems);
-      setCorrespondenceOuts(coItems);
+      // ✅ remove duplicates by Id
+      const uniqueCases = caseItems.filter(
+        (v, i, a) => a.findIndex((t) => t.Id === v.Id) === i
+      );
+      const uniqueUtps = utpItems.filter(
+        (v, i, a) => a.findIndex((t) => t.Id === v.Id) === i
+      );
+      const uniqueCos = coItems.filter(
+        (v, i, a) => a.findIndex((t) => t.Id === v.Id) === i
+      );
+
+      setCases(uniqueCases);
+      setUtps(uniqueUtps);
+      setCorrespondenceOuts(uniqueCos);
     } catch (error) {
       console.error("Error fetching lookup lists:", error);
     }
   };
 
-  // run filters whenever user changes input
+  // ✅ run filters whenever user changes input
   useEffect(() => {
     let filtered = [...documentFiles];
 
     if (searchText) {
       filtered = filtered.filter((d) =>
-        d.FileLeafRef.toLowerCase().includes(searchText.toLowerCase())
+        d.File?.Name?.toLowerCase().includes(searchText.toLowerCase())
       );
     }
 
     if (filters.caseId) {
       filtered = filtered.filter(
         (d) =>
-          d.Case?.Title?.toLowerCase() === filters.caseId.toLowerCase() ||
-          d.Case?.Id?.toString() === filters.caseId
+          d.Case?.Id === filters.caseId ||
+          `CN--00${d.Case?.Id}` === String(filters.caseId)
       );
     }
 
     if (filters.utpId) {
       filtered = filtered.filter(
         (d) =>
-          d.UTP?.Title?.toLowerCase() === filters.utpId.toLowerCase() ||
-          d.UTP?.Id?.toString() === filters.utpId
+          d.UTP?.Id === filters.utpId ||
+          `UT--00${d.UTP?.Id}` === String(filters.utpId)
       );
     }
 
     if (filters.correspondenceId) {
       filtered = filtered.filter(
         (d) =>
-          d.CorrespondenceOut?.Title?.toLowerCase() ===
-            filters.correspondenceId.toLowerCase() ||
-          d.CorrespondenceOut?.Id?.toString() === filters.correspondenceId
+          d.CorrespondenceOut?.Id === filters.correspondenceId ||
+          `CO--00${d.CorrespondenceOut?.Id}` ===
+            String(filters.correspondenceId)
       );
     }
 
     setFilteredDocs(filtered);
   }, [searchText, filters, documentFiles]);
 
-  // icons
+  // ✅ file icons
   const getFileIcon = (fileName: string) => {
+    if (!fileName) return defaultIcon;
     if (fileName.endsWith(".pdf")) return pdfIcon;
     if (fileName.endsWith(".doc") || fileName.endsWith(".docx"))
       return wordIcon;
@@ -154,60 +173,59 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
 
         <ComboBox
           label="Case"
-          placeholder="Select or type Case"
-          allowFreeform
+          placeholder="Select Case"
+          options={cases.map((c) => ({
+            key: c.Id,
+            text: `CN--00${c.Id}`, // Show formatted text
+          }))}
+          selectedKey={filters.caseId || null}
+          allowFreeform // ✅ allow typing free text
           autoComplete="on"
-          options={cases.map((c) => ({ key: c.Id, text: c.Title }))}
-          selectedKey={cases.find((c) => c.Title === filters.caseId)?.Id}
-          text={filters.caseId}
           onChange={(_, option, __, value) =>
             setFilters((f) => ({
               ...f,
-              caseId: option?.text || value || "",
+              // if user typed manually, use the typed value instead of key
+              caseId: option ? Number(option.key) : Number(value) || 0,
             }))
           }
-          styles={{ root: { minWidth: 180, marginRight: 16 } }}
         />
 
         <ComboBox
           label="UTP"
-          placeholder="Select or type UTP"
+          placeholder="Select UTP"
+          options={utps.map((u) => ({
+            key: u.Id,
+            text: `UT--00${u.Id}`,
+          }))}
+          selectedKey={filters.utpId || null}
           allowFreeform
           autoComplete="on"
-          options={utps.map((u) => ({ key: u.Id, text: u.Title }))}
-          selectedKey={utps.find((u) => u.Title === filters.utpId)?.Id}
-          text={filters.utpId}
           onChange={(_, option, __, value) =>
             setFilters((f) => ({
               ...f,
-              utpId: option?.text || value || "",
+              utpId: option ? Number(option.key) : Number(value) || 0,
             }))
           }
-          styles={{ root: { minWidth: 180, marginRight: 16 } }}
         />
 
         <ComboBox
           label="Correspondence Out"
-          placeholder="Select or type Correspondence"
-          allowFreeform
-          autoComplete="on"
+          placeholder="Select Correspondence"
           options={correspondenceOuts.map((co) => ({
             key: co.Id,
-            text: co.Title,
+            text: `CO--00${co.Id}`,
           }))}
-          selectedKey={
-            correspondenceOuts.find(
-              (co) => co.Title === filters.correspondenceId
-            )?.Id
-          }
-          text={filters.correspondenceId}
+          selectedKey={filters.correspondenceId || null}
+          allowFreeform
+          autoComplete="on"
           onChange={(_, option, __, value) =>
             setFilters((f) => ({
               ...f,
-              correspondenceId: option?.text || value || "",
+              correspondenceId: option
+                ? Number(option.key)
+                : Number(value) || 0,
             }))
           }
-          styles={{ root: { minWidth: 220, marginRight: 16 } }}
         />
 
         <Button
@@ -220,7 +238,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
           }}
           onClick={() => {
             setSearchText("");
-            setFilters({ caseId: "", utpId: "", correspondenceId: "" });
+            setFilters({ caseId: 0, utpId: 0, correspondenceId: 0 });
             setFilteredDocs(documentFiles);
           }}
         >
@@ -230,18 +248,20 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
 
       {/* Document Grid */}
       <div className={styles.documentGrid}>
-        {filteredDocs.map((file, index) => (
+        {filteredDocs.map((item, index) => (
           <div key={index} className={styles.documentCard}>
             <img
-              src={getFileIcon(file.Name)}
+              src={getFileIcon(item.File?.Name)}
               alt="icon"
               className={styles.fileIcon}
             />
-            <p className={styles.fileName}>{file.Name}</p>
-            <p className={styles.fileSize}>{formatSize(file.Length)}</p>
+            <p className={styles.fileName}>{item.File?.Name}</p>
+            <p className={styles.fileSize}>
+              {item.File?.Length ? formatSize(item.File.Length) : ""}
+            </p>
             <div className={styles.actions}>
               <Button
-                href={file.ServerRelativeUrl}
+                href={item.File?.ServerRelativeUrl}
                 target="_blank"
                 rel="noreferrer"
                 title="View"
@@ -251,7 +271,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
                 👁
               </Button>
               <a
-                href={file.ServerRelativeUrl}
+                href={item.File?.ServerRelativeUrl}
                 download
                 target="_blank"
                 rel="noopener noreferrer"
