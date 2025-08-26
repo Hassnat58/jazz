@@ -40,7 +40,7 @@
   display: flex;
   justify-content: start;
   align-items: center;
-  gap:10px;
+  gap: 10px;
   margin-bottom: 10px;
 }
 
@@ -186,20 +186,60 @@
   border: none;
   cursor: pointer;
   font-weight: 500;
-  color:white;
+  color: white;
   transition: background 0.2s;
 
   &:hover {
     background: white;
     color: black;
-    border: 1px solid #ccc
+    border: 1px solid #ccc;
   }
-
+}
+.filtersRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
+.filterInput {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: #fff;
+  min-width: 160px;
+  outline: none;
+  transition: border-color 0.2s ease-in-out;
 
-  .activeTab2{
+  &:focus {
+    border-color: #2563eb;
+  }
+}
+.clearFiltersButton {
+  background: #8a191e;
+  border: 1px solid #dcdcdc; // light border
+  color: white; // dark grey text
+  cursor: pointer;
+  font-size: 14px;
+  padding: 6px 12px; // some breathing room
+  border-radius: 6px; // smooth corners
+  margin-top: 30px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #e6e6e6; // slightly darker on hover
+    border-color: #c2c2c2;
+  }
+
+  &:active {
+    background-color: #d9d9d9; // pressed effect
+  }
+}
+
+.activeTab2 {
   background: white;
-    color: black;
-     border: 1px solid #ccc
+  color: black;
+  border: 1px solid #ccc;
 }

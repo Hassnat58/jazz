@@ -32,10 +32,10 @@ interface CaseFormProps {
   SpfxContext: any;
   selectedCase?: any;
   notiID?: any;
-  loadCasesData:any;
-  
+  loadCasesData: any;
+
   existing?: any;
-  setExisting:any;
+  setExisting: any;
 }
 
 const CaseForm: React.FC<CaseFormProps> = ({
@@ -46,7 +46,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   selectedCase,
   notiID,
   existing,
-  setExisting
+  setExisting,
 }) => {
   const { control, handleSubmit, reset, getValues } = useForm();
   const [lovOptions, setLovOptions] = useState<{
@@ -85,7 +85,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
       });
 
       // Update local state so UI updates immediately
-    
     } catch (err) {
       console.error("Error updating notification status:", err);
     }
@@ -258,7 +257,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
   }, [selectedCase]);
 
   const submitForm = async (isDraft: boolean) => {
-    
     const data = getValues();
 
     const itemData: any = {
@@ -308,7 +306,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         ...itemData,
         LinkedNotificationIDId: notiID || null,
       });
-        markAsRead(notiID)
+      markAsRead(notiID);
       const itemId = addResult.ID;
 
       // add tax issues
@@ -335,8 +333,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
         await fileItem.update({ CaseId: itemId });
       }
-loadCasesData();
-setExisting(false);
+      loadCasesData();
+      setExisting(false);
       alert(isDraft ? "Draft saved" : "Case submitted");
       onSave(data);
       reset();
@@ -352,7 +350,7 @@ setExisting(false);
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: "1rem",
   };
-console.log(selectedCase,"caseeee");
+  console.log(selectedCase, "caseeee");
 
   return (
     <form
@@ -375,7 +373,7 @@ console.log(selectedCase,"caseeee");
         </button>
       </div>
       <div style={formStyle}>
-        {(!existing) ? (
+        {!existing ? (
           // New Case → readonly Case Number
           <TextField
             label="Case Number"

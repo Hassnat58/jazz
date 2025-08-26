@@ -40,3 +40,10 @@
   gap: 8px;
   font-size: 16px;
 }
+.filtersRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}

@@ -199,7 +199,10 @@ const dummyData: CaseItem[] = [
   },
 ];
 
-const ReportsTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
+const ReportsTable: React.FC<{ SpfxContext: any; reportType: any }> = ({
+  SpfxContext,
+  reportType,
+}) => {
   const [show, setShow] = useState(false);
   const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
   const [lovOptions, setLovOptions] = useState<{
