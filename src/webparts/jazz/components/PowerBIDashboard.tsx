@@ -7,8 +7,7 @@ const PowerBIDashboard: React.FC = () => {
         title="Power BI Report"
         width="100%"
         height="100%"
-        src="https://app.powerbi.com/reportEmbed?reportId=d94a8559-b65e-4293-87f8-77d642774f92
-        &autoAuth=true"
+        src="https://app.powerbi.com/view?r=eyJrIjoiOTk0MGUwNDctYzU3Yy00ODI5LWFjZmUtNGNmYWEzYWNhMTBmIiwidCI6IjFhMTdmYjkzLWI5ZTgtNDMzZC05NDE4LTU2NDU1ZWE1NTczYSIsImMiOjN9"
         frameBorder="0"
         allowFullScreen={true}
       />
