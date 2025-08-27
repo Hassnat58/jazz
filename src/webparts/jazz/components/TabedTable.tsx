@@ -1028,8 +1028,10 @@ const TabbedTables: React.FC<{
                   { key: "ActiveCases", text: "Active Cases Weekly" },
                   { key: "Provisions1", text: "Provisions Report - 1" },
                   { key: "Provisions2", text: "Provisions Report - 2" },
+                  { key: "Provisions3", text: "Provisions Report - 3" },
+
                   { key: "Contingencies", text: "Contingencies Breakup" },
-                  { key: "ERM", text: "ERM Foreign Currency" },
+                  // { key: "ERM", text: "ERM Foreign Currency" },
                 ] as { key: ReportType; text: string }[]
               ).map((tab) => (
                 <button

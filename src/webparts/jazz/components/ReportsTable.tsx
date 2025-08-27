@@ -1,13 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable dot-notation */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/no-floating-promises */
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import * as React from "react";
 import { useState, useEffect } from "react";
 import styles from "./Reports.module.scss";
 import CorrespondenceDetailOffCanvas from "./ReportsOffCanvas";
-import { Button } from "react-bootstrap";
 import { spfi, SPFx } from "@pnp/sp";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
@@ -17,194 +11,158 @@ import "@pnp/sp/folders";
 import "@pnp/sp/attachments";
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import * as XLSX from "xlsx";
+// import { Button } from "react-bootstrap";
 interface CaseItem {
-  caseNo: string;
-  docRef: string;
-  type: string;
-  attachment: string;
-  dateReceived: string;
-  fy: string;
-  complianceDate: string;
-  lawyer: string;
-  amount: string;
-  status: "Active" | "Inactive" | "Pending" | "Closed";
-  entity: string;
-  taxAuthority: string;
-  jurisdiction: string;
-  concerningLaw: string;
-  briefDescription: string;
-  issuedBy: string;
-  caseBriefDescription: string;
-  taxConsultant: string;
-  emailTitle: string;
-  hearingDate: string;
-  nextForum: string;
-  taxExposureStage: string;
-  lastUpdated: string;
-  owner: string;
-  taxType: string;
-  category: string;
-  taxYear: string;
+  [key: string]: any; // flexible structure, since fields differ per report
 }
 
-const dummyData: CaseItem[] = [
-  {
-    caseNo: "00-CN321",
-    docRef: "REF-2025-0001",
-    type: "Assessment Notice",
-    attachment: "audit_report.pdf.xlsx",
-    dateReceived: "03-15-2025",
-    fy: "FY2024",
-    complianceDate: "03-15-2025",
-    lawyer: "Jane Smith",
-    amount: "$50,000",
-    status: "Active",
-    entity: "Acme Corp",
-    taxAuthority: "IRS",
-    jurisdiction: "Federal",
-    concerningLaw: "Income Tax Act",
-    briefDescription: "Financial records require verification.",
-    issuedBy: "IRS Audit Dept",
-    caseBriefDescription:
-      "The audit uncovered discrepancies in reported income and expenses.",
-    taxConsultant: "John Doe",
-    emailTitle: "Assessment Notice",
-    hearingDate: "03-15-2025",
-    nextForum: "Tax Court",
-    taxExposureStage: "Assessment",
-    lastUpdated: "07-14-2025",
-    owner: "John Doe",
-    taxType: "Income Tax",
-    category: "",
-    taxYear: "",
-  },
-  {
-    caseNo: "00-CN322",
-    docRef: "REF-2025-0002",
-    type: "Penalty Notice",
-    attachment: "penalty_notice.pdf",
-    dateReceived: "04-10-2025",
-    fy: "FY2020",
-    complianceDate: "04-25-2025",
-    lawyer: "Robert Black",
-    amount: "$10,000",
-    status: "Pending",
-    entity: "LDNP",
-    taxAuthority: "BRA",
-    jurisdiction: "State",
-    concerningLaw: "Sales Tax Act",
-    briefDescription: "Late filing penalty notice issued.",
-    issuedBy: "Revenue Enforcement",
-    caseBriefDescription:
-      "Entity failed to file sales tax returns by the due date.",
-    taxConsultant: "Sarah Lee",
-    emailTitle: "Penalty Notice",
-    hearingDate: "05-01-2025",
-    nextForum: "Appellate Tribunal",
-    taxExposureStage: "Penalty",
-    lastUpdated: "07-15-2025",
-    owner: "Sarah Lee",
-    taxType: "Income Tax",
-    category: "Probable",
-    taxYear: "2020",
-  },
-  {
-    caseNo: "00-CN323",
-    docRef: "REF-2025-0003",
-    type: "Show Cause Notice",
-    attachment: "show_cause.pdf",
-    dateReceived: "05-05-2025",
-    fy: "FY2023",
-    complianceDate: "05-20-2025",
-    lawyer: "Alice Green",
-    amount: "$75,000",
-    status: "Active",
-    entity: "Gamma Inc",
-    taxAuthority: "IRS",
-    jurisdiction: "Federal",
-    concerningLaw: "Corporate Tax Rules",
-    briefDescription: "Unreported offshore transactions.",
-    issuedBy: "IRS Compliance",
-    caseBriefDescription: "Company did not disclose foreign income properly.",
-    taxConsultant: "Tom Hardy",
-    emailTitle: "Show Cause Notice",
-    hearingDate: "06-01-2025",
-    nextForum: "Review Board",
-    taxExposureStage: "Investigation",
-    lastUpdated: "07-20-2025",
-    owner: "Tom Hardy",
-    taxType: "Income Tax",
-    category: "",
-    taxYear: "",
-  },
-  {
-    caseNo: "00-CN324",
-    docRef: "REF-2025-0004",
-    type: "Reassessment Order",
-    attachment: "reassessment_order.pdf",
-    dateReceived: "06-01-2025",
-    fy: "FY2022",
-    complianceDate: "06-30-2025",
-    lawyer: "Emma White",
-    amount: "$90,000",
-    status: "Closed",
-    entity: "Delta Partners",
-    taxAuthority: "Local Tax Office",
-    jurisdiction: "Municipal",
-    concerningLaw: "Property Tax Code",
-    briefDescription: "Reassessment due to undervalued property.",
-    issuedBy: "Local Tax Officer",
-    caseBriefDescription:
-      "Property value was reassessed leading to additional tax.",
-    taxConsultant: "Michael Scott",
-    emailTitle: "Reassessment Order",
-    hearingDate: "07-10-2025",
-    nextForum: "Municipal Court",
-    taxExposureStage: "Reassessment",
-    lastUpdated: "07-30-2025",
-    owner: "Michael Scott",
-    taxType: "Income Tax",
-    category: "",
-    taxYear: "",
-  },
-  {
-    caseNo: "00-CN325",
-    docRef: "REF-2025-0005",
-    type: "Assessment Order",
-    attachment: "assessment_order_2025.pdf",
-    dateReceived: "07-01-2025",
-    fy: "FY2025",
-    complianceDate: "07-20-2025",
-    lawyer: "Liam Brown",
-    amount: "$120,000",
-    status: "Closed",
-    entity: "Epsilon Co",
-    taxAuthority: "IRS",
-    jurisdiction: "Federal",
-    concerningLaw: "Income Tax Act",
-    briefDescription: "Major income mismatch flagged.",
-    issuedBy: "IRS Regional Office",
-    caseBriefDescription:
-      "Large variance between reported and actual income triggered audit.",
-    taxConsultant: "Rachel Adams",
-    emailTitle: "Assessment Order FY2025",
-    hearingDate: "08-05-2025",
-    nextForum: "Federal Tribunal",
-    taxExposureStage: "Assessment",
-    lastUpdated: "08-01-2025",
-    owner: "Rachel Adams",
-    taxType: "Income Tax",
-    category: "",
-    taxYear: "",
-  },
-];
 
-const ReportsTable: React.FC<{ SpfxContext: any; reportType: any }> = ({
-  SpfxContext,
-  reportType,
-}) => {
+type ReportType = 
+  | "UTP" 
+  | "Litigation" 
+  | "ActiveCases" 
+  | "Provisions1" 
+  | "Provisions2" 
+  | "Provisions3" 
+  | "Contingencies" 
+  | "ERM";
+
+const reportConfig: Record<ReportType, { columns: { header: string; field: keyof CaseItem }[] }> = {
+  UTP: {
+    columns: [
+      { header: "UTP ID", field: "utpId" },
+      { header: "MLR Claim ID", field: "mlrClaimId" },
+      { header: "Tax Matter", field: "taxType" },
+      { header: "Tax Authority", field: "taxAuthority" },
+      { header: "Pending Authority", field: "pendingAuthority" },
+      { header: "Entity", field: "entity" },
+      { header: "Type", field: "type" },
+      { header: "Financial Year", field: "fy" },
+      { header: "Tax Year", field: "taxYear" },
+      // { header: "Gross Exposure PKR Jul 2024", field: "grossExposureJul" },
+      { header: "Gross Exposure ", field: "grossExposureJun" },
+      // { header: "Variance with last month PKR", field: "varianceLastMonth" },
+      // { header: "Gross Exposure PKR May 2024", field: "grossExposureMay" },
+      // { header: "Gross Exposure PKR Apr 2024", field: "grossExposureApr" },
+      { header: "Category", field: "category" },
+      { header: "ARC Top Tax Risks Reporting", field: "arcTopTaxRisk" },
+      { header: "Contingency Note", field: "contingencyNote" },
+      { header: "Description", field: "briefDescription" },
+      { header: "Provision GL Code", field: "provisionGlCode" },
+      { header: "Provision GRS Code", field: "provisionGrsCode" },
+      { header: "Payment under Protest", field: "paymentUnderProtest" },
+      { header: "Payment GL Code", field: "paymentGlCode" },
+      { header: "UTP Paper Category", field: "utpPaperCategory" },
+      { header: "Provisions/Contingencies", field: "provisionsContingencies" },
+    ],
+  },
+
+  Litigation: {
+    columns: [
+      { header: "Type", field: "type" },
+      { header: "Case Number", field: "caseNo" },
+      { header: "Issue", field: "issue" },
+      { header: "Authority", field: "taxAuthority" },
+      { header: "Entity", field: "entity" },
+      { header: "Tax Year", field: "taxYear" },
+      { header: "Tax exposure SCN", field: "taxExposureScn" },
+      { header: "Tax exposure Order", field: "taxExposureOrder" },
+      { header: "Tax period Start", field: "taxPeriodStart" },
+      { header: "Tax period End", field: "taxPeriodEnd" },
+      { header: "Date of Receipt", field: "dateOfReceipt" },
+      { header: "Stay obtained From", field: "stayObtainedFrom" },
+      { header: "Pending Authority Level", field: "pendingAuthorityLevel" },
+      { header: "Stay Expiring On", field: "stayExpiringOn" },
+      { header: "Compliance Date", field: "complianceDate" },
+      { header: "Status", field: "status" },
+      { header: "SCN/Order Summary", field: "scnOrderSummary" },
+      { header: "Consultant", field: "consultant" },
+      { header: "Email Title", field: "emailTitle" },
+      { header: "HC Document Number", field: "hcDocumentNumber" },
+      { header: "Billing Information", field: "billingInfo" },
+      { header: "Review Status LP", field: "reviewStatusLp" },
+      { header: "In UTP", field: "inUtp" },
+    ],
+  },
+
+  ActiveCases: {
+    columns: [
+      { header: "No.", field: "caseNo" },
+      { header: "Entity", field: "entity" },
+      { header: "Tax Authority", field: "taxAuthority" },
+      { header: "Tax Year/Tax Period", field: "taxYear" },
+      { header: "Type of order", field: "type" },
+      { header: "Nature of order", field: "briefDescription" },
+      { header: "Tax demand (PKR)", field: "amount" },
+      { header: "Date of receipt of notice/order", field: "dateReceived" },
+      { header: "Compliance Date", field: "complianceDate" },
+      { header: "Cut-off date to seek stay", field: "stayExpiringOn" },
+      // { header: "Forum to file appeal", field: "nextForum" },
+      // { header: "Forum to file stay application", field: "pendingAuthority" },
+      { header: "Description", field: "briefDescription" },
+      // { header: "Wayforward", field: "contingencyNote" },
+    ],
+  },
+
+  Provisions1: {
+    columns: [
+      { header: "GL Code", field: "glCode" },
+      { header: "Tax Matter", field: "taxType" },
+      { header: "Provision Type", field: "provisionType" },
+      { header: "Entity", field: "entity" },
+      { header: "Current Month Amount", field: "currentMonthAmount" },
+      { header: "Previous Month Amount", field: "previousMonthAmount" },
+      { header: "Variance", field: "variance" },
+    ],
+  },
+
+  Provisions2: {
+    columns: [
+      { header: "GRS Code", field: "GRSCode" },
+      { header: "Tax Matter", field: "taxType" },
+      { header: "Entity", field: "entity" },
+      { header: "Current Month Amount", field: "GrossExposure" },
+    ],
+  },
+ Provisions3: {
+    columns: [
+      { header: "GRS Code", field: "GRSCode" },
+      { header: "Tax Matter", field: "taxType" },
+      { header: "Entity", field: "entity" },
+      { header: "Current Month Amount", field: "GrossExposure" },
+    ],
+  },
+  Contingencies: {
+    columns: [
+      { header: "GL Code", field: "glCode" },
+      { header: "Tax Matter", field: "taxType" },
+      { header: "Entity", field: "entity" },
+      { header: "Current Month Amount", field: "currentMonthAmount" },
+      { header: "Previous Month Amount", field: "previousMonthAmount" },
+      { header: "Variance", field: "variance" },
+    ],
+  },
+
+  ERM: {
+    columns: [
+      { header: "Entity", field: "entity" },
+      { header: "Risk Type", field: "category" },
+      { header: "Exposure Amount (FCY)", field: "currentMonthAmount" },
+      { header: "Exchange Rate", field: "variance" },
+      { header: "Exposure Amount (PKR)", field: "previousMonthAmount" },
+    ],
+  },
+};
+
+
+
+
+
+
+const ReportsTable: React.FC<{ SpfxContext: any,reportType:ReportType }> = ({ SpfxContext,reportType }) => {
   const [show, setShow] = useState(false);
   const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
+const [loading, setLoading] = useState<boolean>(false);
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
@@ -216,46 +174,434 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: any }> = ({
     taxYear: "",
     taxType: "",
     taxAuthority: "",
-    entity: "",
+    entity: ""
   });
-  const handleExport = () => {
-    const exportData = filteredData.map((item) => ({
-      "Case No.": item.caseNo,
-      "Doc Reference No.": item.docRef,
-      "Correspondence Type": item.type,
-      Attachment: item.attachment,
-      "Date Received": item.dateReceived,
-      "Financial Year": item.fy,
-      "Compliance Date": item.complianceDate,
-      Lawyer: item.lawyer,
-      Amount: item.amount,
-      Status: item.status,
-      Entity: item.entity,
-      "Tax Authority": item.taxAuthority,
-      Jurisdiction: item.jurisdiction,
-      "Concerning Law": item.concerningLaw,
-      "Brief Description": item.briefDescription,
-      "Issued By": item.issuedBy,
-      "Tax Consultant": item.taxConsultant,
-      "Tax Type": item.taxType,
-      Category: item.category,
-      "Tax Year": item.taxYear,
-      "Last Updated": item.lastUpdated,
-    }));
+const exportReport = (type: ReportType, data: CaseItem[]) => {
+  const config = reportConfig[type];
+  let exportData: Record<string, any>[] = [];
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered_Report");
-    XLSX.writeFile(workbook, "Filtered_Tax_Report.xlsx");
+
+    // default: just map raw data
+    exportData = data.map(r => mapRow(r, config));
+  
+
+  // Helper to map fields
+  function mapRow(item: CaseItem, cfg: typeof config) {
+    const row: Record<string, any> = {};
+    cfg.columns.forEach(col => {
+      row[col.header] = item[col.field] ?? "";
+    });
+    return row;
+  }
+
+  // Create worksheet + workbook
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  // Add number formatting
+Object.keys(worksheet).forEach(cell => {
+  if (cell[0] === "!") return; // skip meta
+  if (typeof worksheet[cell].v === "number") {
+    worksheet[cell].t = "n"; 
+    worksheet[cell].z = "#,##0.00"; // adds commas + 2 decimals
+  }
+});
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, `${type}_Report`);
+
+  const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([wbout], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  });
+
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${type}_Report.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+};
+
+const filterCurrentMonth = (data: CaseItem[]) => {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  return data.filter((item) => {
+    if (!item.UTPDate) return false;
+    const utpDate = new Date(item.UTPDate);
+    return (
+      utpDate.getMonth() === currentMonth &&
+      utpDate.getFullYear() === currentYear
+    );
+  });
+};
+
+const normalizeData = (reportType: string, rawData: any[]) => {
+  switch (reportType) {
+   case "Litigation":
+  return rawData.map(item => ({
+    type: item.TaxType || "",                  // "Type" → In/Out
+    caseNo: item.Title || item.Id || "",                  // "Case Number"
+    issue: item.IssuedBy || "",                           // "Issue"
+    taxAuthority: item.TaxAuthority || "",                // "Authority"
+    entity: item.Entity || "",                            // "Entity"
+    taxYear: item.TaxYear || "",                          // "Tax Year"
+
+    // exposures (only TaxExposure exists for now)
+    taxExposureScn: item.TaxExposureScn || "",            // "Tax exposure SCN" (placeholder)
+    taxExposureOrder: item.TaxExposureOrder || "",        // "Tax exposure Order" (placeholder)
+    taxExposure: item.TaxExposure || "",                  // "Tax Exposure"
+
+    // tax period dates (placeholders)
+    taxPeriodStart: item.TaxPeriodStartDate
+      ? new Date(item.TaxPeriodStartDate).toLocaleDateString()
+      : "",
+    taxPeriodEnd: item.TaxPeriodEndDate
+      ? new Date(item.TaxPeriodEndDate).toLocaleDateString()
+      : "",
+
+    // dates
+    dateOfReceipt: item.DateReceived
+      ? new Date(item.DateReceived).toLocaleDateString()
+      : "",                                               // "Date of Receipt"
+    complianceDate: item.DateofCompliance
+      ? new Date(item.DateofCompliance).toLocaleDateString()
+      : "",                                               // "Compliance Date"
+    stayExpiringOn: item.StayExpiringOn
+      ? new Date(item.StayExpiringOn).toLocaleDateString()
+      : "",                                               // "Stay Expiring On"
+
+    // other fields
+    stayObtainedFrom: item.StayObtainedFrom || "",        // "Stay obtained From"
+    pendingAuthorityLevel: item["NextForum_x002f_PendingAuthority"] || "", 
+    status: item.CaseStatus || "",                        // "Status"
+    scnOrderSummary: item.SCN_x002f_Ordersummaryonissuesad || "", // "SCN/Order Summary"
+    consultant: item.TaxConsultantAssigned || "",         // "Consultant"
+    emailTitle: item.Email || "",                         // "Email Title"
+    hcDocumentNumber: item.DocumentReferenceNumber || "", // "HC Document Number"
+
+    // placeholders for not in object
+    billigInfo: item.BilligInfo || item.Jurisdiction || "", // "Billing Information"
+    reviewSntatusLp: item.eviewSntatusLp || "",             // "Review Status LP"
+
+    inUtp: item.IsDraft ? "Draft" : "Final"             
+            // "In UTP"
+  }));
+
+    case "ActiveCases":
+        return rawData.map(item => ({
+ type: item.CorrespondenceType || "",                // "Type" → In/Out
+    caseNo: item.Title || item.Id || "",                // "Case Number"
+    issue: item.BriefDescription || item.CaseBriefDescription || "", // "Issue"
+    taxAuthority: item.TaxAuthority || "",              // "Authority"
+    entity: item.Entity || "",                          // "Entity"
+    taxYear: item.FinancialYear || "",                  // "Tax Year"
+    taxExposureScn: item.GrossTaxDemanded || "",        // "Tax exposure SCN"
+    taxExposureOrder: item.TaxexposureStage || "",      // "Tax exposure Order"
+ taxPeriodStart: item.TaxPeriodStartDate
+      ? new Date(item.TaxPeriodStartDate).toLocaleDateString()
+      : "",
+      taxPeriodEnd: item.Hearingdate
+      ? new Date(item.Hearingdate).toLocaleDateString()
+      : "",dateOfReceipt: item.DateReceived
+      ? new Date(item.DateReceived).toLocaleDateString()
+      : "",
+    stayObtainedFrom: item.IssuedBy || "",              // "Stay obtained From"
+    pendingAuthorityLevel: item["NextForum_x002f_PendingAuthority"] || "", // "Pending Authority Level"
+    stayExpiringOn: item.Modified || "",                // "Stay Expiring On"
+    complianceDate: item.DateofCompliance
+      ? new Date(item.DateofCompliance).toLocaleDateString()
+      : "",
+    status: item.CaseStatus || "",                      // "Status"
+    scnOrderSummary: item.Comments || "",               // "SCN/Order Summary"
+    consultant: item.TaxConsultantAssigned || "",       // "Consultant"
+    emailTitle: item.Email || "",                       // "Email Title"
+    hcDocumentNumber: item.DocumentReferenceNumber || "", // "HC Document Number"
+    billingInfo: item.Jurisdiction || "",               // "Billing Information" → (mapped from Jurisdiction since no billing field exists)
+    reviewStatusLp: item.ConcerningLaw || "",  
+          briefDescription: item.BriefDescription|| ""
+   // "In UTP"
+      }));
+  case "Provisions1":
+  // Group by provision type & GL code
+  const groupBy = (arr: CaseItem[], keyFn: (r: CaseItem) => string) => {
+    return arr.reduce((acc, r) => {
+      const key = keyFn(r);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(r);
+      return acc;
+    }, {} as Record<string, CaseItem[]>);
+  };
+ const now = new Date();
+  const currentMonth = now.getMonth();       // 0 = Jan, 7 = Aug
+  const year = now.getFullYear();
+
+  const prevDate = new Date(year, currentMonth - 1, 1);
+  const prevMonth = prevDate.getMonth();
+ const enriched = rawData.map(r => {
+    const d = r.UTPDate ? new Date(r.UTPDate) : null;
+    return {
+      ...r,
+      month: d ? d.getMonth() : null,
+      year: d ? d.getFullYear() : null,
+    };
+  });
+  const segregated = groupBy(enriched, r => r.TaxType);
+  console.log(segregated);
+  
+
+  const exportData: any[] = [];
+
+  Object.entries(segregated).forEach(([TaxType, rows]) => {
+    const byGL = groupBy(rows, r => r.GMLRID);
+
+    let subtotalCurr = 0;
+    let subtotalPrev = 0;
+
+    Object.entries(byGL).forEach(([GMLRID, records]) => {
+      const curr = records
+        .filter((r:any) => r.month === currentMonth && r.year === year)
+        .reduce((sum:any, r:any) => sum + r.GrossExposure, 0);
+
+      const prev = records
+        .filter((r:any) => r.month === prevMonth && r.year === year)
+        .reduce((sum:any, r:any) => sum + r.GrossExposure, 0);
+
+      const variance = curr - prev;
+
+      subtotalCurr += curr;
+      subtotalPrev += prev;
+
+      exportData.push({
+        "glCode": GMLRID,
+        "taxType": records[0]?.TaxType || "",
+        "provisionType": TaxType=="Income Tax"?"Above Ebitda":"Below Ebitda",
+        "entity": records[0]?.Entity || "",
+        "currentMonthAmount": curr,
+        "previousMonthAmount": prev,
+        "variance": variance,
+      });
+    });
+
+    // Subtotal row
+    exportData.push({
+      "glCode": "",
+      "taxType": "",
+      "provisionType": "",
+      "entity": "Sub Total",
+      "currentMonthAmount": subtotalCurr,
+      "previousMonthAmount": subtotalPrev,
+      "Variance": subtotalCurr - subtotalPrev,
+    });
+  });
+
+  // Grand total
+  const totalCurr = exportData
+    .filter(r => r["Entity"] === "Sub Total")
+    .reduce((sum, r) => sum + (r["Current Month Amount"] || 0), 0);
+
+  const totalPrev = exportData
+    .filter(r => r["Entity"] === "Sub Total")
+    .reduce((sum, r) => sum + (r["Previous Month Amount"] || 0), 0);
+
+  exportData.push({
+    "GL Code": "",
+    "Tax Matter": "",
+    "Provision Type": "",
+    "Entity": "Grand Total",
+    "Current Month Amount": totalCurr,
+    "Previous Month Amount": totalPrev,
+    "Variance": totalCurr - totalPrev,
+  });
+console.log(exportData);
+return exportData
+
+ case "Provisions3":
+
+
+    case "Provisions2":
+        const currentMonthData:any= filterCurrentMonth(rawData);
+
+  // Group & sum by GRS Code
+  const summarized = Object.values(
+    currentMonthData.reduce((acc: any, item: any) => {
+      if (!acc[item.GRSCode]) {
+        acc[item.GRSCode] = {
+          GRSCode: item.GRSCode || "",
+          entity: item.Entity || "",
+          taxType: item.TaxMatter || "",
+          GrossExposure: 0,
+        };
+      }
+      acc[item.GRSCode].GrossExposure += item.GrossExposure || 0;
+      return acc;
+    }, {})
+  );
+
+  // Subtotal
+  const total = summarized.reduce(
+    (sum: number, r: any) => sum + (r.GrossExposure || 0),
+    0
+  );
+
+  // Add subtotal row
+  summarized.push({
+    GRSCode: "",
+    entity: "Sub Total",
+    taxType: "",
+    GrossExposure: total,
+  });
+
+  return summarized;
+
+   case "Contingencies": 
+  // helper: group by GLCode
+  const groupBy2 = (arr: CaseItem[], keyFn: (r: CaseItem) => string) => {
+    return arr.reduce((acc, r) => {
+      const key = keyFn(r);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(r);
+      return acc;
+    }, {} as Record<string, CaseItem[]>);
   };
 
-  const [filteredData, setFilteredData] = useState<CaseItem[]>(dummyData);
+  const now1 = new Date();
+  const currentMonth1 = now1.getMonth();  // 0 = Jan
+  const year1 = now1.getFullYear();
+
+  const prevDate1 = new Date(year1, currentMonth1 - 1, 1);
+  const prevMonth1 = prevDate1.getMonth();
+
+  const enriched1 = rawData.map(r => {
+    const d = r.UTPDate ? new Date(r.UTPDate) : null;
+    return {
+      ...r,
+      month: d ? d.getMonth() : null,
+      year: d ? d.getFullYear() : null,
+    };
+  });
+
+  const grouped = groupBy2(enriched1, r => r.GMLRID);
+
+  const exportData3: any[] = [];
+  let subtotalCurr = 0;
+  let subtotalPrev = 0;
+
+  Object.entries(grouped).forEach(([GMLRID, records]) => {
+    const curr = records.filter((r:any) => r.month === currentMonth1 && r.year === year1)
+      .reduce((sum:any, r:any) => sum + (r.GrossExposure || 0), 0);
+
+    const prev = records.filter((r:any) => r.month === prevMonth1 && r.year === year1)
+      .reduce((sum:any, r:any) => sum + (r.GrossExposure || 0), 0);
+
+    subtotalCurr += curr;
+    subtotalPrev += prev;
+
+    // Push only ONE row per GLCode
+    exportData3.push({
+      glCode: GMLRID,
+      taxType: records[0]?.TaxMatter || "Brief Description",
+      entity: records[0]?.Entity || "",
+      currentMonthAmount: curr || 0,
+      previousMonthAmount: prev || 0,
+      variance: (curr || 0) - (prev || 0),
+    });
+  });
+
+  // Subtotal row
+  exportData3.push({
+    glCode: "",
+    taxType: "",
+    entity: "Sub Total",
+    currentMonthAmount: subtotalCurr,
+    previousMonthAmount: subtotalPrev,
+    variance: subtotalCurr - subtotalPrev,
+  });
+
+  return exportData3;
+
+
+    case "ERM":
+      return rawData.map(item => ({
+        entity: item.UTPCategory || "",
+        category: item.RiskCategory || "", // Risk Type
+        currentMonthAmount: item.GrossExposure || 0, // Exposure Amount (FCY)
+        variance: 280 as any, // Example static Exchange Rate (replace with real field if exists)
+        previousMonthAmount: item.CashFlowExposure || 0, // Exposure Amount (PKR)
+      }));
+    default: // UTPData
+   return  rawData.map(item => ({ 
+  utpId: item.UTPId, // exists (currently null in your data)
+  mlrClaimId: item.GMLRID, // mapping from GMLRID
+  taxType: item.TaxMatter, // exists
+  taxAuthority: item.TaxAuthority, // ❌ not in data (will be undefined)
+  pendingAuthority: item.PendingAuthority, // exists but null
+  entity: item.Entity, // exists but null
+  type: item.PaymentType, // exists but null
+  fy: item.FinancialYear, // exists but null
+  taxYear: item.TaxYear, // exists but null
+  grossExposureJul: item.GrossExposure, // only one field, reusing
+  grossExposureJun: item.GrossExposure,
+  varianceLastMonth: item.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
+  grossExposureMay: item.GrossExposure,
+  grossExposureApr: item.GrossExposure,
+  category: item.UTPCategory, // exists
+  arcTopTaxRisk: item.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
+  contingencyNote: item.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
+  briefDescription: item.Description, // exists but null
+  provisionGlCode: item.ProvisionGLCode, // ❌ not in data (undefined)
+  provisionGrsCode: item.GRSCode, // exists
+  paymentUnderProtest: item.Paymentunderprotest, // exists but null (note lowercase "u")
+  paymentGlCode: item.PaymentGLCode, // ❌ not in data (undefined)
+  utpPaperCategory: item.UTPPaperCategory, // exists but null
+  provisionsContingencies: item.ProvisionsContingencies, // ❌ not in data (undefined)
+}));
+;
+
+  }
+};
+
+
+const getListName = (type: ReportType) => {
+  if (type === "Litigation" || type === "ActiveCases") {
+    return "Cases";
+  }
+  return "UTPData";
+};
+
+
+  const [data, setData] = useState<CaseItem[]>([]);
+const [filteredData, setFilteredData] = useState<CaseItem[]>([]);
   const sp = spfi().using(SPFx(SpfxContext));
 
   const handleShow = (item: CaseItem) => {
     setSelectedCase(item);
     setShow(true);
   };
+  console.log(handleShow);
+  
+   const fetchData = async () => {
+    setLoading(true);
+    try {
+      const listName = getListName(reportType);
+      const items = await sp.web.lists.getByTitle(listName).items();
+ const items_updated= normalizeData(reportType, items);
+      setData(items_updated);
+      setFilteredData(items_updated); // start unfiltered
+      
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }finally {
+      setLoading(false); // stop loading
+    }
+  };
+useEffect(() => {
+ 
+console.log(reportType,"Hellooo");
+
+  fetchData();
+}, [reportType]);
 
   useEffect(() => {
     const fetchLOVs = async () => {
@@ -276,40 +622,25 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: any }> = ({
 
     fetchLOVs();
   }, []);
-  const handleFilterChange = (key: string, value: string) => {
-    const updatedFilters = { ...filters, [key]: value };
-    setFilters(updatedFilters);
+const handleFilterChange = (key: string, value: string) => {
+  const updatedFilters = { ...filters, [key]: value };
+  setFilters(updatedFilters);
 
-    const filtered = dummyData.filter((item) => {
-      const itemDate = new Date(item.dateReceived);
+  const filtered = data.filter(item => (
+    (!updatedFilters.category || item.category === updatedFilters.category) &&
+    (!updatedFilters.financialYear || item.fy === updatedFilters.financialYear) &&
+    (!updatedFilters.taxYear || item.taxYear === updatedFilters.taxYear) &&
+    (!updatedFilters.taxType || item.taxType === updatedFilters.taxType) &&
+    (!updatedFilters.taxAuthority || item.taxAuthority === updatedFilters.taxAuthority) &&
+    (!updatedFilters.entity || item.entity === updatedFilters.entity)
+  ));
 
-      const startCheck = updatedFilters.dateStart
-        ? itemDate >= new Date(updatedFilters.dateStart)
-        : true;
+  setFilteredData(filtered);
+};
 
-      const endCheck = updatedFilters.dateEnd
-        ? itemDate <= new Date(updatedFilters.dateEnd)
-        : true;
-
-      return (
-        startCheck &&
-        endCheck &&
-        (!updatedFilters.category ||
-          item.category === updatedFilters.category) &&
-        (!updatedFilters.financialYear ||
-          item.fy === updatedFilters.financialYear) &&
-        (!updatedFilters.taxYear || item.taxYear === updatedFilters.taxYear) &&
-        (!updatedFilters.taxType || item.taxType === updatedFilters.taxType) &&
-        (!updatedFilters.taxAuthority ||
-          item.taxAuthority === updatedFilters.taxAuthority) &&
-        (!updatedFilters.entity || item.entity === updatedFilters.entity)
-      );
-    });
-
-    setFilteredData(filtered);
-  };
 
   return (
+
     <>
       <div className={styles.filtersRow}>
         {/* Date Range */}
@@ -325,14 +656,12 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: any }> = ({
     onChange={(e) => handleFilterChange("dateEnd", e.target.value)}
     className={styles.filterInput}
   /> */}
-        <Dropdown
+ <Dropdown
           label="Entity"
           placeholder="Select Entity"
           options={lovOptions["Entity"] || []}
-          selectedKey={filters.entity || null}
-          onChange={(_, option) =>
-            handleFilterChange("entity", option?.key as string)
-          }
+          selectedKey={filters.financialYear || null}
+          onChange={(_, option) => handleFilterChange("entity", option?.key as string)}
           styles={{ root: { minWidth: 160 } }}
         />
 
@@ -340,31 +669,27 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: any }> = ({
           label="Tax Type"
           placeholder="Select Tax Type"
           options={lovOptions["Tax Matter"] || []}
-          selectedKey={filters.taxType || null}
-          onChange={(_, option) =>
-            handleFilterChange("taxType", option?.key as string)
-          }
+          selectedKey={filters.financialYear || null}
+          onChange={(_, option) => handleFilterChange("taxType", option?.key as string)}
           styles={{ root: { minWidth: 160 } }}
         />
         <Dropdown
           label="Tax Authority"
           placeholder="Select Tax Authority"
           options={lovOptions["TaxAuthority"] || []}
-          selectedKey={filters.taxAuthority || null}
-          onChange={(_, option) =>
-            handleFilterChange("taxAuthority", option?.key as string)
-          }
+          selectedKey={filters.financialYear || null}
+          onChange={(_, option) => handleFilterChange("taxAuthority", option?.key as string)}
           styles={{ root: { minWidth: 160 } }}
         />
+       
+
 
         <Dropdown
           label="Tax Year"
           placeholder="Select Tax Year"
           options={lovOptions["Tax Year"] || []}
           selectedKey={filters.taxYear || null}
-          onChange={(_, option) =>
-            handleFilterChange("taxYear", option?.key as string)
-          }
+          onChange={(_, option) => handleFilterChange("taxYear", option?.key as string)}
           styles={{ root: { minWidth: 160 } }}
         />
 
@@ -373,9 +698,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: any }> = ({
           placeholder="Select Financial Year"
           options={lovOptions["Financial Year"] || []}
           selectedKey={filters.financialYear || null}
-          onChange={(_, option) =>
-            handleFilterChange("financialYear", option?.key as string)
-          }
+          onChange={(_, option) => handleFilterChange("financialYear", option?.key as string)}
           styles={{ root: { minWidth: 160 } }}
         />
         <Dropdown
@@ -383,73 +706,87 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: any }> = ({
           placeholder="Select Category"
           options={lovOptions["Category"] || []}
           selectedKey={filters.category || null}
-          onChange={(_, option) =>
-            handleFilterChange("category", option?.key as string)
-          }
+          onChange={(_, option) => handleFilterChange("category", option?.key as string)}
           styles={{ root: { minWidth: 160 } }}
         />
+{/* <Dropdown
+  label="Report Type"
+  options={[
+    { key: "UTP", text: "UTP Report" },
+    { key: "Litigation", text: "Litigation Report" },
+    { key: "ActiveCases", text: "Active Cases Weekly" },
+    { key: "Provisions1", text: "Provisions Report - 1" },
+    { key: "Provisions2", text: "Provisions Report - 2" },
+    { key: "Contingencies", text: "Contingencies Breakup" },
+    { key: "ERM", text: "ERM Foreign Currency" }
+  ]}
+  selectedKey={reportType}
+  onChange={(_, option) => setReportType(option?.key as ReportType)}
+/> */}
 
-        <div className={styles.buttonGroup}>
-          <button className={styles.exportButton} onClick={handleExport}>
-            Export Report
-          </button>
-          <button className={styles.refreshButton}>⟳</button>
-        </div>
+
+
+ <div className={styles.buttonGroup}>
+    <button className={styles.exportButton} onClick={() => exportReport(reportType, filteredData)} >
+       Export {reportType} Report
+    </button>
+   <button
+  className={styles.refreshButton}
+  onClick={() => {
+    setFilters({
+      dateStart: "",
+      dateEnd: "",
+      category: "",
+      financialYear: "",
+      taxYear: "",
+      taxType: "",
+      taxAuthority: "",
+      entity: ""
+    });
+    // setFilteredData(dummyData);
+  }}
+>
+  ⟳
+</button>
+
+  </div>
       </div>
+
 
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Case No.</th>
-              <th>Doc Reference No.</th>
-              <th>Correspondance Type</th>
-              <th>Attachments</th>
-              <th>Date Received</th>
-              <th>Financial Year</th>
-              <th>Date of Compliance</th>
-              <th>Lawyer Assigned</th>
-              <th>Gross Tax Demanded/Exposure</th>
-              <th>Case Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.map((item, idx) => (
-              <tr key={idx}>
-                <td>{item.caseNo}</td>
-                <td>{item.docRef}</td>
-                <td>{item.type}</td>
-                <td>{item.attachment}</td>
-                <td>{item.dateReceived}</td>
-                <td>{item.fy}</td>
-                <td>{item.complianceDate}</td>
-                <td>{item.lawyer}</td>
-                <td>{item.amount}</td>
-                <td>
-                  <span
-                    className={
-                      item.status === "Active"
-                        ? styles.statusActive
-                        : styles.statusInactive
-                    }
-                  >
-                    {item.status}
-                  </span>
-                </td>
-                <td>
-                  <Button
-                    variant="outline-warning"
-                    size="sm"
-                    onClick={() => handleShow(item)}
-                  >
-                    👁{" "}
-                  </Button>
+         
+  <thead>
+    <tr>
+      {reportConfig[reportType].columns.map(col => (
+        <th key={col.header}>{col.header}</th>
+      ))}
+    </tr>
+  </thead>
+  <tbody>
+     {loading ? (
+              <tr>
+                <td colSpan={reportConfig[reportType].columns.length} style={{ textAlign: "center" }}>
+                  Loading...
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            ) : filteredData.map((item, idx) => (
+      <tr key={idx}>
+        {reportConfig[reportType].columns.map(col => (
+          <td key={col.header}>{item[col.field] ?? ""}</td>
+        ))}
+         {/* <td>
+
+                  <Button
+                    variant="outline-warning"
+                    size="sm" onClick={() => handleShow(item)}
+                  >
+                    👁                </Button>
+                </td> */}
+      </tr>
+    ))}
+  </tbody>
+</table>
 
         {selectedCase && (
           <CorrespondenceDetailOffCanvas

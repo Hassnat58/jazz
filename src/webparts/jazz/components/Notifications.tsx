@@ -166,7 +166,10 @@ const Notifications: React.FC<NotificationsProps> = ({
               </div>
             </div>
             <div className="text-end">
-              <small className="text-muted">{n.time}</small>
+              <small className="text-muted">  {new Date(
+                          n.date
+                        ).toLocaleDateString()}
+ </small>
               <div className="mt-2">
                 <Badge bg="success p-2" className="me-2">
                   {n.status === "unread" ? "New" : "Read"}
