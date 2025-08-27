@@ -194,10 +194,12 @@ const TabbedTables: React.FC<{
           "Status",
           "Author/Title",
           "Editor/Title",
-          "UTPId"
+          "UTPId",
+          "ParentCase/Id",
+          "ParentCase/TaxType"
         )
         .orderBy("ID", false)
-        .expand("Author", "Editor")();
+        .expand("Author", "Editor", "ParentCase")();
       setUtpData(items);
       setFilteredUtpData(items);
       console.log("UTP data:", items);
@@ -467,8 +469,12 @@ const TabbedTables: React.FC<{
               <tr key={item.ID}>
                 <td>
                   {item.ParentCaseId
-                    ? `00-CN${item.ParentCaseId}`
-                    : `00-CN${item.ID}`}
+                    ? item.TaxType === "Income Tax"
+                      ? `IT--00${item.ParentCaseId}`
+                      : item.TaxType === "Sales Tax"
+                      ? `ST--00${item.ParentCaseId}`
+                      : `CN--00${item.ParentCaseId}` // fallback for other types
+                    : item.Title}
                 </td>
                 <td>{item.CorrespondenceType}</td>
                 <td>{item.DateReceived?.split("T")[0]}</td>

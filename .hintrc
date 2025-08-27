@@ -5,6 +5,7 @@
   "hints": {
     "no-inline-styles": "off",
     "axe/forms": "off",
-    "typescript-config/is-valid": "off"
+    "typescript-config/is-valid": "off",
+    "compat-api/css": "off"
   }
 }

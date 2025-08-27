@@ -6,7 +6,7 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { spfi, SPFx } from "@pnp/sp";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
@@ -34,7 +34,7 @@ interface CaseFormProps {
   notiID?: any;
   loadCasesData: any;
 
-  existing?: any;
+  existing?: any; // if true -> editing mode (ParentCaseId dropdown shown)
   setExisting: any;
 }
 
@@ -49,6 +49,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
   setExisting,
 }) => {
   const { control, handleSubmit, reset, getValues } = useForm();
+  const taxType = useWatch({ control, name: "TaxType" });
+
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
@@ -65,39 +67,37 @@ const CaseForm: React.FC<CaseFormProps> = ({
     }[]
   >([]);
   const [nextCaseNumber, setNextCaseNumber] = useState<number | null>(null);
-  // const [currentTaxIssue, setCurrentTaxIssue] = useState<{
-  //   taxIssue: string;
-  //   id: any;
-  //   amountContested: number;
-  //   grossTaxExposure: number;
-  // }>({
-  //   taxIssue: "",
-  //   id: null,
-  //   amountContested: 0,
-  //   grossTaxExposure: 0,
-  // });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const sp = spfi().using(SPFx(SpfxContext));
+
   const markAsRead = async (id: number) => {
     try {
-      const sp = spfi().using(SPFx(SpfxContext));
-      await sp.web.lists.getByTitle("Inbox").items.getById(id).update({
-        Status: "Read",
-      });
-
-      // Update local state so UI updates immediately
+      const spLocal = spfi().using(SPFx(SpfxContext));
+      await spLocal.web.lists
+        .getByTitle("Inbox")
+        .items.getById(id)
+        .update({ Status: "Read" });
     } catch (err) {
       console.error("Error updating notification status:", err);
     }
   };
 
+  // 🔹 helper: prefix from Tax Type
+  const getCaseNumberPrefix = () => {
+    if (taxType === "Income Tax") return "IT--00";
+    if (taxType === "Sales Tax") return "ST--00";
+    return "CN--00"; // fallback
+  };
+
   const fieldMapping: { [key: string]: string } = {
+    "Tax Type": "TaxType",
     Entity: "Entity",
     TaxAuthority: "TaxAuthority",
-    Jurisdiction: "Jurisdiction",
     "Concerning Law": "ConcerningLaw",
     "Correspondence Type": "CorrespondenceType",
     IssuedBy: "IssuedBy",
-    "Next Forum/Pending Authority": "NextForum_x002f_PendingAuthority",
+    // "Pending Authority": "PendingAuthority",
     "Tax exposure Stage": "TaxexposureStage",
     "Tax Consultant Assigned": "TaxConsultantAssigned",
     "Exposure Issues": "Exposure_x0020_Issues",
@@ -107,10 +107,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const dropdownFields = Object.keys(fieldMapping);
   const inputFields = [
     { label: "Document Reference Number", name: "DocumentReferenceNumber" },
-    { label: "Gross Tax Demanded/Exposure", name: "GrossTaxDemanded" },
     { label: "Email – Title", name: "Email" },
     { label: "Brief Description", name: "BriefDescription" },
-    { label: "Case Brief Description", name: "CaseBriefDescription" },
   ];
 
   const dateFields = [
@@ -118,42 +116,41 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { label: "Date Received", name: "DateReceived" },
     { label: "Date of Compliance", name: "DateofCompliance" },
     { label: "Hearing Date", name: "Hearingdate" },
+    // { Label: "Tax Year", name: "TaxYear" },
+    // { Label: "Financial Year", name: "FinancialYear" },
   ];
 
   const multilineFields = [
+    // { label: "SCN/Order Summary", name: "OrderSummary" },
     { label: "Brief Description", name: "BriefDescription" },
-    { label: "Case Brief Description", name: "CaseBriefDescription" },
   ];
 
   const fieldOrder = [
+    { type: "dropdown", label: "Tax Type", name: "TaxType" },
+    { type: "dropdown", label: "Concerning Law" },
+    { type: "dropdown", label: "TaxAuthority" },
+    { type: "caseNumber", label: "Case Number" }, // 4th field
+    { type: "dropdown", label: "Entity" },
     {
       type: "input",
       label: "Document Reference Nummber",
       name: "DocumentReferenceNumber",
     },
-    { type: "dropdown", label: "Entity" },
-    { type: "dropdown", label: "TaxAuthority" },
-    { type: "dropdown", label: "Jurisdiction" },
-    { type: "dropdown", label: "Concerning Law" },
     { type: "dropdown", label: "Correspondence Type" },
     { type: "dropdown", label: "IssuedBy" },
     { type: "date", label: "Date of Document", name: "Dateofdocument" },
     { type: "date", label: "Date Received", name: "DateReceived" },
     { type: "dropdown", label: "Financial Year" },
-    { type: "dropdown", label: "Next Forum/Pending Authority" },
+    // { type: "dropdown", label: "Pending Authority" },
     { type: "date", label: "Date of Compliance", name: "DateofCompliance" },
     { type: "date", label: "Hearing Date", name: "Hearingdate" },
     { type: "dropdown", label: "Tax exposure Stage" },
     { type: "dropdown", label: "Tax Consultant Assigned" },
     { type: "dropdown", label: "Exposure Issues" },
-    {
-      type: "input",
-      label: "Gross Tax Demanded/Exposure",
-      name: "GrossTaxDemanded",
-    },
     { type: "input", label: "Email – Title", name: "Email" },
   ];
 
+  // 🔸 Load LOVs & base cases list
   useEffect(() => {
     const fetchLOVs = async () => {
       const items = await sp.web.lists
@@ -170,26 +167,50 @@ const CaseForm: React.FC<CaseFormProps> = ({
       });
       setLovOptions(grouped);
     };
+
     fetchLOVs();
+
     sp.web.lists
       .getByTitle("Cases")
-      .items.select("ID", "Title")()
+      .items.select("ID", "Title, TaxType")()
       .then((items) => {
         const options: IComboBoxOption[] = items.map((item) => ({
-          key: item.ID.toString(), // ← string key
-          text: `CN--00${item.ID}`, // ← text is the Case Number
+          key: item.ID.toString(), // store ID as string
+          text: `CN--00${item.ID}`,
+          data: { taxType: item.TaxType },
         }));
         setCasesOptions(options);
       });
   }, []);
-  const filteredCaseOptions = React.useMemo(() => {
-    if (!caseSearch) return casesOptions;
-    const q = caseSearch.toLowerCase();
-    return casesOptions.filter((o) =>
-      (o.text as string).toLowerCase().includes(q)
-    );
-  }, [caseSearch, casesOptions]);
 
+  const filteredCaseOptions = React.useMemo(() => {
+    let filtered = casesOptions;
+
+    // filter by Tax Type
+    if (taxType) {
+      filtered = filtered.filter((opt) => opt.data?.taxType === taxType);
+    }
+
+    // also apply search filter
+    if (caseSearch) {
+      const q = caseSearch.toLowerCase();
+      filtered = filtered.filter((o) =>
+        (o.text as string).toLowerCase().includes(q)
+      );
+    }
+
+    return filtered;
+  }, [caseSearch, casesOptions, taxType]);
+
+  // 🔸 Apply dynamic prefix to dropdown texts
+  const caseNumberOptions = React.useMemo(() => {
+    return filteredCaseOptions.map((opt) => ({
+      ...opt,
+      text: opt.text.replace(/^CN--00/, getCaseNumberPrefix()),
+    }));
+  }, [filteredCaseOptions, taxType]);
+
+  // 🔸 Prefill when editing + load attachments & tax issues for selected case
   useEffect(() => {
     const loadExistingAttachments = async () => {
       if (selectedCase?.ID) {
@@ -199,14 +220,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
           .select("FileLeafRef", "FileRef", "ID")();
         setExistingAttachments(files);
       }
+
       if (selectedCase?.ID) {
         const taxItems = await sp.web.lists
           .getByTitle("Tax Issues")
           .items.filter(`CaseId eq ${selectedCase.ID}`)();
-
         setTaxIssueEntries(
-          taxItems.map((item) => ({
-            id: item.Id, // store the SharePoint item ID
+          taxItems.map((item: any) => ({
+            id: item.Id,
             taxIssue: item.Title,
             amountContested: item.AmountContested,
             grossTaxExposure: item.GrossTaxExposure,
@@ -217,34 +238,43 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     if (selectedCase) {
       const prefilledValues: any = {};
-      dropdownFields.forEach((field) => {
-        const fieldName = fieldMapping[field];
-        const value = selectedCase[fieldName];
 
-        // Ensure it's a string or null
-        prefilledValues[fieldName] =
+      // map dropdowns
+      Object.keys(fieldMapping).forEach((label) => {
+        const spField = fieldMapping[label];
+        const value = selectedCase[spField];
+        prefilledValues[spField] =
           typeof value === "string" ? value : value?.toString() || "";
       });
+
+      // inputs
       inputFields.forEach(({ name }) => {
         prefilledValues[name] = selectedCase[name] || "";
       });
+
+      // dates
       dateFields.forEach(({ name }) => {
         prefilledValues[name] = selectedCase[name]
           ? new Date(selectedCase[name])
           : null;
       });
+
+      // multiline
       multilineFields.forEach(({ name }) => {
         prefilledValues[name] = selectedCase[name] || "";
       });
+
       prefilledValues["CaseNumber"] = selectedCase["ID"] || "";
       prefilledValues["ParentCaseId"] = selectedCase["ParentCaseId"] || "";
+
       reset(prefilledValues);
       loadExistingAttachments();
     }
   }, [selectedCase, reset]);
+
+  // 🔸 Compute next Case ID for new item
   useEffect(() => {
     if (!selectedCase) {
-      // Fetch last Case ID
       sp.web.lists
         .getByTitle("Cases")
         .items.top(1)
@@ -256,14 +286,25 @@ const CaseForm: React.FC<CaseFormProps> = ({
     }
   }, [selectedCase]);
 
+  // 🔸 Submit
   const submitForm = async (isDraft: boolean) => {
+    if (isSubmitting) return; // lock double clicks
+    setIsSubmitting(true);
     const data = getValues();
 
+    const prefix = getCaseNumberPrefix();
+
     const itemData: any = {
-      Title: `CN--00${nextCaseNumber}`, // always new case number
+      Title: `${prefix}${nextCaseNumber}`, // ✅ correct prefix saved
       IsDraft: isDraft,
       CaseStatus: isDraft ? "Draft" : "Active",
-      ParentCaseId: selectedCase ? Number(selectedCase.ID) : null, // link back if cloning
+      ParentCaseId: existing
+        ? data.ParentCaseId
+          ? Number(data.ParentCaseId)
+          : null
+        : selectedCase
+        ? Number(selectedCase.ID)
+        : null,
     };
 
     // dropdowns
@@ -278,10 +319,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     // inputs
     inputFields.forEach(({ name }) => {
-      itemData[name] =
-        name === "GrossTaxDemanded"
-          ? parseFloat(data[name]) || 0
-          : data[name] || "";
+      itemData[name] = data[name] || "";
     });
 
     // dates
@@ -289,7 +327,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       itemData[name] = data[name] || null;
     });
 
-    // multi-line text
+    // multiline
     multilineFields.forEach(({ name }) => {
       itemData[name] = data[name] || "";
     });
@@ -299,17 +337,17 @@ const CaseForm: React.FC<CaseFormProps> = ({
         data.LawyerAssigned.Id || data.LawyerAssigned.id || null;
     }
 
-    console.log("Final itemData before submit:", itemData);
-
     try {
       const addResult = await sp.web.lists.getByTitle("Cases").items.add({
         ...itemData,
         LinkedNotificationIDId: notiID || null,
       });
-      markAsRead(notiID);
+
+      if (notiID) await markAsRead(notiID);
+
       const itemId = addResult.ID;
 
-      // add tax issues
+      // 🔹 save tax issues
       for (const entry of taxIssueEntries) {
         await sp.web.lists.getByTitle("Tax Issues").items.add({
           Title: entry.taxIssue,
@@ -319,29 +357,32 @@ const CaseForm: React.FC<CaseFormProps> = ({
         });
       }
 
-      // upload attachments
+      // 🔹 upload attachments & tag CaseId
       for (const file of attachments) {
-        const uploadResult = await sp.web.lists
+        const uploadResult: any = await sp.web.lists
           .getByTitle("Core Data Repositories")
           .rootFolder.files.addUsingPath(file.name, file, { Overwrite: true });
 
         const serverRelativeUrl = uploadResult.ServerRelativeUrl;
-
         const fileItem = await sp.web
           .getFileByServerRelativePath(serverRelativeUrl)
           .getItem();
-
         await fileItem.update({ CaseId: itemId });
       }
+
       loadCasesData();
       setExisting(false);
       alert(isDraft ? "Draft saved" : "Case submitted");
       onSave(data);
       reset();
       setAttachments([]);
+      setExistingAttachments([]);
+      setTaxIssueEntries([]);
     } catch (error) {
       console.error("Submission failed", error);
       alert("Error submitting form.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -350,12 +391,11 @@ const CaseForm: React.FC<CaseFormProps> = ({
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: "1rem",
   };
-  console.log(selectedCase, "caseeee");
 
   return (
     <form
       onSubmit={handleSubmit(() => submitForm(false))}
-      style={{ marginTop: "0px" }}
+      style={{ marginTop: 0 }}
     >
       <div className={styles.topbuttongroup}>
         <button className={styles.cancelbtn} type="button" onClick={onCancel}>
@@ -365,55 +405,63 @@ const CaseForm: React.FC<CaseFormProps> = ({
           className={styles.draftbtn}
           type="button"
           onClick={() => submitForm(true)}
+          disabled={isSubmitting}
         >
           Save as Draft
         </button>
-        <button className={styles.savebtn} type="submit">
-          Submit
+        <button
+          className={styles.savebtn}
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Submitting..." : "Submit"}
         </button>
       </div>
+
       <div style={formStyle}>
-        {!existing ? (
-          // New Case → readonly Case Number
-          <TextField
-            label="Case Number"
-            value={nextCaseNumber ? `CN--00${nextCaseNumber}` : "Loading..."}
-            readOnly
-          />
-        ) : (
-          // Editing Case → Dropdown for ParentCaseId
-
-          <Controller
-            name="ParentCaseId"
-            control={control}
-            render={({ field: f }) => (
-              <ComboBox
-                label="Case Number"
-                options={[
-                  { key: "", text: "-- None --" },
-                  ...filteredCaseOptions,
-                ]}
-                // store as string in the form; convert later when you need a number
-                selectedKey={f.value?.toString() ?? ""}
-                onChange={(_, option) =>
-                  f.onChange((option?.key as string) || "")
-                }
-                placeholder="Type to search case number (e.g. CN--0015)"
-                // lets the user type freely; value is committed only when an option is picked
-                allowFreeform
-                // track the typed text and filter options
-                onInputValueChange={(text) => setCaseSearch(text || "")}
-                // optional: clear the search when menu closes so full list shows next time
-                onMenuDismissed={() => setCaseSearch("")}
-                // optional niceties
-                openOnKeyboardFocus
-                useComboBoxAsMenuWidth
-              />
-            )}
-          />
-        )}
-
         {fieldOrder.map((field) => {
+          if (field.type === "caseNumber") {
+            return !existing ? (
+              // New Case → readonly Case Number with dynamic prefix
+              <TextField
+                key="CaseNumber"
+                label="Case Number"
+                value={
+                  nextCaseNumber
+                    ? `${getCaseNumberPrefix()}${nextCaseNumber}`
+                    : "Loading..."
+                }
+                readOnly
+              />
+            ) : (
+              // Editing Case → Dropdown for ParentCaseId (with dynamic prefix in text)
+              <Controller
+                key="CaseNumber"
+                name="ParentCaseId"
+                control={control}
+                render={({ field: f }) => (
+                  <ComboBox
+                    label="Case Number"
+                    options={[
+                      { key: "", text: "-- None --" },
+                      ...caseNumberOptions,
+                    ]}
+                    selectedKey={f.value?.toString() ?? ""}
+                    onChange={(_, option) =>
+                      f.onChange((option?.key as string) || "")
+                    }
+                    placeholder={`Type to search case number (e.g. ${getCaseNumberPrefix()}0015)`}
+                    allowFreeform
+                    onInputValueChange={(text) => setCaseSearch(text || "")}
+                    onMenuDismissed={() => setCaseSearch("")}
+                    openOnKeyboardFocus
+                    useComboBoxAsMenuWidth
+                  />
+                )}
+              />
+            );
+          }
+
           if (field.type === "input")
             return (
               <Controller
@@ -425,11 +473,11 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     label={field.label}
                     {...f}
                     placeholder={field.label}
-                    type={field.name === "GrossTaxDemanded" ? "number" : "text"}
                   />
                 )}
               />
             );
+
           if (field.type === "dropdown") {
             const internalName = fieldMapping[field.label];
             return (
@@ -448,6 +496,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
               />
             );
           }
+
           if (field.type === "date")
             return (
               <Controller
@@ -460,12 +509,16 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     value={f.value}
                     placeholder="Select a date"
                     onSelectDate={(d) => f.onChange(d)}
+                    disableAutoFocus={true}
                   />
                 )}
               />
             );
+
           return null;
         })}
+
+        {/* People Picker */}
         <Controller
           name="LawyerAssigned"
           control={control}
@@ -502,6 +555,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
           )}
         />
 
+        {/* Attachments */}
         <div style={{ gridColumn: "span 3" }}>
           <label style={{ fontWeight: 600 }}> Attachments</label>
 
@@ -603,6 +657,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
           </div>
         </div>
 
+        {/* Multiline fields */}
         {multilineFields.map(({ label, name }) => (
           <Controller
             key={name}
@@ -621,6 +676,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
           />
         ))}
       </div>
+
+      {/* Tax Issues */}
       <div style={{ marginTop: "1rem" }}>
         <h3>Tax Issues</h3>
         {taxIssueEntries.map((entry, idx) => (
@@ -651,12 +708,24 @@ const CaseForm: React.FC<CaseFormProps> = ({
             <TextField
               label="Amount Contested"
               placeholder="Amount Contested"
-              type="number"
-              value={entry.amountContested?.toString() || ""}
+              type="text"
+              value={
+                entry.amountContested !== undefined &&
+                entry.amountContested !== null
+                  ? new Intl.NumberFormat("en-US", {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 2,
+                    }).format(entry.amountContested)
+                  : ""
+              }
               styles={{ root: { flex: 1 } }}
               onChange={(_, v) => {
+                const numericValue =
+                  v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
                 const updated = [...taxIssueEntries];
-                updated[idx].amountContested = v ? parseFloat(v) : 0;
+                updated[idx].amountContested = numericValue
+                  ? parseFloat(numericValue)
+                  : 0;
                 setTaxIssueEntries(updated);
               }}
             />
@@ -665,12 +734,24 @@ const CaseForm: React.FC<CaseFormProps> = ({
             <TextField
               label="Gross Tax Exposure"
               placeholder="Gross Tax Exposure"
-              type="number"
-              value={entry.grossTaxExposure?.toString() || ""}
+              type="text"
+              value={
+                entry.grossTaxExposure !== undefined &&
+                entry.grossTaxExposure !== null
+                  ? new Intl.NumberFormat("en-US", {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 2,
+                    }).format(entry.grossTaxExposure)
+                  : ""
+              }
               styles={{ root: { flex: 1 } }}
               onChange={(_, v) => {
+                const numericValue =
+                  v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
                 const updated = [...taxIssueEntries];
-                updated[idx].grossTaxExposure = v ? parseFloat(v) : 0;
+                updated[idx].grossTaxExposure = numericValue
+                  ? parseFloat(numericValue)
+                  : 0;
                 setTaxIssueEntries(updated);
               }}
             />

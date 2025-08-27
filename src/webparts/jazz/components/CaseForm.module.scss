@@ -4,7 +4,7 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
-  position: sticky; 
+  position: sticky;
   top: 0;
   background-color: #fff;
   z-index: 10;
@@ -50,4 +50,9 @@
 }
 .savebtn:hover {
   background-color: #8a191e; /* Darker shade on hover */
+}
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
