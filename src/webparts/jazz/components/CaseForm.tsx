@@ -149,6 +149,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { type: "dropdown", label: "Exposure Issues" },
     { type: "input", label: "Email – Title", name: "Email" },
   ];
+const getYearOptions = (): IDropdownOption[] => {
+  const currentYear = new Date().getFullYear();
+  const years: IDropdownOption[] = [];
+  for (let y = currentYear; y >= 1980; y--) {
+    years.push({ key: "FY"+y.toString(), text: "FY"+y.toString() });
+  }
+  return years;
+};
 
   // 🔸 Load LOVs & base cases list
   useEffect(() => {
@@ -462,6 +470,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
             );
           }
 
+
           if (field.type === "input")
             return (
               <Controller
@@ -478,10 +487,47 @@ const CaseForm: React.FC<CaseFormProps> = ({
               />
             );
 
-          if (field.type === "dropdown") {
-            const internalName = fieldMapping[field.label];
-            return (
-              <Controller
+        if (field.type === "dropdown") {
+  const internalName = fieldMapping[field.label];
+
+  // ✅ If it's the "Financial Year" field → show years dropdown
+  if (field.label === "Financial Year") {
+    return (
+     <Controller
+      key={field.label}
+      name={internalName}
+      control={control}
+      render={({ field: f }) => (
+        <ComboBox
+          label={field.label}
+            options={getYearOptions()}
+            selectedKey={f.value}
+            onChange={(_, o) => f.onChange(o?.key)}
+            placeholder="Select Year"
+          allowFreeform={false} // user can’t type custom values
+          autoComplete="on"    // enables search/filter
+
+          styles={{
+          
+          callout: {
+            maxHeight: "30vh", // dropdown height (viewport based)
+            overflowY: "auto",
+            directionalHintFixed: true,   // ✅ force position
+          directionalHint: 6  
+          },
+          optionsContainerWrapper: {
+            minWidth: 100,
+          },
+        }}
+          />
+      )}
+    />
+    );
+  }
+
+  // 🔹 Otherwise normal LOV dropdown
+  return (
+    <Controller
                 key={field.label}
                 name={internalName}
                 control={control}
@@ -494,8 +540,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   />
                 )}
               />
-            );
-          }
+  );
+}
 
           if (field.type === "date")
             return (
