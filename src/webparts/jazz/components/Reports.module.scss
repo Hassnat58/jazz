@@ -234,8 +234,22 @@
   gap: 12px;
   margin-bottom: 16px;
   flex-wrap: wrap;
+   
+}
+.filterField {
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+    height: 40px;
+
 }
 
+.filterLabel {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #000; // black label
+}
 .filterInput {
   padding: 8px 10px;
   border: 1px solid #d1d5db;
@@ -265,7 +279,14 @@
   border-radius: 4px;
   cursor: pointer;
 }
-
+.clearButton{
+  padding: 8px 12px;
+  background-color:#8a191e; /* or your primary color */
+  color: rgb(255, 255, 255);
+  border: 1 px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
 .refreshButton {
   padding: 8px 12px;
   background-color: #f0f0f0;
@@ -274,4 +295,28 @@
   border-radius: 4px;
   cursor: pointer;
 }
+ .customCalendar:global(.react-datepicker-wrapper) {
+    width: auto !important;
+    height: 40px;
 
+  }
+
+  .customCalendar:global(.react-datepicker__input-container input) {
+    @extend .filterInput; // reuse same styles as dropdowns
+    width: 180px;         // fixed width like dropdown
+    height: 40px;
+  }
+.customCalendar :global(.react-datepicker__day--in-range),
+.customCalendar :global(.react-datepicker__day--in-selecting-range),
+.customCalendar :global(.react-datepicker__day--selecting-range-start),
+.customCalendar :global(.react-datepicker__day--selecting-range-end),
+.customCalendar :global(.react-datepicker__day--range-start),
+.customCalendar :global(.react-datepicker__day--range-end) {
+  background-color: #8a191e !important;
+  color: #fff !important;
+}
+
+.customDay.inRange {
+  background-color: #8a191e !important;
+  color: #fff !important;
+}
