@@ -19,12 +19,29 @@ import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import * as XLSX from "xlsx";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { ComboBox } from "@fluentui/react";
+import Pagination from "./Pagination";
 
 // import { Button } from "react-bootstrap";
 interface CaseItem {
   [key: string]: any; // flexible structure, since fields differ per report
 }
-
+const getYearOptionsFY = (): IDropdownOption[] => {
+  const currentYear = new Date().getFullYear();
+  const years: IDropdownOption[] = [];
+  for (let y = currentYear; y >= 1980; y--) {
+    years.push({ key: "FY"+y.toString(), text: "FY"+y.toString() });
+  }
+  return years;
+};
+const getYearOptions = (): IDropdownOption[] => {
+  const currentYear = new Date().getFullYear();
+  const years: IDropdownOption[] = [];
+  for (let y = currentYear; y >= 1980; y--) {
+    years.push({ key: y.toString(), text: y.toString() });
+  }
+  return years;
+};
 type ReportType =
   | "UTP"
   | "Litigation"
@@ -56,7 +73,6 @@ const reportConfig: Record<
       // { header: "Gross Exposure PKR May 2024", field: "grossExposureMay" },
       // { header: "Gross Exposure PKR Apr 2024", field: "grossExposureApr" },
       { header: "Category", field: "category" },
-      { header: "ARC Top Tax Risks Reporting", field: "arcTopTaxRisk" },
       { header: "Contingency Note", field: "contingencyNote" },
       { header: "Description", field: "briefDescription" },
       { header: "Provision GL Code", field: "provisionGlCode" },
@@ -64,7 +80,6 @@ const reportConfig: Record<
       { header: "Payment under Protest", field: "paymentUnderProtest" },
       { header: "Payment GL Code", field: "paymentGlCode" },
       { header: "UTP Paper Category", field: "utpPaperCategory" },
-      { header: "Provisions/Contingencies", field: "provisionsContingencies" },
     ],
   },
 
@@ -77,11 +92,11 @@ const reportConfig: Record<
       { header: "Entity", field: "entity" },
       { header: "Tax Year", field: "taxYear" },
       { header: "Tax exposure SCN", field: "taxExposureScn" },
-      { header: "Tax exposure Order", field: "taxExposureOrder" },
-      { header: "Tax period Start", field: "taxPeriodStart" },
-      { header: "Tax period End", field: "taxPeriodEnd" },
+      // { header: "Tax exposure Order", field: "taxExposureOrder" },
+      // { header: "Tax period Start", field: "taxPeriodStart" },
+      // { header: "Tax period End", field: "taxPeriodEnd" },
       { header: "Date of Receipt", field: "dateOfReceipt" },
-      { header: "Stay obtained From", field: "stayObtainedFrom" },
+      // { header: "Stay obtained From", field: "stayObtainedFrom" },
       { header: "Pending Authority Level", field: "pendingAuthorityLevel" },
       { header: "Stay Expiring On", field: "stayExpiringOn" },
       { header: "Compliance Date", field: "complianceDate" },
@@ -107,7 +122,7 @@ const reportConfig: Record<
       { header: "Tax demand (PKR)", field: "amount" },
       { header: "Date of receipt of notice/order", field: "dateReceived" },
       { header: "Compliance Date", field: "complianceDate" },
-      { header: "Cut-off date to seek stay", field: "stayExpiringOn" },
+      // { header: "Cut-off date to seek stay", field: "stayExpiringOn" },
       // { header: "Forum to file appeal", field: "nextForum" },
       // { header: "Forum to file stay application", field: "pendingAuthority" },
       { header: "Description", field: "briefDescription" },
@@ -135,14 +150,14 @@ const reportConfig: Record<
       { header: "Current Month Amount", field: "GrossExposure" },
     ],
   },
- Provisions3: {
-  columns: [
-    { header: "", field: "label" }, // metric name (row label)
-    { header: "Current Month (PKR)", field: "current" },
-    { header: "Prior Month (PKR)", field: "prior" },
-    { header: "Variance (PKR)", field: "variance" },
-  ],
-},
+  Provisions3: {
+    columns: [
+      { header: "", field: "label" }, // metric name (row label)
+      { header: "Current Month (PKR)", field: "current" },
+      { header: "Prior Month (PKR)", field: "prior" },
+      { header: "Variance (PKR)", field: "variance" },
+    ],
+  },
 
   Contingencies: {
     columns: [
@@ -176,7 +191,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
-  
+const [currentPage, setCurrentPage] = useState(1);
+const itemsPerPage = 10;
+
   const [filters, setFilters] = useState({
     dateStart: "",
     dateEnd: "",
@@ -198,7 +215,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     let exportData: Record<string, any>[] = [];
 
     // default: just map raw data
-    exportData = data.map((r) => mapRow(r, config));
+    exportData = filteredData.map((r) => mapRow(r, config));
 
     // Helper to map fields
     function mapRow(item: CaseItem, cfg: typeof config) {
@@ -253,7 +270,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   };
 
   const normalizeData = (reportType: string, rawData: any[]) => {
-    
+
+
     switch (reportType) {
       case "Litigation":
         return rawData.map((item) => ({
@@ -263,9 +281,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           taxAuthority: item.TaxAuthority || "", // "Authority"
           entity: item.Entity || "", // "Entity"
           taxYear: item.TaxYear || "", // "Tax Year"
+          DateReceived: item.DateReceived || "",
+          fy: item.FinancialYear || "",
 
           // exposures (only TaxExposure exists for now)
-          taxExposureScn: item.TaxExposureScn || "", // "Tax exposure SCN" (placeholder)
+          taxExposureScn: item.TaxExposure || "", // "Tax exposure SCN" (placeholder)
           taxExposureOrder: item.TaxExposureOrder || "", // "Tax exposure Order" (placeholder)
           taxExposure: item.TaxExposure || "", // "Tax Exposure"
 
@@ -290,6 +310,58 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
           // other fields
           stayObtainedFrom: item.StayObtainedFrom || "", // "Stay obtained From"
+          pendingAuthorityLevel: item.PendingAuthority || "",
+          status: item.CaseStatus || "", // "Status"
+          scnOrderSummary: item.OrderSummary || "", // "SCN/Order Summary"
+          consultant: item.TaxConsultantAssigned || "", // "Consultant"
+          emailTitle: item.Email || "", // "Email Title"
+          hcDocumentNumber: item.DocumentReferenceNumber || "", // "HC Document Number"
+
+          // placeholders for not in object
+          billingInfo: item.BilligInfo || "", // "Billing Information"
+          reviewStatusLp: "Peview Pending", // "Review Status LP"
+
+          inUtp: item.IsDraft ? "Draft" : "Final",
+          // "In UTP"
+        }));
+
+      case "ActiveCases":
+        return rawData.map((item) => ({
+          type: item.TaxType || "", // "Type" → In/Out
+          caseNo: item.Title || item.Id || "", // "Case Number"
+          issue: item.IssuedBy || "", // "Issue"
+          taxAuthority: item.TaxAuthority || "", // "Authority"
+          entity: item.Entity || "", // "Entity"
+          taxYear: item.TaxYear || "", // "Tax Year"
+          DateReceived: item.DateReceived || "",
+          fy: item.FinancialYear || "",
+
+          // exposures (only TaxExposure exists for now)
+          taxExposureScn: item.TaxExposureScn || "", // "Tax exposure SCN" (placeholder)
+          taxExposureOrder: item.TaxExposureOrder || "", // "Tax exposure Order" (placeholder)
+          amount: item.TaxExposure || "", // "Tax Exposure"
+
+          // tax period dates (placeholders)
+          taxPeriodStart: item.TaxPeriodStartDate
+            ? new Date(item.TaxPeriodStartDate).toLocaleDateString()
+            : "",
+          taxPeriodEnd: item.TaxPeriodEndDate
+            ? new Date(item.TaxPeriodEndDate).toLocaleDateString()
+            : "",
+
+          // dates
+          dateReceived: item.DateReceived
+            ? new Date(item.DateReceived).toLocaleDateString()
+            : "", // "Date of Receipt"
+          complianceDate: item.DateofCompliance
+            ? new Date(item.DateofCompliance).toLocaleDateString()
+            : "", // "Compliance Date"
+          stayExpiringOn: item.StayExpiringOn
+            ? new Date(item.StayExpiringOn).toLocaleDateString()
+            : "", // "Stay Expiring On"
+
+          // other fields
+          stayObtainedFrom: item.StayObtainedFrom || "", // "Stay obtained From"
           pendingAuthorityLevel: item.NextForum_x002f_PendingAuthority || "",
           status: item.CaseStatus || "", // "Status"
           scnOrderSummary: item.SCN_x002f_Ordersummaryonissuesad || "", // "SCN/Order Summary"
@@ -300,43 +372,6 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           // placeholders for not in object
           billigInfo: item.BilligInfo || item.Jurisdiction || "", // "Billing Information"
           reviewSntatusLp: item.eviewSntatusLp || "", // "Review Status LP"
-
-          inUtp: item.IsDraft ? "Draft" : "Final",
-          // "In UTP"
-        }));
-
-      case "ActiveCases":
-        return rawData.map((item) => ({
-          type: item.CorrespondenceType || "", // "Type" → In/Out
-          caseNo: item.Title || item.Id || "", // "Case Number"
-          issue: item.BriefDescription || item.CaseBriefDescription || "", // "Issue"
-          taxAuthority: item.TaxAuthority || "", // "Authority"
-          entity: item.Entity || "", // "Entity"
-          taxYear: item.FinancialYear || "", // "Tax Year"
-          taxExposureScn: item.GrossTaxDemanded || "", // "Tax exposure SCN"
-          taxExposureOrder: item.TaxexposureStage || "", // "Tax exposure Order"
-          taxPeriodStart: item.TaxPeriodStartDate
-            ? new Date(item.TaxPeriodStartDate).toLocaleDateString()
-            : "",
-          taxPeriodEnd: item.Hearingdate
-            ? new Date(item.Hearingdate).toLocaleDateString()
-            : "",
-          dateOfReceipt: item.DateReceived
-            ? new Date(item.DateReceived).toLocaleDateString()
-            : "",
-          stayObtainedFrom: item.IssuedBy || "", // "Stay obtained From"
-          pendingAuthorityLevel: item.NextForum_x002f_PendingAuthority || "", // "Pending Authority Level"
-          stayExpiringOn: item.Modified || "", // "Stay Expiring On"
-          complianceDate: item.DateofCompliance
-            ? new Date(item.DateofCompliance).toLocaleDateString()
-            : "",
-          status: item.CaseStatus || "", // "Status"
-          scnOrderSummary: item.Comments || "", // "SCN/Order Summary"
-          consultant: item.TaxConsultantAssigned || "", // "Consultant"
-          emailTitle: item.Email || "", // "Email Title"
-          hcDocumentNumber: item.DocumentReferenceNumber || "", // "HC Document Number"
-          billingInfo: item.Jurisdiction || "", // "Billing Information" → (mapped from Jurisdiction since no billing field exists)
-          reviewStatusLp: item.ConcerningLaw || "",
           briefDescription: item.BriefDescription || "",
           // "In UTP"
         }));
@@ -356,7 +391,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
         const prevDate = new Date(year, currentMonth - 1, 1);
         const prevMonth = prevDate.getMonth();
-        const enriched = rawData.map((r) => {
+         const filtered = rawData.filter(r => r.RiskCategory === "Probable");
+
+        const enriched = filtered.map((r) => {
           const d = r.UTPDate ? new Date(r.UTPDate) : null;
           return {
             ...r,
@@ -365,7 +402,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           };
         });
         const segregated = groupBy(enriched, (r) => r.TaxType);
-        console.log(segregated);
+        console.log(segregated)
 
         const exportData: any[] = [];
 
@@ -434,103 +471,103 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         console.log(exportData);
         return exportData;
 
-   case "Provisions3":
-  const now3 = new Date();
-  const currentMonth3 = now3.getMonth();
-  const currentYear3 = now3.getFullYear();
-  const prevDate3 = new Date(currentYear3, currentMonth3 - 1, 1);
-  const prevMonth3 = prevDate3.getMonth();
-  const prevYear3 = prevDate3.getFullYear();
+      case "Provisions3":
+        const now3 = new Date();
+        const currentMonth3 = now3.getMonth();
+        const currentYear3 = now3.getFullYear();
+        const prevDate3 = new Date(currentYear3, currentMonth3 - 1, 1);
+        const prevMonth3 = prevDate3.getMonth();
+        const prevYear3 = prevDate3.getFullYear();
 
-  // Enrich
-  const enriched3 = rawData.map((r) => {
-    const d = r.UTPDate ? new Date(r.UTPDate) : null;
-    return {
-      ...r,
-      month: d ? d.getMonth() : null,
-      year: d ? d.getFullYear() : null,
-    };
-  });
+        // Enrich
+        const enriched3 = rawData.map((r) => {
+          const d = r.UTPDate ? new Date(r.UTPDate) : null;
+          return {
+            ...r,
+            month: d ? d.getMonth() : null,
+            year: d ? d.getFullYear() : null,
+          };
+        });
 
-  // --- Core calculations ---
-  const totalExposureCurr = enriched3
-    .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-    .reduce((s, r) => s + (r.GrossExposure || 0), 0);
+        // --- Core calculations ---
+        const totalExposureCurr = enriched3
+          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+          .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
 
-  const totalExposurePrev = enriched3
-    .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-    .reduce((s, r) => s + (r.GrossExposure || 0), 0);
+        const totalExposurePrev = enriched3
+          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+          .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
 
-  const paymentsCurr = enriched3
-    .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-    .reduce((s, r) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
+        const paymentsCurr = enriched3
+          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+          .reduce((s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
 
-  const paymentsPrev = enriched3
-    .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-    .reduce((s, r) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
+        const paymentsPrev = enriched3
+          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+          .reduce((s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
 
-  const provisionCurr = enriched3
-    .filter((r) => r.month === currentMonth3 && r.year === currentYear3 && r.RiskCategory === "Probable")
-    .reduce((s, r) => s + (r.GrossExposure || 0), 0);
+        const provisionCurr = enriched3
+          .filter((r: any) => r.month === currentMonth3 && r.year === currentYear3 && r.RiskCategory === "Probable")
+          .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
 
-  const provisionPrev = enriched3
-    .filter((r) => r.month === prevMonth3 && r.year === prevYear3 && r.RiskCategory === "Probable")
-    .reduce((s, r) => s + (r.GrossExposure || 0), 0);
-const ebitdaCurr = enriched3
-  .filter((r) => r.month === currentMonth3 && r.year === currentYear3 )
-  .reduce((s, r) => s + (r.EBITDAExposure || 0), 0);
+        const provisionPrev = enriched3
+          .filter((r: any) => r.month === prevMonth3 && r.year === prevYear3 && r.RiskCategory === "Probable")
+          .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
+        const ebitdaCurr = enriched3
+          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+          .reduce((s, r: any) => s + (r.EBITDAExposure || 0), 0);
 
-const ebitdaPrev = enriched3
-  .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-  .reduce((s, r) => s + (r.EBITDAExposure || 0), 0);
-  // --- Build matrix rows ---
-  const results3 = [
-    {
-      label: "Total Exposure",
-      current: totalExposureCurr,
-      prior: totalExposurePrev,
-      variance: totalExposureCurr - totalExposurePrev,
-    },
-    {
-      label: "Less – Payments under Protest",
-      current: paymentsCurr,
-      prior: paymentsPrev,
-      variance: paymentsCurr - paymentsPrev,
-    },
-    {
-      label: "Cashflow Exposure",
-      current: totalExposureCurr - paymentsCurr,
-      prior: totalExposurePrev - paymentsPrev,
-      variance: (totalExposureCurr - paymentsCurr) - (totalExposurePrev - paymentsPrev),
-    },
-    {
-      label: "Total Exposure",
-      current: totalExposureCurr,
-      prior: totalExposurePrev,
-      variance: totalExposureCurr - totalExposurePrev,
-    },
-    {
-      label: "Less – Total Provision",
-      current: totalExposureCurr-provisionCurr,
-      prior: totalExposurePrev- provisionPrev,
-      variance: provisionCurr - provisionPrev,
-    },
-    {
-      label: "P&L Exposure",
-      current: totalExposureCurr - provisionCurr,
-      prior: totalExposurePrev - provisionPrev,
-      variance: (totalExposureCurr - provisionCurr) - (totalExposurePrev - provisionPrev),
-    },
-    {
-  label: "EBITDA Exposure (%)",
-  current: ebitdaCurr,
-  prior: ebitdaPrev ,
-  variance: ebitdaCurr - ebitdaPrev 
-    ,
-}
-  ];
+        const ebitdaPrev = enriched3
+          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+          .reduce((s, r: any) => s + (r.EBITDAExposure || 0), 0);
+        // --- Build matrix rows ---
+        const results3 = [
+          {
+            label: "Total Exposure",
+            current: totalExposureCurr,
+            prior: totalExposurePrev,
+            variance: totalExposureCurr - totalExposurePrev,
+          },
+          {
+            label: "Less – Payments under Protest",
+            current: paymentsCurr,
+            prior: paymentsPrev,
+            variance: paymentsCurr - paymentsPrev,
+          },
+          {
+            label: "Cashflow Exposure",
+            current: totalExposureCurr - paymentsCurr,
+            prior: totalExposurePrev - paymentsPrev,
+            variance: (totalExposureCurr - paymentsCurr) - (totalExposurePrev - paymentsPrev),
+          },
+          {
+            label: "Total Exposure",
+            current: totalExposureCurr,
+            prior: totalExposurePrev,
+            variance: totalExposureCurr - totalExposurePrev,
+          },
+          {
+            label: "Less – Total Provision",
+            current: totalExposureCurr - provisionCurr,
+            prior: totalExposurePrev - provisionPrev,
+            variance: provisionCurr - provisionPrev,
+          },
+          {
+            label: "P&L Exposure",
+            current: totalExposureCurr - provisionCurr,
+            prior: totalExposurePrev - provisionPrev,
+            variance: (totalExposureCurr - provisionCurr) - (totalExposurePrev - provisionPrev),
+          },
+          {
+            label: "EBITDA Exposure (%)",
+            current: ebitdaCurr,
+            prior: ebitdaPrev,
+            variance: ebitdaCurr - ebitdaPrev
+            ,
+          }
+        ];
 
-  return results3;
+        return results3;
 
       case "Provisions2":
         const currentMonthData: any = filterCurrentMonth(rawData);
@@ -542,7 +579,7 @@ const ebitdaPrev = enriched3
               acc[item.GRSCode] = {
                 GRSCode: item.GRSCode || "",
                 entity: item.Entity || "",
-                taxType: item.TaxMatter || "",
+                taxType: item.TaxType || "",
                 GrossExposure: 0,
               };
             }
@@ -614,8 +651,9 @@ const ebitdaPrev = enriched3
 
           // Push only ONE row per GLCode
           exportData3.push({
+
             glCode: GMLRID,
-            taxType: records[0]?.TaxMatter || "Brief Description",
+            taxType: records[0]?.TaxType || "Brief Description",
             entity: records[0]?.Entity || "",
             currentMonthAmount: curr || 0,
             previousMonthAmount: prev || 0,
@@ -637,8 +675,14 @@ const ebitdaPrev = enriched3
 
       case "ERM":
         return rawData.map((item) => ({
-          entity: item.UTPCategory || "",
-          category: item.RiskCategory || "", // Risk Type
+          UTPDate: item.UTPDate,
+          category: item.RiskCategory, // exists
+          fy: item.FinancialYear, // exists but null
+          taxYear: item.TaxYear, // exists but null
+          taxAuthority: item.TaxAuthority, // ❌ not in data (will be undefined)
+          taxType: item.TaxType, // exists
+          entity: item.Entity, // exists but null
+
           currentMonthAmount: item.GrossExposure || 0, // Exposure Amount (FCY)
           variance: 280 as any, // Example static Exchange Rate (replace with real field if exists)
           previousMonthAmount: item.CashFlowExposure || 0, // Exposure Amount (PKR)
@@ -647,19 +691,21 @@ const ebitdaPrev = enriched3
         return rawData.map((item) => ({
           utpId: item.UTPId, // exists (currently null in your data)
           mlrClaimId: item.GMLRID, // mapping from GMLRID
-          taxType: item.TaxMatter, // exists
-          taxAuthority: item.TaxAuthority, // ❌ not in data (will be undefined)
           pendingAuthority: item.PendingAuthority, // exists but null
-          entity: item.Entity, // exists but null
           type: item.PaymentType, // exists but null
-          fy: item.FinancialYear, // exists but null
-          taxYear: item.TaxYear, // exists but null
           grossExposureJul: item.GrossExposure, // only one field, reusing
           grossExposureJun: item.GrossExposure,
+          UTPDate: item.UTPDate,
+          category: item.RiskCategory, // exists
+          fy: item.FinancialYear, // exists but null
+          taxYear: item.TaxYear, // exists but null
+          taxAuthority: item.TaxAuthority, // ❌ not in data (will be undefined)
+          taxType: item.TaxType, // exists
+          entity: item.Entity, // exists but null
+
           varianceLastMonth: item.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
           grossExposureMay: item.GrossExposure,
           grossExposureApr: item.GrossExposure,
-          category: item.UTPCategory, // exists
           arcTopTaxRisk: item.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
           contingencyNote: item.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
           briefDescription: item.Description, // exists but null
@@ -696,7 +742,7 @@ const ebitdaPrev = enriched3
       const listName = getListName(reportType);
       const items = await sp.web.lists.getByTitle(listName).items();
       const items_updated = normalizeData(reportType, items);
-      setData(items_updated);
+      setData(items);
       setFilteredData(items_updated); // start unfiltered
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -705,9 +751,21 @@ const ebitdaPrev = enriched3
     }
   };
   useEffect(() => {
-   
+ const reset = {
+                dateStart: "",
+                dateEnd: "",
+                category: "",
+                financialYear: "",
+                taxYear: "",
+                taxType: "",
+                taxAuthority: "",
+                entity: "",
+              };
+              setDateRange([null, null]);
+              setFilters(reset);
     fetchData();
   }, [reportType]);
+
 
   useEffect(() => {
     const fetchLOVs = async () => {
@@ -728,83 +786,118 @@ const ebitdaPrev = enriched3
 
     fetchLOVs();
   }, []);
-const handleFilterChange = (key: string, value: string) => {
+  const handleFilterChange = (key: string, value: string) => {
 
-  const updatedFilters = { ...filters, [key]: value };
-  setFilters(updatedFilters);
+    const updatedFilters = { ...filters, [key]: value };
+    setFilters(updatedFilters);
 
-  const filtered = data.filter((item) => {
-   
-console.log(data,updatedFilters);
-    let dateMatch = true;
+    const filtered = data.filter((item) => {
 
-if (updatedFilters.dateStart || updatedFilters.dateEnd) {
-  const start = updatedFilters.dateStart ? new Date(updatedFilters.dateStart) : null;
-  const end = updatedFilters.dateEnd ? new Date(updatedFilters.dateEnd) : null;
+ let dateMatch = true;
 
-  let itemDate: Date | null = null;
+      if (updatedFilters.dateStart || updatedFilters.dateEnd) {
+        const start = updatedFilters.dateStart ? new Date(updatedFilters.dateStart) : null;
+        const end = updatedFilters.dateEnd ? new Date(updatedFilters.dateEnd) : null;
 
-  if (reportType === "Litigation" || reportType === "ActiveCases") {
-    itemDate = item.dateOfReceipt ? new Date(item.dateOfReceipt) : null;
-  } else {
-    itemDate = item.UTPDate ? new Date(item.UTPDate) : null;
-  }
+        let itemDate: Date | null = null;
 
-  if (itemDate) {
-    if (start && end) {
-      dateMatch = itemDate >= start && itemDate <= end;
-    } else if (start) {
-      dateMatch = itemDate >= start;
-    } else if (end) {
-      dateMatch = itemDate <= end;
-    }
-  } else {
-    dateMatch = false;
-  }
-}
+        if (reportType === "Litigation" || reportType === "ActiveCases") {
+          itemDate = item.DateReceived ? new Date(item.DateReceived) : null;
+        } else {
+          itemDate = item.UTPDate ? new Date(item.UTPDate) : null;
+        }
+
+        if (itemDate) {
+          if (start && end) {
+            dateMatch = itemDate >= start && itemDate <= end;
+          } else if (start) {
+            dateMatch = itemDate >= start;
+          } else if (end) {
+            dateMatch = itemDate <= end;
+          }
+        } else {
+          dateMatch = false;
+        }
+      }
 
 
-    // ---- OTHER FILTERS ----
-    switch (reportType) {
-      case "UTP":
-         case "Provisions1":
-      case "Provisions2":
-      case "Provisions3":
-      case "Contingencies":
-      case "ERM":
-        return (
-          dateMatch &&
-          (!updatedFilters.category || item.category === updatedFilters.category) &&
-          (!updatedFilters.financialYear || item.fy === updatedFilters.financialYear) &&
-          (!updatedFilters.taxYear || item.taxYear === updatedFilters.taxYear) &&
-          (!updatedFilters.taxType || item.taxType === updatedFilters.taxType) &&
-          (!updatedFilters.taxAuthority || item.taxAuthority === updatedFilters.taxAuthority) &&
-          (!updatedFilters.entity || item.entity === updatedFilters.entity)
-        );
+      // ---- OTHER FILTERS ----
+      switch (reportType) {
+        case "UTP":
+        case "Provisions1":
+        case "Provisions2":
+        case "Provisions3":
+        case "Contingencies":
+        case "ERM":
+          return (
+            dateMatch &&
+            (!updatedFilters.category || item.RiskCategory === updatedFilters.category) &&
+            (!updatedFilters.financialYear || item.FinancialYear === updatedFilters.financialYear) &&
+            (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
+            (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType) &&
+            // (!updatedFilters.taxAuthority || item.taxAuthority === updatedFilters.taxAuthority) &&
+            (!updatedFilters.entity || item.Entity === updatedFilters.entity)
+          );
 
-      case "Litigation":
-      case "ActiveCases":
-        return (
-          dateMatch &&
-          (!updatedFilters.taxYear || item.taxYear === updatedFilters.taxYear) &&
-          (!updatedFilters.taxAuthority || item.taxAuthority === updatedFilters.taxAuthority) &&
-          (!updatedFilters.entity || item.entity === updatedFilters.entity)
-        );
+        case "Litigation":
+        case "ActiveCases":
+          return (
+            dateMatch &&
+            (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
+            (!updatedFilters.taxAuthority || item.TaxAuthority === updatedFilters.taxAuthority) &&
+            (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
+            (!updatedFilters.financialYear || item.FinancialYear === updatedFilters.financialYear) &&
+            (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
 
-     
+          );
+
+
         // return (
         //   dateMatch &&
         //   (!updatedFilters.entity || item.entity === updatedFilters.entity) &&
         //   (!updatedFilters.taxType || item.taxType === updatedFilters.taxType)
         // );
 
-      default:
-        return dateMatch;
-    }
-  });
+        default:
+          return dateMatch;
+      }
+    });
+    setLoading(true)
+    const dataf = normalizeData(reportType, filtered);
+console.log(dataf,'hhhhh');
 
-  setFilteredData(filtered);
+    setFilteredData(dataf)
+    setLoading(false)
+  };
+const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+const paginatedData = ["Litigation", "UTP", "ActiveCases"].includes(reportType) ? filteredData.slice(
+  (currentPage - 1) * itemsPerPage,
+  currentPage * itemsPerPage
+):filteredData;
+const getCurrentWeekRange = () => {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon...
+  const diffToMonday = (dayOfWeek + 6) % 7; // shift so Monday=0
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  return [monday, sunday] as [Date, Date];
 };
+useEffect(() => {
+  if (reportType === "ActiveCases" && !startDate && !endDate) {
+    const [monday, sunday] = getCurrentWeekRange();
+    setDateRange([monday, sunday]);
+
+    if (monday) handleFilterChange("dateStart", monday.toISOString().split("T")[0]); 
+    if (sunday) handleFilterChange("dateEnd", sunday.toISOString().split("T")[0]);
+  }
+}, [reportType]);
 
 
   return (
@@ -823,45 +916,48 @@ if (updatedFilters.dateStart || updatedFilters.dateEnd) {
     onChange={(e) => handleFilterChange("dateEnd", e.target.value)}
     className={styles.filterInput}
   /> */}<div className={styles.filterField}>
-  <label className={styles.filterLabel}>Date Range</label>
-<DatePicker
-  selectsRange
-  startDate={startDate}
-  endDate={endDate}
-  onChange={(update: [Date | null, Date | null]) => {
-    setDateRange(update);
+          <label className={styles.filterLabel}>Date Range</label>
+          <DatePicker
+            selectsRange
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(update: [Date | null, Date | null]) => {
+              setDateRange(update);
 
-    const newStart = update[0] ? update[0].toISOString().split("T")[0] : "";
-    const newEnd = update[1] ? update[1].toISOString().split("T")[0] : "";
+              const newStart = update[0] ? update[0].toISOString().split("T")[0] : "";
+              const newEnd = update[1] ? update[1].toISOString().split("T")[0] : "";
 
-    // Update state
-    setFilters((prev) => ({
-      ...prev,
-      dateStart: newStart,
-      dateEnd: newEnd,
-    }));
+              // Update state
+              setFilters((prev) => ({
+                ...prev,
+                dateStart: newStart,
+                dateEnd: newEnd,
+              }));
 
-    // Only apply filters that actually exist
-    if (update[0]) handleFilterChange("dateStart", newStart);
-    if (update[1]) handleFilterChange("dateEnd", newEnd);
+              // Only apply filters that actually exist
+              if (update[0]) handleFilterChange("dateStart", newStart);
+              if (update[1]) handleFilterChange("dateEnd", newEnd);
 
-    // If both are cleared
-    if (!update[0] && !update[1]) {
-      handleFilterChange("dateStart", "");
-      handleFilterChange("dateEnd", "");
-    }
-  }}
-  isClearable
-  placeholderText="Select date range"
-  calendarClassName={styles.customCalendar}
-  dayClassName={(date) =>
-    startDate && endDate && date >= startDate && date <= endDate
-      ? `${styles.customDay} ${styles.inRange}`
-      : styles.customDay
-  }
-/>
+              // If both are cleared
+              if (!update[0] && !update[1]) {
+                handleFilterChange("dateStart", "");
+                handleFilterChange("dateEnd", "");
+              }
+            }}
+            // isClearable
+            placeholderText="Select date range"
+             className={styles.datePickerInput} // ✅ custom height class
+ 
+            calendarClassName={styles.customCalendar}
+            dayClassName={(date) =>
+              startDate && endDate && date >= startDate && date <= endDate
+                ? `${styles.customDay} ${styles.inRange}`
+                : styles.customDay
+            }
+            isClearable={false}
+          />
 
-</div>
+        </div>
         <Dropdown
           label="Entity"
           placeholder="Select Entity"
@@ -885,7 +981,7 @@ if (updatedFilters.dateStart || updatedFilters.dateEnd) {
           }
           styles={{ root: { minWidth: 160 } }}
         />
-        <Dropdown
+        {(reportType == "Litigation" || reportType == "ActiveCases") && <Dropdown
           label="Tax Authority"
           placeholder="Select Tax Authority"
           options={lovOptions.TaxAuthority || []}
@@ -894,30 +990,57 @@ if (updatedFilters.dateStart || updatedFilters.dateEnd) {
             handleFilterChange("taxAuthority", option?.key as string)
           }
           styles={{ root: { minWidth: 160 } }}
-        />
+        />}
 
-        <Dropdown
-          label="Tax Year"
-          placeholder="Select Tax Year"
-          options={lovOptions["Tax Year"] || []}
-          selectedKey={filters.taxYear || null}
-          onChange={(_, option) =>
-            handleFilterChange("taxYear", option?.key as string)
-          }
-          styles={{ root: { minWidth: 160 } }}
-        />
+    
+<ComboBox
+  label="Tax Year"
+  placeholder="Select Tax Year"
+  options={getYearOptions() || []} // should return IComboBoxOption[]
+  selectedKey={filters.taxYear || null}
+  onChange={(_, option) =>
+    handleFilterChange("taxYear", option?.key as string)
+  }
+  allowFreeform={false}  
+  autoComplete="on"   // ✅ enables suggestions while typing
+  styles={{
+    root: { minWidth: 160 },
+    callout: {
+      maxHeight: "30vh",
+      overflowY: "auto",
+      directionalHintFixed: true,
+      directionalHint: 6,
+    },
+     optionsContainerWrapper: {
+            minWidth: 160,
+          },
+  }}
+/>
 
-        <Dropdown
-          label="Financial Year"
-          placeholder="Select Financial Year"
-          options={lovOptions["Financial Year"] || []}
-          selectedKey={filters.financialYear || null}
-          onChange={(_, option) =>
-            handleFilterChange("financialYear", option?.key as string)
-          }
-          styles={{ root: { minWidth: 160 } }}
-        />
-        <Dropdown
+<ComboBox
+  label="Financial Year"
+  placeholder="Select Financial Year"
+  options={getYearOptionsFY() || []}
+  selectedKey={filters.financialYear || null}
+  onChange={(_, option) =>
+    handleFilterChange("financialYear", option?.key as string)
+  }
+  allowFreeform={false}
+  autoComplete="on"
+  styles={{
+    root: { minWidth: 160 },
+    callout: {
+      maxHeight: "30vh",
+      overflowY: "auto",
+      directionalHintFixed: true,
+      directionalHint: 6,
+    },
+     optionsContainerWrapper: {
+            minWidth: 160,
+          },
+  }}
+/>
+        {(reportType !== "Litigation" && reportType !== "ActiveCases") && (<Dropdown
           label="Category"
           placeholder="Select Category"
           options={lovOptions.Category || []}
@@ -926,7 +1049,7 @@ if (updatedFilters.dateStart || updatedFilters.dateEnd) {
             handleFilterChange("category", option?.key as string)
           }
           styles={{ root: { minWidth: 160 } }}
-        />
+        />)}
         {/* <Dropdown
   label="Report Type"
   options={[
@@ -944,24 +1067,29 @@ if (updatedFilters.dateStart || updatedFilters.dateEnd) {
 
         <div className={styles.buttonGroup}>
           <button
-  className={styles.clearButton}
-  onClick={() => {
-    const reset = {
-      dateStart: "",
-      dateEnd: "",
-      category: "",
-      financialYear: "",
-      taxYear: "",
-      taxType: "",
-      taxAuthority: "",
-      entity: "",
-    };
-    setFilters(reset);
-    setFilteredData(data); // restore original unfiltered dataset
-  }}
->
-  Clear Filters
-</button>
+            className={styles.clearButton}
+            onClick={() => {
+              const reset = {
+                dateStart: "",
+                dateEnd: "",
+                category: "",
+                financialYear: "",
+                taxYear: "",
+                taxType: "",
+                taxAuthority: "",
+                entity: "",
+              };
+              setDateRange([null, null]);
+              setFilters(reset);
+              setLoading(true)
+              const dataf = normalizeData(reportType, data);
+
+              setFilteredData(dataf)
+              setLoading(false)
+            }}
+          >
+            Clear Filters
+          </button>
 
           <button
             className={styles.exportButton}
@@ -972,7 +1100,7 @@ if (updatedFilters.dateStart || updatedFilters.dateEnd) {
           <button
             className={styles.refreshButton}
             onClick={() => {
-              setFilters({
+              const reset = {
                 dateStart: "",
                 dateEnd: "",
                 category: "",
@@ -981,7 +1109,10 @@ if (updatedFilters.dateStart || updatedFilters.dateEnd) {
                 taxType: "",
                 taxAuthority: "",
                 entity: "",
-              });
+              };
+              setDateRange([null, null]);
+              setFilters(reset);
+              fetchData()
               // setFilteredData(dummyData);
             }}
           >
@@ -999,35 +1130,38 @@ if (updatedFilters.dateStart || updatedFilters.dateEnd) {
               ))}
             </tr>
           </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td
-                  colSpan={reportConfig[reportType].columns.length}
-                  style={{ textAlign: "center" }}
-                >
-                  Loading...
-                </td>
-              </tr>
-            ) : (
-              filteredData.map((item, idx) => (
-                <tr key={idx}>
-                  {reportConfig[reportType].columns.map((col) => (
-                    <td key={col.header}>{item[col.field] ?? ""}</td>
-                  ))}
-                  {/* <td>
+         <tbody>
+  {loading ? (
+    <tr>
+      <td
+        colSpan={reportConfig[reportType].columns.length}
+        style={{ textAlign: "center" }}
+      >
+        Loading...
+      </td>
+    </tr>
+  ) : paginatedData.length === 0 ? (
+    <tr>
+      <td
+        colSpan={reportConfig[reportType].columns.length}
+        style={{ textAlign: "center" }}
+      >
+        No Data Available
+      </td>
+    </tr>
+  ) : (
+    paginatedData.map((item, idx) => (
+      <tr key={idx}>
+        {reportConfig[reportType].columns.map((col) => (
+          <td key={col.header}>{item[col.field] ?? ""}</td>
+        ))}
+      </tr>
+    ))
+  )}
+</tbody>
 
-                  <Button
-                    variant="outline-warning"
-                    size="sm" onClick={() => handleShow(item)}
-                  >
-                    👁                </Button>
-                </td> */}
-                </tr>
-              ))
-            )}
-          </tbody>
         </table>
+
 
         {selectedCase && (
           <CorrespondenceDetailOffCanvas
@@ -1037,6 +1171,13 @@ if (updatedFilters.dateStart || updatedFilters.dateEnd) {
           />
         )}
       </div>
+      {["Litigation", "UTP", "ActiveCases"].includes(reportType) &&<Pagination
+  currentPage={currentPage}
+  totalPages={totalPages}
+  totalItems={filteredData.length}
+  itemsPerPage={itemsPerPage}
+  onPageChange={setCurrentPage}
+/>}
     </>
   );
 };

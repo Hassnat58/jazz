@@ -9,12 +9,21 @@
           "manifest": "./src/webparts/jazz/JazzWebPart.manifest.json"
         }
       ]
+    },
+    "jazz-managers-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/jazzManagers/JazzManagersWebPart.js",
+          "manifest": "./src/webparts/jazzManagers/JazzManagersWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
   "localizedResources": {
     "JazzWebPartStrings": "lib/webparts/jazz/loc/{locale}.js",
     "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js",
-    "PropertyControlStrings": "node_modules/@pnp/spfx-property-controls/lib/loc/{locale}.js"
+    "PropertyControlStrings": "node_modules/@pnp/spfx-property-controls/lib/loc/{locale}.js",
+    "JazzManagersWebPartStrings": "lib/webparts/jazzManagers/loc/{locale}.js"
   }
 }

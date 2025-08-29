@@ -1,0 +1,245 @@
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  color: white;
+  background-color: #8a191e;
+  padding: 0px 20px;
+}
+
+.tab {
+  margin-top: 15px;
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  font-weight: 600;
+  color: white;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.tab:hover {
+  background-color: #f8f8f8;
+  color: #8d8d90;
+  border-radius: 5px;
+}
+
+.activeTab {
+  background-color: #f8f8f8;
+  color: #8d8d90;
+  border-radius: 5px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.headerRow2 {
+  display: flex;
+  justify-content: start;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.activeTabTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  margin-left: 30px;
+}
+
+.activeTabTitle2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8d8d90;
+  margin-left: 30px;
+}
+
+.addBtn {
+  background-color: #facc15;
+  color: #111;
+  font-weight: 600;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 30px;
+}
+.addBtn:hover {
+  background-color: #8a191e;
+}
+
+.tableContainer {
+  margin-top: 20px;
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
+}
+
+.table {
+  border: 1px solid #78797c;
+  border-radius: 10px;
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th {
+  background-color: #57585b;
+  color: white;
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px;
+  border: 1px solid #f2f3f1;
+}
+
+/* Status Chips */
+.chipActive {
+  background-color: #22c55e;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-size: 12px;
+}
+
+.chipDeactive {
+  background-color: #3b82f6;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-size: 12px;
+}
+
+.chipFiled {
+  background-color: #facc15;
+  color: black;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-size: 12px;
+}
+
+/* Action buttons */
+.eyeBtn,
+.editBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-right: 6px;
+  font-size: 16px;
+}
+.formActions {
+  display: flex;
+  gap: 10px;
+}
+
+.cancelBtn,
+.saveBtn,
+.draftBtn {
+  padding: 6px 12px;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.cancelBtn {
+  background-color: #ccc;
+}
+
+.saveBtn {
+  background-color: #0078d4;
+  color: white;
+}
+
+.draftBtn {
+  background-color: #ffc107;
+  color: black;
+}
+
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.formContainer label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+}
+
+.reportTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.tabButton {
+  background: #960101;
+  padding: 8px 16px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: white;
+  transition: background 0.2s;
+
+  &:hover {
+    background: white;
+    color: black;
+    border: 1px solid #ccc;
+  }
+}
+.filtersRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filterInput {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: #fff;
+  min-width: 160px;
+  outline: none;
+  transition: border-color 0.2s ease-in-out;
+
+  &:focus {
+    border-color: #2563eb;
+  }
+}
+.clearFiltersButton {
+  background: #8a191e;
+  border: 1px solid #dcdcdc; // light border
+  color: white; // dark grey text
+  cursor: pointer;
+  font-size: 14px;
+  padding: 6px 12px; // some breathing room
+  border-radius: 6px; // smooth corners
+  margin-top: 30px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #e6e6e6; // slightly darker on hover
+    border-color: #c2c2c2;
+  }
+
+  &:active {
+    background-color: #d9d9d9; // pressed effect
+  }
+}
+
+.activeTab2 {
+  background: white;
+  color: black;
+  border: 1px solid #ccc;
+}
