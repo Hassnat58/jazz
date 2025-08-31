@@ -107,3 +107,11 @@
   color: #991c21; /* red icons like your screenshot */
   font-size: 16px;
 }
+.userPhoto {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+  margin-left: 10px;
+}

@@ -36,79 +36,49 @@ const ViewUTPForm: React.FC<{
             <td>
               <strong>UTP ID:</strong>
             </td>
-            <td>UTP-0{data.Id}</td>
-          </tr>
-          <tr>
+            <td>UTP-00{data.Id}</td>
             <td>
               <strong>GMLR ID:</strong>
             </td>
             <td>{data.GMLRId}</td>
+          </tr>
+          <tr>
             <td>
               <strong>GRS Code:</strong>
             </td>
             <td>{data.GRSCode}</td>
-          </tr>
-          <tr>
             <td>
               <strong>UTP Category:</strong>
             </td>
             <td>{data.UTPCategory}</td>
+          </tr>
+          <tr>
             <td>
               <strong>Gross Exposure:</strong>
             </td>
             <td>{data.GrossExposure}</td>
+            <td>
+              <strong>Tax Authority</strong>
+            </td>
+            <td>{data.TaxAuthority}</td>
           </tr>
           <tr>
-            <td>
-              <strong>Cash Flow Exposure:</strong>
-            </td>
-            <td>{data.CashFlowExposure}</td>
-            <td>
-              <strong>P&amp;L Exposure Exists:</strong>
-            </td>
-            {data.PLExposureExists ? <span>Yes</span> : <span>No</span>}
-          </tr>
-          <tr>
-            <td>
-              <strong>P&amp;L Exposure:</strong>
-            </td>
-            <td>{data.PLExposure}</td>
-            <td>
-              <strong>EBITDA Exposure Exists:</strong>
-            </td>
-            <td>
-              {data.EBITDAExposureExists ? <span>Yes</span> : <span>No</span>}
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <strong>EBITDA Exposure:</strong>
-            </td>
-            <td>{data.EBITDAExposure}</td>
             <td>
               <strong>Contingency Note Exists:</strong>
             </td>
             <td>
               {data.ContingencyNoteExists ? <span>Yes</span> : <span>No</span>}
             </td>
-          </tr>
-          <tr>
             <td>
               <strong>Risk Category:</strong>
             </td>
             <td>{data.RiskCategory}</td>
-            <td>
-              <strong>Provision Required:</strong>
-            </td>
-            <td>
-              {data.ProvisionRequired ? <span>Yes</span> : <span>No</span>}
-            </td>
           </tr>
           <tr>
             <td>
-              <strong>Tax Matter:</strong>
+              <strong>Tax type</strong>
             </td>
-            <td>{data.TaxMatter}</td>
+            <td>{data.TaxType}</td>
             <td>
               <strong>ERM Unique Numbering:</strong>
             </td>

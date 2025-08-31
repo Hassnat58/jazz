@@ -84,6 +84,8 @@ const TabbedTables: React.FC<{
   });
   const [correspondenceFilters, setCorrespondenceFilters] = useState({
     caseNumber: "",
+    taxType: "",
+    taxAuthority: "",
   });
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
@@ -121,6 +123,29 @@ const TabbedTables: React.FC<{
       loadUTPData();
     }
   }, [activeTab]);
+
+  // helper functions for filters
+  const getFinancialYearOptions = (): IDropdownOption[] => {
+    const currentYear = new Date().getFullYear();
+    const years: IDropdownOption[] = [];
+    for (let y = currentYear; y >= 1980; y--) {
+      years.push({ key: "FY" + y.toString(), text: "FY" + y.toString() });
+    }
+    return years;
+  };
+
+  const getTaxYearOptions = (): IDropdownOption[] => {
+    const currentYear = new Date().getFullYear();
+    const years: IDropdownOption[] = [];
+    for (let i = currentYear; i >= 1980; i--) {
+      years.push({
+        key: i.toString(),
+        text: i.toString(),
+      });
+    }
+    return years;
+  };
+
   const loadCorrespondenceOutData = async () => {
     try {
       const items = await sp.web.lists
@@ -136,7 +161,9 @@ const TabbedTables: React.FC<{
           "CaseNumber/ID",
           "CaseNumber/Title",
           "Author/Title",
-          "Editor/Title"
+          "Editor/Title",
+          "CaseNumber/TaxType",
+          "CaseNumber/TaxAuthority"
         )
         .expand("CaseNumber", "Author", "Editor")
         .orderBy("ID", false)();
@@ -164,9 +191,12 @@ const TabbedTables: React.FC<{
           "GrossTaxDemanded",
           "CaseStatus",
           "Author/Title",
-          "Editor/Title"
+          "Editor/Title",
+          "ParentCase/Id",
+          "ParentCase/Title",
+          "ParentCase/TaxType"
         )
-        .expand("Author", "Editor", "LawyerAssigned")
+        .expand("Author", "Editor", "LawyerAssigned", "ParentCase")
         .orderBy("ID", false)();
       setCasesData(items);
       setFilteredData(items);
@@ -194,15 +224,13 @@ const TabbedTables: React.FC<{
           "Status",
           "Author/Title",
           "Editor/Title",
-          "UTPId",
-          "ParentCase/Id",
-          "ParentCase/TaxType"
+          "UTPId"
         )
         .orderBy("ID", false)
-        .expand("Author", "Editor", "ParentCase")();
+        .expand("Author", "Editor")();
       setUtpData(items);
       setFilteredUtpData(items);
-      console.log("UTP data:", items);
+      // console.log("UTP data:", items);
     } catch (err) {
       console.error("Error fetching data from UTP list:", err);
     }
@@ -413,7 +441,7 @@ const TabbedTables: React.FC<{
           <Dropdown
             label="Tax Year"
             placeholder="Select Tax Year"
-            options={lovOptions["Tax Year"] || []}
+            options={getTaxYearOptions()}
             selectedKey={filters.taxYear || null}
             onChange={(_, option) =>
               handleFilterChange("taxYear", option?.key as string)
@@ -424,7 +452,7 @@ const TabbedTables: React.FC<{
           <Dropdown
             label="Financial Year"
             placeholder="Select Financial Year"
-            options={lovOptions["Financial Year"] || []}
+            options={getFinancialYearOptions()}
             selectedKey={filters.financialYear || null}
             onChange={(_, option) =>
               handleFilterChange("financialYear", option?.key as string)
@@ -473,7 +501,7 @@ const TabbedTables: React.FC<{
                       ? `IT--00${item.ParentCaseId}`
                       : item.TaxType === "Sales Tax"
                       ? `ST--00${item.ParentCaseId}`
-                      : `CN--00${item.ParentCaseId}` // fallback for other types
+                      : `CN--00${item.ParentCaseId}`
                     : item.Title}
                 </td>
                 <td>{item.CorrespondenceType}</td>
@@ -548,12 +576,21 @@ const TabbedTables: React.FC<{
       setCorrespondenceFilters(updatedFilters);
 
       const filtered = correspondenceOutData.filter((item) => {
-        return (
+        const matchesCase =
           !updatedFilters.caseNumber ||
           item.CaseNumber?.Title?.toLowerCase().includes(
             updatedFilters.caseNumber.toLowerCase()
-          )
-        );
+          );
+
+        const matchesTaxType =
+          !updatedFilters.taxType ||
+          item.CaseNumber?.TaxType === updatedFilters.taxType;
+
+        const matchesTaxAuthority =
+          !updatedFilters.taxAuthority ||
+          item.CaseNumber?.TaxAuthority === updatedFilters.taxAuthority;
+
+        return matchesCase && matchesTaxType && matchesTaxAuthority;
       });
 
       setFilteredCorrespondenceOutData(filtered);
@@ -563,19 +600,24 @@ const TabbedTables: React.FC<{
     return (
       <>
         <div className={styles.filtersRow}>
+          {/* Case Number */}
           <ComboBox
             label="Case Number"
             placeholder="Select or type Case Number"
             allowFreeform
             autoComplete="on"
-            options={Array.from(
-              new Set(correspondenceOutData.map((i) => i.CaseNumber?.Title))
-            )
-              .filter(Boolean)
-              .map((cn) => ({
-                key: cn,
-                text: `CN-00${cn}`,
-              }))}
+            options={correspondenceOutData
+              .filter((i) => i.CaseNumber?.Title)
+              .map((i) => {
+                let prefix = "CN--";
+                if (i.CaseNumber?.TaxType === "Income Tax") prefix = "IT--";
+                else if (i.CaseNumber?.TaxType === "Sales Tax") prefix = "ST--";
+
+                return {
+                  key: i.CaseNumber?.Title,
+                  text: `${prefix}${i.CaseNumber?.Title}`,
+                };
+              })}
             text={correspondenceFilters.caseNumber || ""}
             onChange={(_, option, __, value) => {
               const newValue = option ? (option.key as string) : value || "";
@@ -584,10 +626,44 @@ const TabbedTables: React.FC<{
             styles={{ root: { minWidth: 200 } }}
           />
 
+          {/* Tax Type */}
+          <ComboBox
+            label="Tax Type"
+            placeholder="Select Tax Type"
+            options={lovOptions["Tax Type"] || []}
+            selectedKey={correspondenceFilters.taxType || ""}
+            onChange={(_, option) => {
+              handleCorrespondenceFilterChange(
+                "taxType",
+                option?.key as string
+              );
+            }}
+            styles={{ root: { minWidth: 200 } }}
+          />
+
+          {/* Tax Authority */}
+          <Dropdown
+            label="Tax Authority"
+            placeholder="Select Tax Authority"
+            options={lovOptions.TaxAuthority || []}
+            selectedKey={correspondenceFilters.taxAuthority || null}
+            onChange={(_, option) =>
+              handleCorrespondenceFilterChange(
+                "taxAuthority",
+                option?.key as string
+              )
+            }
+            styles={{ root: { minWidth: 160 } }}
+          />
+
           <button
             className={styles.clearFiltersButton}
             onClick={() => {
-              setCorrespondenceFilters({ caseNumber: "" });
+              setCorrespondenceFilters({
+                caseNumber: "",
+                taxType: "",
+                taxAuthority: "",
+              });
               setFilteredCorrespondenceOutData(correspondenceOutData);
               setCorrespondencePage(1);
             }}
@@ -595,6 +671,7 @@ const TabbedTables: React.FC<{
             Clear Filters
           </button>
         </div>
+
         <table className={styles.table}>
           <thead>
             <tr>
@@ -611,7 +688,13 @@ const TabbedTables: React.FC<{
           <tbody>
             {paginatedData.map((item) => (
               <tr key={item.ID}>
-                <td>00-CN{item.CaseNumber?.Title}</td>
+                <td>
+                  {item.CaseNumber?.TaxType === "Income Tax"
+                    ? `IT--${item.CaseNumber?.ID}`
+                    : item.CaseNumber?.TaxType === "Sales Tax"
+                    ? `ST--${item.CaseNumber?.ID}`
+                    : `CN--${item.CaseNumber?.ID}`}
+                </td>
                 <td>{item.CorrespondenceOut}</td>
                 <td>{item.BriefDescription}</td>
                 <td>{item.Filedthrough}</td>
@@ -722,7 +805,7 @@ const TabbedTables: React.FC<{
           <Dropdown
             label="Tax Year"
             placeholder="Select Tax Year"
-            options={lovOptions["Tax Year"] || []}
+            options={getTaxYearOptions()} // 👈 use helper
             selectedKey={utpFilters.taxYear || null}
             onChange={(_, option) =>
               handleUtpFilterChange("taxYear", option?.key as string)
@@ -733,13 +816,14 @@ const TabbedTables: React.FC<{
           <Dropdown
             label="Financial Year"
             placeholder="Select Financial Year"
-            options={lovOptions["FinancialYear"] || []}
+            options={getFinancialYearOptions()} // 👈 use helper
             selectedKey={utpFilters.financialYear || null}
             onChange={(_, option) =>
               handleUtpFilterChange("financialYear", option?.key as string)
             }
             styles={{ root: { minWidth: 160 } }}
           />
+
           <Dropdown
             label="Category"
             placeholder="Select Category"
@@ -777,7 +861,6 @@ const TabbedTables: React.FC<{
               <th>GRS Code</th>
               <th>ERM Unique Numbering</th>
               <th>Gross Exposure</th>
-              <th>Cash Flow Exposure</th>
               <th>Tax Type</th>
               <th>Payment Type</th>
               <th>Status</th>
@@ -792,7 +875,6 @@ const TabbedTables: React.FC<{
                 <td>{item.GRSCode}</td>
                 <td>{item.ERMUniqueNumbering}</td>
                 <td>{item.GrossExposure}</td>
-                <td>{item.CashFlowExposure}</td>
                 <td>{item.TaxType}</td>
                 <td>{item.PaymentType}</td>
                 <td>
@@ -962,7 +1044,11 @@ const TabbedTables: React.FC<{
                 financialYear: "",
                 category: "",
               });
-              setCorrespondenceFilters({ caseNumber: "" });
+              setCorrespondenceFilters({
+                caseNumber: "",
+                taxType: "",
+                taxAuthority: "",
+              });
               setFilters({
                 Entity: "",
                 taxType: "",

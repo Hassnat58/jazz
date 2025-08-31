@@ -62,13 +62,25 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
     const fetchCases = async () => {
       const items = await sp.web.lists
         .getByTitle("Cases")
-        .items.select("Id", "Title")();
+        .items.select("Id", "Title", "TaxType")();
+
       const options = items
-        .filter((item) => item.Title && item.Title.trim() !== "") // Filter out empty Titles
-        .map((item) => ({
-          key: item.Id,
-          text: `CN-00${item.Id}`,
-        }));
+        .filter((item) => item.Title && item.Title.trim() !== "")
+        .map((item) => {
+          let prefix = "CN"; // default
+
+          if (item.TaxType === "Income Tax") {
+            prefix = "IT";
+          } else if (item.TaxType === "Sales Tax") {
+            prefix = "ST";
+          }
+
+          return {
+            key: item.Id, // 🔹 only ID stored in form
+            text: `${prefix}--${item.Id}`, // 🔹 display prefix + number
+          };
+        });
+
       setCaseOptions(options);
     };
 
@@ -148,19 +160,12 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
     });
 
     try {
-      let itemId;
-      if (selectedCase?.ID) {
-        await sp.web.lists
-          .getByTitle("CorrespondenceOut")
-          .items.getById(selectedCase.ID)
-          .update(itemData);
-        itemId = selectedCase.ID;
-      } else {
-        const addResult = await sp.web.lists
-          .getByTitle("CorrespondenceOut")
-          .items.add(itemData);
-        itemId = addResult.ID;
-      }
+      // 🔹 Always ADD new item, no update
+      const addResult = await sp.web.lists
+        .getByTitle("CorrespondenceOut")
+        .items.add(itemData);
+
+      const itemId = addResult.ID;
 
       // Upload files
       for (const file of attachments) {
@@ -186,6 +191,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
       alert("Error submitting Correspondence Out");
     }
   };
+
   const formStyle: React.CSSProperties = {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
@@ -271,22 +277,102 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
         ))}
 
         <div style={{ gridColumn: "span 3" }}>
-          <label style={{ fontWeight: 600 }}>Attachments</label>
-          <input
-            type="file"
-            multiple
-            onChange={(e) => setAttachments(Array.from(e.target.files || []))}
-          />
-          <div>
+          <label style={{ fontWeight: 600 }}> Attachments</label>
+
+          {/* Upload Box */}
+          <div
+            style={{
+              width: 400,
+              border: "1px solid #d1d5db",
+              borderRadius: 6,
+              padding: 10,
+              marginTop: 5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 30,
+              cursor: "pointer",
+              background: "#f9fafb",
+            }}
+            onClick={() => document.getElementById("file-upload")?.click()}
+          >
+            <span style={{ color: "#9ca3af" }}>⬆️ Upload</span>
+            <input
+              id="file-upload"
+              type="file"
+              multiple
+              onChange={(e) => setAttachments(Array.from(e.target.files || []))}
+              style={{ display: "none" }}
+            />
+          </div>
+
+          {/* File List */}
+          <div style={{ marginTop: 10 }}>
             {existingAttachments.map((file) => (
-              <div key={file.ID}>
-                <a href={file.FileRef} target="_blank" rel="noreferrer">
+              <div
+                key={file.ID}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 5,
+                  color: "#374151",
+                  fontSize: 14,
+                }}
+              >
+                <span
+                  style={{
+                    color: "red",
+                    fontWeight: "bold",
+                    cursor: "not-allowed",
+                  }}
+                >
+                  ✖
+                </span>
+                <a
+                  href={file.FileRef}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "#2563eb", textDecoration: "none" }}
+                >
                   {file.FileLeafRef}
                 </a>
               </div>
             ))}
+
             {attachments.map((file, idx) => (
-              <div key={`new-${idx}`}>{file.name}</div>
+              <div
+                key={`new-${idx}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 5,
+                  color: "#374151",
+                  fontSize: 14,
+                }}
+              >
+                <button
+                  onClick={() => {
+                    const updated = [...attachments];
+                    updated.splice(idx, 1);
+                    setAttachments(updated);
+                  }}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    color: "red",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                  }}
+                >
+                  ✖
+                </button>
+                <span>{file.name}</span>
+                <span style={{ color: "#9ca3af", fontSize: 12 }}>
+                  {(file.size / (1024 * 1024)).toFixed(1)}MB
+                </span>
+              </div>
             ))}
           </div>
         </div>

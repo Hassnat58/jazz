@@ -54,6 +54,16 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
             </td>
             <td>{data.Dateoffiling?.split("T")[0]}</td>
           </tr>
+          <tr>
+            <td>
+              <strong>Tax Authority</strong>
+            </td>
+            <td>{data.CaseNumber?.TaxAuthority}</td>
+            <td>
+              <strong>Tax Type</strong>
+            </td>
+            <td>{data.CaseNumber?.TaxType}</td>
+          </tr>
         </tbody>
       </table>
 

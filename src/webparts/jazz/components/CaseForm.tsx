@@ -17,7 +17,7 @@ import "@pnp/sp/attachments";
 import "react-datepicker/dist/react-datepicker.css";
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
-import { DatePicker } from "@fluentui/react/lib/DatePicker";
+import { DatePicker, IDatePicker } from "@fluentui/react/lib/DatePicker";
 import styles from "./CaseForm.module.scss";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -97,11 +97,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
     "Concerning Law": "ConcerningLaw",
     "Correspondence Type": "CorrespondenceType",
     IssuedBy: "IssuedBy",
-    // "Pending Authority": "PendingAuthority",
+    "Pending Authority": "PendingAuthority",
     "Tax exposure Stage": "TaxexposureStage",
     "Tax Consultant Assigned": "TaxConsultantAssigned",
     "Exposure Issues": "Exposure_x0020_Issues",
     "Financial Year": "FinancialYear",
+    "Tax Year": "TaxYear",
+    "Stay Expiring On": "StayExpiringOn",
+    "Tax Exposure": "TaxExposure",
   };
 
   const dropdownFields = Object.keys(fieldMapping);
@@ -121,7 +124,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   ];
 
   const multilineFields = [
-    // { label: "SCN/Order Summary", name: "OrderSummary" },
+    { label: "SCN/Order Summary", name: "OrderSummary" },
     { label: "Brief Description", name: "BriefDescription" },
   ];
 
@@ -141,22 +144,36 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { type: "date", label: "Date of Document", name: "Dateofdocument" },
     { type: "date", label: "Date Received", name: "DateReceived" },
     { type: "dropdown", label: "Financial Year" },
-    // { type: "dropdown", label: "Pending Authority" },
+    { type: "dropdown", label: "Tax Year" },
+    { type: "dropdown", label: "Pending Authority" },
     { type: "date", label: "Date of Compliance", name: "DateofCompliance" },
     { type: "date", label: "Hearing Date", name: "Hearingdate" },
+    { type: "date", label: "Stay Expiring On", name: "StayExpiringOn" },
     { type: "dropdown", label: "Tax exposure Stage" },
+    { type: "input", label: "Tax Exposure", name: "TaxExposure" },
     { type: "dropdown", label: "Tax Consultant Assigned" },
     { type: "dropdown", label: "Exposure Issues" },
     { type: "input", label: "Email – Title", name: "Email" },
   ];
-const getYearOptions = (): IDropdownOption[] => {
-  const currentYear = new Date().getFullYear();
-  const years: IDropdownOption[] = [];
-  for (let y = currentYear; y >= 1980; y--) {
-    years.push({ key: "FY"+y.toString(), text: "FY"+y.toString() });
-  }
-  return years;
-};
+  const getYearOptions = (): IDropdownOption[] => {
+    const currentYear = new Date().getFullYear();
+    const years: IDropdownOption[] = [];
+    for (let y = currentYear; y >= 1980; y--) {
+      years.push({ key: "FY" + y.toString(), text: "FY" + y.toString() });
+    }
+    return years;
+  };
+  const getTaxYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const years: IDropdownOption[] = [];
+    for (let i = currentYear; i >= 1980; i--) {
+      years.push({
+        key: i.toString(),
+        text: i.toString(),
+      });
+    }
+    return years;
+  };
 
   // 🔸 Load LOVs & base cases list
   useEffect(() => {
@@ -303,7 +320,7 @@ const getYearOptions = (): IDropdownOption[] => {
     const prefix = getCaseNumberPrefix();
 
     const itemData: any = {
-      Title: `${prefix}${nextCaseNumber}`, // ✅ correct prefix saved
+      Title: `${prefix}${nextCaseNumber}`,
       IsDraft: isDraft,
       CaseStatus: isDraft ? "Draft" : "Active",
       ParentCaseId: existing
@@ -400,6 +417,7 @@ const getYearOptions = (): IDropdownOption[] => {
     gap: "1rem",
   };
 
+  const datePickerRef = React.useRef<IDatePicker>(null);
   return (
     <form
       onSubmit={handleSubmit(() => submitForm(false))}
@@ -470,7 +488,6 @@ const getYearOptions = (): IDropdownOption[] => {
             );
           }
 
-
           if (field.type === "input")
             return (
               <Controller
@@ -487,47 +504,63 @@ const getYearOptions = (): IDropdownOption[] => {
               />
             );
 
-        if (field.type === "dropdown") {
-  const internalName = fieldMapping[field.label];
+          if (field.type === "dropdown") {
+            const internalName = fieldMapping[field.label];
 
-  // ✅ If it's the "Financial Year" field → show years dropdown
-  if (field.label === "Financial Year") {
-    return (
-     <Controller
-      key={field.label}
-      name={internalName}
-      control={control}
-      render={({ field: f }) => (
-        <ComboBox
-          label={field.label}
-            options={getYearOptions()}
-            selectedKey={f.value}
-            onChange={(_, o) => f.onChange(o?.key)}
-            placeholder="Select Year"
-          allowFreeform={false} // user can’t type custom values
-          autoComplete="on"    // enables search/filter
+            // ✅ If it's the "Financial Year" field → show years dropdown
+            if (field.label === "Financial Year") {
+              return (
+                <Controller
+                  key={field.label}
+                  name={internalName}
+                  control={control}
+                  render={({ field: f }) => (
+                    <ComboBox
+                      label={field.label}
+                      options={getYearOptions()}
+                      selectedKey={f.value}
+                      onChange={(_, o) => f.onChange(o?.key)}
+                      placeholder="Select Year"
+                      allowFreeform={false} // user can’t type custom values
+                      autoComplete="on" // enables search/filter
+                      styles={{
+                        callout: {
+                          maxHeight: "30vh", // dropdown height (viewport based)
+                          overflowY: "auto",
+                          directionalHintFixed: true, // ✅ force position
+                          directionalHint: 6,
+                        },
+                        optionsContainerWrapper: {
+                          minWidth: 100,
+                        },
+                      }}
+                    />
+                  )}
+                />
+              );
+            }
+            if (field.label === "Tax Year") {
+              return (
+                <Controller
+                  key={field.label}
+                  name={internalName}
+                  control={control}
+                  render={({ field: f }) => (
+                    <ComboBox
+                      label={field.label}
+                      options={getTaxYearOptions()} // plain numbers
+                      selectedKey={f.value}
+                      onChange={(_, o) => f.onChange(o?.key)}
+                      placeholder="Select Tax Year"
+                    />
+                  )}
+                />
+              );
+            }
 
-          styles={{
-          
-          callout: {
-            maxHeight: "30vh", // dropdown height (viewport based)
-            overflowY: "auto",
-            directionalHintFixed: true,   // ✅ force position
-          directionalHint: 6  
-          },
-          optionsContainerWrapper: {
-            minWidth: 100,
-          },
-        }}
-          />
-      )}
-    />
-    );
-  }
-
-  // 🔹 Otherwise normal LOV dropdown
-  return (
-    <Controller
+            // 🔹 Otherwise normal LOV dropdown
+            return (
+              <Controller
                 key={field.label}
                 name={internalName}
                 control={control}
@@ -540,8 +573,8 @@ const getYearOptions = (): IDropdownOption[] => {
                   />
                 )}
               />
-  );
-}
+            );
+          }
 
           if (field.type === "date")
             return (
@@ -549,15 +582,21 @@ const getYearOptions = (): IDropdownOption[] => {
                 key={field.name}
                 name={field.name as string}
                 control={control}
-                render={({ field: f }) => (
-                  <DatePicker
-                    label={field.label}
-                    value={f.value}
-                    placeholder="Select a date"
-                    onSelectDate={(d) => f.onChange(d)}
-                    disableAutoFocus={true}
-                  />
-                )}
+                render={({ field: f }) => {
+                  // const localRef = React.createRef<HTMLInputElement>();
+                  return (
+                    <DatePicker
+                      label={field.label}
+                      value={f.value}
+                      placeholder="Select a date"
+                      componentRef={datePickerRef}
+                      onSelectDate={() => {
+                        // Keep focus on the DatePicker after date selection
+                        datePickerRef.current?.focus();
+                      }}
+                    />
+                  );
+                }}
               />
             );
 

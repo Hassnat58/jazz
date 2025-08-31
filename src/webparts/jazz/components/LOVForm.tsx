@@ -22,6 +22,8 @@ const LOVForm: React.FC<LOVFormProps> = ({ onCancel, SpfxContext }) => {
   const [statusOptions] = useState(["Active", "Inactive"]);
   const sp = spfi().using(SPFx(SpfxContext));
 
+  const [isNewType, setIsNewType] = useState(false);
+
   // Load distinct LOV Types (Title column)
   useEffect(() => {
     sp.web.lists
@@ -36,13 +38,18 @@ const LOVForm: React.FC<LOVFormProps> = ({ onCancel, SpfxContext }) => {
   // Save data to SharePoint
   const onSubmit = async (data: any) => {
     try {
+      const lovType = isNewType ? data.NewLOVType : data.LOVType;
+
       await sp.web.lists.getByTitle("LOV Data").items.add({
-        Title: data.LOVType, // LOV Type
-        Description: data.Option, // Dropdown option text
+        Title: lovType, // New or existing LOV Type
+        Description: data.Option, // Option text
         Status: data.Status, // Active/Inactive
+        Parent: isNewType ? null : data.LOVType, // if new LOV Type, leave Parent empty
       });
+
       alert("New option added successfully!");
       reset();
+      setIsNewType(false);
     } catch (err) {
       console.error(err);
       alert("Error while saving option");
@@ -64,20 +71,42 @@ const LOVForm: React.FC<LOVFormProps> = ({ onCancel, SpfxContext }) => {
         <Col md={4}>
           <Form.Group>
             <Form.Label>LOV Type *</Form.Label>
-            <Controller
-              name="LOVType"
-              control={control}
-              render={({ field }) => (
-                <Form.Select {...field}>
-                  <option value="">Select</option>
-                  {lovTypes.map((t, i) => (
-                    <option key={i} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </Form.Select>
-              )}
-            />
+            {!isNewType ? (
+              <Controller
+                name="LOVType"
+                control={control}
+                render={({ field }) => (
+                  <Form.Select {...field}>
+                    <option value="">Select existing</option>
+                    {lovTypes.map((t, i) => (
+                      <option key={i} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </Form.Select>
+                )}
+              />
+            ) : (
+              <Controller
+                name="NewLOVType"
+                control={control}
+                render={({ field }) => (
+                  <Form.Control
+                    type="text"
+                    placeholder="Enter new LOV Type"
+                    {...field}
+                  />
+                )}
+              />
+            )}
+            <div className="mt-2">
+              <Form.Check
+                type="checkbox"
+                label="Add as New LOV Type"
+                checked={isNewType}
+                onChange={(e) => setIsNewType(e.target.checked)}
+              />
+            </div>
           </Form.Group>
         </Col>
 
@@ -97,7 +126,6 @@ const LOVForm: React.FC<LOVFormProps> = ({ onCancel, SpfxContext }) => {
             />
           </Form.Group>
         </Col>
-
         <Col md={4}>
           <Form.Group>
             <Form.Label>Code</Form.Label>

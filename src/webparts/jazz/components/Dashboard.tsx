@@ -13,6 +13,7 @@ function Dashboard(props: any) {
       <Navbar
         onLOVManagementClick={() => setShowLOVManagement(true)}
         onManageRoleClick={() => setShowManageRole(true)}
+        SpfxContext={props.SpfxContext}
       />
       <TabbedTables
         SpfxContext={props.SpfxContext}
