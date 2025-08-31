@@ -16,7 +16,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import CorrespondenceOutForm from "./CorrespondenceOutForm";
 import ViewCorrespondenceOutForm from "./ViewCorrespondenceOut";
 import UTPForm from "./UTPForm";
-import ManagersTable from "./ManagersTable";
+// import ManagersTable from "./ManagersTable";
 import ViewUTPForm from "./ViewUTPForm";
 import DocumentGrid from "./DocumentGrid";
 import ReportsTable from "./ReportsTable";
@@ -38,7 +38,7 @@ const tabs = [
   "UTP Dashboard",
   "Documents",
   "Reports",
-  "Managers",
+  // "Managers",
 ];
 
 type ReportType =
@@ -980,7 +980,7 @@ const TabbedTables: React.FC<{
 
     switch (activeTab) {
       case "Dashboard":
-        return <PowerBIDashboard />;
+        return <PowerBIDashboard SpfxContext={SpfxContext}/>;
       case "Litigation":
         return renderCorrespondenceTable();
       case "Response":
@@ -1008,8 +1008,8 @@ const TabbedTables: React.FC<{
           <ReportsTable SpfxContext={SpfxContext} reportType={reportType} />
         );
 
-      case "Managers":
-        return <ManagersTable SpfxContext={SpfxContext} />;
+      // case "Managers":
+      //   return <ManagersTable SpfxContext={SpfxContext} />;
 
       default:
         return null;

@@ -240,7 +240,7 @@
   display: flex;
   flex-direction: column;
   min-width: 170px;
-    height: 40px;
+    height: 44px;
 
 }
 
@@ -297,14 +297,14 @@
 }
  .customCalendar:global(.react-datepicker-wrapper) {
     width: auto !important;
-    height: 40px;
+    height: 44px;
 
   }
 
   .customCalendar:global(.react-datepicker__input-container input) {
     @extend .filterInput; // reuse same styles as dropdowns
     width: 180px;         // fixed width like dropdown
-    height: 40px;
+    height: 44px;
   }
 .customCalendar :global(.react-datepicker__day--in-range),
 .customCalendar :global(.react-datepicker__day--in-selecting-range),
@@ -319,4 +319,9 @@
 .customDay.inRange {
   background-color: #8a191e !important;
   color: #fff !important;
+}
+.datePickerInput {
+  height: 35;       // adjust as needed
+  padding: 3.5px 12px;  // keep text vertically centered
+  font-size: 14px;    // optional for consistent text size
 }

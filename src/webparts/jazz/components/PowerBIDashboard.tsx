@@ -1,8 +1,10 @@
 import * as React from "react";
+import ManagersTable from "./ManagersTable";
 
-const PowerBIDashboard: React.FC = () => {
+const PowerBIDashboard: React.FC<{ SpfxContext: any }> =  ({SpfxContext}) => {
   return (
-    <div style={{ width: "100%", height: "800px" }}>
+    <>
+    <div style={{ width: "100%", height: "800px" ,marginBottom:"30px"}}>
       <iframe
         title="Power BI Report"
         width="100%"
@@ -11,7 +13,11 @@ const PowerBIDashboard: React.FC = () => {
         frameBorder="0"
         allowFullScreen={true}
       />
+     
     </div>
+     <ManagersTable SpfxContext={SpfxContext} />;
+
+    </>
   );
 };
 

@@ -1,16 +1,12 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-floating-promises */
-import * as React from "react";
+import * as React from 'react';
+import styles from './JazzManagers.module.scss';
 import { useEffect, useState } from "react";
 import { Button } from "react-bootstrap";
 import ManagerDetailsDrawer from "./ManagerDetailsDrawer";
-import styles from "./TabedTables.module.scss";
 import { spfi, SPFx } from "@pnp/sp";
-import Pagination from "./Pagination";
+import Pagination from '../../jazz/components/Pagination';
 
-
-const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
+const JazzManagers: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const [selectedCase, setSelectedCase] = useState(null);
    const [showDrawer, setShowDrawer] = useState(false);
    const [casesData, setCasesData] = useState<any[]>([]);
@@ -117,5 +113,4 @@ return (
      </>
    );
 }
-
-export default ManagersTable;
+export default JazzManagers
