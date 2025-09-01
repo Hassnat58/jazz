@@ -191,11 +191,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
-<<<<<<< HEAD
-=======
 const [currentPage, setCurrentPage] = useState(1);
 const itemsPerPage = 10;
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
 
   const [filters, setFilters] = useState({
     dateStart: "",
@@ -273,11 +270,8 @@ const itemsPerPage = 10;
   };
 
   const normalizeData = (reportType: string, rawData: any[]) => {
-<<<<<<< HEAD
-=======
 
 
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
     switch (reportType) {
       case "Litigation":
         return rawData.map((item) => ({
@@ -498,46 +492,6 @@ const itemsPerPage = 10;
         // --- Core calculations ---
         const totalExposureCurr = enriched3
           .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-<<<<<<< HEAD
-          .reduce((s, r) => s + (r.GrossExposure || 0), 0);
-
-        const totalExposurePrev = enriched3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce((s, r) => s + (r.GrossExposure || 0), 0);
-
-        const paymentsCurr = enriched3
-          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce((s, r) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
-
-        const paymentsPrev = enriched3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce((s, r) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
-
-        const provisionCurr = enriched3
-          .filter(
-            (r) =>
-              r.month === currentMonth3 &&
-              r.year === currentYear3 &&
-              r.RiskCategory === "Probable"
-          )
-          .reduce((s, r) => s + (r.GrossExposure || 0), 0);
-
-        const provisionPrev = enriched3
-          .filter(
-            (r) =>
-              r.month === prevMonth3 &&
-              r.year === prevYear3 &&
-              r.RiskCategory === "Probable"
-          )
-          .reduce((s, r) => s + (r.GrossExposure || 0), 0);
-        const ebitdaCurr = enriched3
-          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce((s, r) => s + (r.EBITDAExposure || 0), 0);
-
-        const ebitdaPrev = enriched3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce((s, r) => s + (r.EBITDAExposure || 0), 0);
-=======
           .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
 
         const totalExposurePrev = enriched3
@@ -566,7 +520,6 @@ const itemsPerPage = 10;
         const ebitdaPrev = enriched3
           .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
           .reduce((s, r: any) => s + (r.EBITDAExposure || 0), 0);
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
         // --- Build matrix rows ---
         const results3 = [
           {
@@ -585,14 +538,7 @@ const itemsPerPage = 10;
             label: "Cashflow Exposure",
             current: totalExposureCurr - paymentsCurr,
             prior: totalExposurePrev - paymentsPrev,
-<<<<<<< HEAD
-            variance:
-              totalExposureCurr -
-              paymentsCurr -
-              (totalExposurePrev - paymentsPrev),
-=======
             variance: (totalExposureCurr - paymentsCurr) - (totalExposurePrev - paymentsPrev),
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
           },
           {
             label: "Total Exposure",
@@ -610,27 +556,15 @@ const itemsPerPage = 10;
             label: "P&L Exposure",
             current: totalExposureCurr - provisionCurr,
             prior: totalExposurePrev - provisionPrev,
-<<<<<<< HEAD
-            variance:
-              totalExposureCurr -
-              provisionCurr -
-              (totalExposurePrev - provisionPrev),
-=======
             variance: (totalExposureCurr - provisionCurr) - (totalExposurePrev - provisionPrev),
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
           },
           {
             label: "EBITDA Exposure (%)",
             current: ebitdaCurr,
             prior: ebitdaPrev,
-<<<<<<< HEAD
-            variance: ebitdaCurr - ebitdaPrev,
-          },
-=======
             variance: ebitdaCurr - ebitdaPrev
             ,
           }
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
         ];
 
         return results3;
@@ -817,8 +751,6 @@ const itemsPerPage = 10;
     }
   };
   useEffect(() => {
-<<<<<<< HEAD
-=======
  const reset = {
                 dateStart: "",
                 dateEnd: "",
@@ -831,7 +763,6 @@ const itemsPerPage = 10;
               };
               setDateRange([null, null]);
               setFilters(reset);
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
     fetchData();
   }, [reportType]);
 
@@ -856,66 +787,6 @@ const itemsPerPage = 10;
     fetchLOVs();
   }, []);
   const handleFilterChange = (key: string, value: string) => {
-<<<<<<< HEAD
-    const updatedFilters = { ...filters, [key]: value };
-    setFilters(updatedFilters);
-
-    const filtered = data.filter((item) => {
-      console.log(data, updatedFilters);
-      let dateMatch = true;
-
-      if (updatedFilters.dateStart || updatedFilters.dateEnd) {
-        const start = updatedFilters.dateStart
-          ? new Date(updatedFilters.dateStart)
-          : null;
-        const end = updatedFilters.dateEnd
-          ? new Date(updatedFilters.dateEnd)
-          : null;
-
-        let itemDate: Date | null = null;
-
-        if (reportType === "Litigation" || reportType === "ActiveCases") {
-          itemDate = item.dateOfReceipt ? new Date(item.dateOfReceipt) : null;
-        } else {
-          itemDate = item.UTPDate ? new Date(item.UTPDate) : null;
-        }
-
-        if (itemDate) {
-          if (start && end) {
-            dateMatch = itemDate >= start && itemDate <= end;
-          } else if (start) {
-            dateMatch = itemDate >= start;
-          } else if (end) {
-            dateMatch = itemDate <= end;
-          }
-        } else {
-          dateMatch = false;
-        }
-      }
-
-      // ---- OTHER FILTERS ----
-      switch (reportType) {
-        case "UTP":
-        case "Provisions1":
-        case "Provisions2":
-        case "Provisions3":
-        case "Contingencies":
-        case "ERM":
-          return (
-            dateMatch &&
-            (!updatedFilters.category ||
-              item.category === updatedFilters.category) &&
-            (!updatedFilters.financialYear ||
-              item.fy === updatedFilters.financialYear) &&
-            (!updatedFilters.taxYear ||
-              item.taxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxType ||
-              item.taxType === updatedFilters.taxType) &&
-            (!updatedFilters.taxAuthority ||
-              item.taxAuthority === updatedFilters.taxAuthority) &&
-            (!updatedFilters.entity || item.entity === updatedFilters.entity)
-          );
-=======
 
     const updatedFilters = { ...filters, [key]: value };
     setFilters(updatedFilters);
@@ -948,21 +819,8 @@ const itemsPerPage = 10;
           dateMatch = false;
         }
       }
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
 
-        case "Litigation":
-        case "ActiveCases":
-          return (
-            dateMatch &&
-            (!updatedFilters.taxYear ||
-              item.taxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxAuthority ||
-              item.taxAuthority === updatedFilters.taxAuthority) &&
-            (!updatedFilters.entity || item.entity === updatedFilters.entity)
-          );
 
-<<<<<<< HEAD
-=======
       // ---- OTHER FILTERS ----
       switch (reportType) {
         case "UTP":
@@ -994,7 +852,6 @@ const itemsPerPage = 10;
           );
 
 
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
         // return (
         //   dateMatch &&
         //   (!updatedFilters.entity || item.entity === updatedFilters.entity) &&
@@ -1005,8 +862,6 @@ const itemsPerPage = 10;
           return dateMatch;
       }
     });
-<<<<<<< HEAD
-=======
     setLoading(true)
     const dataf = normalizeData(reportType, filtered);
 console.log(dataf,'hhhhh');
@@ -1043,10 +898,7 @@ useEffect(() => {
     if (sunday) handleFilterChange("dateEnd", sunday.toISOString().split("T")[0]);
   }
 }, [reportType]);
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
 
-    setFilteredData(filtered);
-  };
 
   return (
     <>
@@ -1063,12 +915,7 @@ useEffect(() => {
     value={filters.dateEnd}
     onChange={(e) => handleFilterChange("dateEnd", e.target.value)}
     className={styles.filterInput}
-<<<<<<< HEAD
-  /> */}
-        <div className={styles.filterField}>
-=======
   /> */}<div className={styles.filterField}>
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
           <label className={styles.filterLabel}>Date Range</label>
           <DatePicker
             selectsRange
@@ -1077,17 +924,8 @@ useEffect(() => {
             onChange={(update: [Date | null, Date | null]) => {
               setDateRange(update);
 
-<<<<<<< HEAD
-              const newStart = update[0]
-                ? update[0].toISOString().split("T")[0]
-                : "";
-              const newEnd = update[1]
-                ? update[1].toISOString().split("T")[0]
-                : "";
-=======
               const newStart = update[0] ? update[0].toISOString().split("T")[0] : "";
               const newEnd = update[1] ? update[1].toISOString().split("T")[0] : "";
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
 
               // Update state
               setFilters((prev) => ({
@@ -1106,30 +944,19 @@ useEffect(() => {
                 handleFilterChange("dateEnd", "");
               }
             }}
-<<<<<<< HEAD
-            isClearable
-            placeholderText="Select date range"
-            calendarClassName={styles.customCalendar}
-            dayClassName={(date: any) =>
-=======
             // isClearable
             placeholderText="Select date range"
              className={styles.datePickerInput} // ✅ custom height class
  
             calendarClassName={styles.customCalendar}
             dayClassName={(date) =>
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
               startDate && endDate && date >= startDate && date <= endDate
                 ? `${styles.customDay} ${styles.inRange}`
                 : styles.customDay
             }
-<<<<<<< HEAD
-          />
-=======
             isClearable={false}
           />
 
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
         </div>
         <Dropdown
           label="Entity"
@@ -1141,6 +968,8 @@ useEffect(() => {
           }
           styles={{ root: { minWidth: 160 } }}
         />
+
+
 
         <Dropdown
           label="Tax Type"
@@ -1250,10 +1079,6 @@ useEffect(() => {
                 taxAuthority: "",
                 entity: "",
               };
-<<<<<<< HEAD
-              setFilters(reset);
-              setFilteredData(data); // restore original unfiltered dataset
-=======
               setDateRange([null, null]);
               setFilters(reset);
               setLoading(true)
@@ -1261,7 +1086,6 @@ useEffect(() => {
 
               setFilteredData(dataf)
               setLoading(false)
->>>>>>> abc9f59eed61e1ca1f6916f5f9705a5331e805ac
             }}
           >
             Clear Filters
