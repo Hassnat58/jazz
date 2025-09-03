@@ -33,8 +33,7 @@ interface CaseFormProps {
   selectedCase?: any;
   notiID?: any;
   loadCasesData: any;
-
-  existing?: any; // if true -> editing mode (ParentCaseId dropdown shown)
+  existing?: any;
   setExisting: any;
 }
 
@@ -68,6 +67,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
   >([]);
   const [nextCaseNumber, setNextCaseNumber] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // const [isNewCaseFromNotification, setIsNewCaseFromNotification] =
+  // useState(false);
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -87,7 +88,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const getCaseNumberPrefix = () => {
     if (taxType === "Income Tax") return "IT--00";
     if (taxType === "Sales Tax") return "ST--00";
-    return "CN--00"; // fallback
+    return "CN--00";
   };
 
   const fieldMapping: { [key: string]: string } = {
@@ -111,16 +112,15 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const inputFields = [
     { label: "Document Reference Number", name: "DocumentReferenceNumber" },
     { label: "Email – Title", name: "Email" },
-    { label: "Brief Description", name: "BriefDescription" },
+    // { label: "Brief Description", name: "BriefDescription" },
   ];
 
   const dateFields = [
     { label: "Date of Document", name: "Dateofdocument" },
     { label: "Date Received", name: "DateReceived" },
     { label: "Date of Compliance", name: "DateofCompliance" },
+    { label: "Stay Expiring On", name: "StayExpiringOn" },
     { label: "Hearing Date", name: "Hearingdate" },
-    // { Label: "Tax Year", name: "TaxYear" },
-    // { Label: "Financial Year", name: "FinancialYear" },
   ];
 
   const multilineFields = [
@@ -132,11 +132,11 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { type: "dropdown", label: "Tax Type", name: "TaxType" },
     { type: "dropdown", label: "Concerning Law" },
     { type: "dropdown", label: "Tax Authority" },
-    { type: "caseNumber", label: "Case Number" }, // 4th field
+    { type: "caseNumber", label: "Case Number" },
     { type: "dropdown", label: "Entity" },
     {
       type: "input",
-      label: "Document Reference Nummber",
+      label: "Document Reference Number",
       name: "DocumentReferenceNumber",
     },
     { type: "dropdown", label: "Correspondence Type" },
@@ -155,6 +155,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { type: "dropdown", label: "Exposure Issues" },
     { type: "input", label: "Email – Title", name: "Email" },
   ];
+
   const getYearOptions = (): IDropdownOption[] => {
     const currentYear = new Date().getFullYear();
     const years: IDropdownOption[] = [];
@@ -163,6 +164,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     }
     return years;
   };
+
   const getTaxYearOptions = () => {
     const currentYear = new Date().getFullYear();
     const years: IDropdownOption[] = [];
@@ -174,6 +176,15 @@ const CaseForm: React.FC<CaseFormProps> = ({
     }
     return years;
   };
+
+  // Check if we're creating a new case from a notification
+  // useEffect(() => {
+  //   if (selectedCase && selectedCase.Email && !selectedCase.ID) {
+  //     setIsNewCaseFromNotification(true);
+  //   } else {
+  //     setIsNewCaseFromNotification(false);
+  //   }
+  // }, [selectedCase]);
 
   // 🔸 Load LOVs & base cases list
   useEffect(() => {
@@ -200,7 +211,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       .items.select("ID", "Title, TaxType")()
       .then((items) => {
         const options: IComboBoxOption[] = items.map((item) => ({
-          key: item.ID.toString(), // store ID as string
+          key: item.ID.toString(),
           text: `CN--00${item.ID}`,
           data: { taxType: item.TaxType },
         }));
@@ -264,6 +275,13 @@ const CaseForm: React.FC<CaseFormProps> = ({
     if (selectedCase) {
       const prefilledValues: any = {};
 
+      // If it's a new case from notification, only set the email
+      if (selectedCase.Email && !selectedCase.ID) {
+        prefilledValues["Email"] = selectedCase.Email;
+        reset(prefilledValues);
+        return;
+      }
+
       // map dropdowns
       Object.keys(fieldMapping).forEach((label) => {
         const spField = fieldMapping[label];
@@ -299,17 +317,22 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   // 🔸 Compute next Case ID for new item
   useEffect(() => {
-    if (!selectedCase) {
-      sp.web.lists
-        .getByTitle("Cases")
-        .items.top(1)
-        .orderBy("ID", false)() // descending
-        .then((items) => {
+    if (!selectedCase || (selectedCase.Email && !selectedCase.ID)) {
+      (async () => {
+        try {
+          const items = await sp.web.lists
+            .getByTitle("Cases")
+            .items.top(1)
+            .orderBy("ID", false)(); // descending
+
           const lastId = items.length > 0 ? items[0].ID : 0;
           setNextCaseNumber(lastId + 1);
-        });
+        } catch (err) {
+          console.error("Failed to fetch next case number:", err);
+        }
+      })();
     }
-  }, [selectedCase]);
+  }, [selectedCase, notiID]);
 
   // 🔸 Submit
   const submitForm = async (isDraft: boolean) => {
@@ -327,7 +350,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         ? data.ParentCaseId
           ? Number(data.ParentCaseId)
           : null
-        : selectedCase
+        : selectedCase && selectedCase.ID
         ? Number(selectedCase.ID)
         : null,
     };
@@ -349,7 +372,16 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     // dates
     dateFields.forEach(({ name }) => {
-      itemData[name] = data[name] || null;
+      const key = name as keyof typeof data; // make TS happy
+      const val = data[key];
+      if (val instanceof Date) {
+        itemData[key] = val.toISOString();
+      } else if (typeof val === "string" && val.trim() !== "") {
+        const parsed = new Date(val);
+        itemData[key] = isNaN(parsed.getTime()) ? null : parsed.toISOString();
+      } else {
+        itemData[key] = null;
+      }
     });
 
     // multiline
@@ -363,6 +395,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     }
 
     try {
+      console.log("Submitting itemData:", itemData);
       const addResult = await sp.web.lists.getByTitle("Cases").items.add({
         ...itemData,
         LinkedNotificationIDId: notiID || null,
@@ -403,6 +436,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       setAttachments([]);
       setExistingAttachments([]);
       setTaxIssueEntries([]);
+      setNextCaseNumber(null);
     } catch (error) {
       console.error("Submission failed", error);
       alert("Error submitting form.");
@@ -418,13 +452,21 @@ const CaseForm: React.FC<CaseFormProps> = ({
   };
 
   const datePickerRef = React.useRef<IDatePicker>(null);
+
   return (
     <form
       onSubmit={handleSubmit(() => submitForm(false))}
       style={{ marginTop: 0 }}
     >
       <div className={styles.topbuttongroup}>
-        <button className={styles.cancelbtn} type="button" onClick={onCancel}>
+        <button
+          className={styles.cancelbtn}
+          type="button"
+          onClick={() => {
+            setNextCaseNumber(null);
+            onCancel();
+          }}
+        >
           Cancel
         </button>
         <button
@@ -453,9 +495,9 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 key="CaseNumber"
                 label="Case Number"
                 value={
-                  nextCaseNumber
+                  nextCaseNumber !== null
                     ? `${getCaseNumberPrefix()}${nextCaseNumber}`
-                    : "Loading..."
+                    : "Generating case number..."
                 }
                 readOnly
               />
@@ -521,13 +563,13 @@ const CaseForm: React.FC<CaseFormProps> = ({
                       selectedKey={f.value}
                       onChange={(_, o) => f.onChange(o?.key)}
                       placeholder="Select Year"
-                      allowFreeform={false} // user can’t type custom values
-                      autoComplete="on" // enables search/filter
+                      allowFreeform={false}
+                      autoComplete="on"
                       styles={{
                         callout: {
-                          maxHeight: "30vh", // dropdown height (viewport based)
+                          maxHeight: "30vh",
                           overflowY: "auto",
-                          directionalHintFixed: true, // ✅ force position
+                          directionalHintFixed: true,
                           directionalHint: 6,
                         },
                         optionsContainerWrapper: {
@@ -548,10 +590,21 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   render={({ field: f }) => (
                     <ComboBox
                       label={field.label}
-                      options={getTaxYearOptions()} // plain numbers
+                      options={getTaxYearOptions()}
                       selectedKey={f.value}
                       onChange={(_, o) => f.onChange(o?.key)}
                       placeholder="Select Tax Year"
+                      styles={{
+                        callout: {
+                          maxHeight: "30vh",
+                          overflowY: "auto",
+                          directionalHintFixed: true,
+                          directionalHint: 6,
+                        },
+                        optionsContainerWrapper: {
+                          minWidth: 100,
+                        },
+                      }}
                     />
                   )}
                 />
@@ -583,17 +636,13 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 name={field.name as string}
                 control={control}
                 render={({ field: f }) => {
-                  // const localRef = React.createRef<HTMLInputElement>();
                   return (
                     <DatePicker
                       label={field.label}
                       value={f.value}
                       placeholder="Select a date"
                       componentRef={datePickerRef}
-                      onSelectDate={() => {
-                        // Keep focus on the DatePicker after date selection
-                        datePickerRef.current?.focus();
-                      }}
+                      onSelectDate={(date) => f.onChange(date)}
                     />
                   );
                 }}

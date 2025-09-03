@@ -30,7 +30,7 @@ interface NotificationsProps {
   SpfxContext: any;
   setNotiID: any;
   setSelectedCase: any;
-  setExisting:any
+  setExisting: any;
 }
 
 const Notifications: React.FC<NotificationsProps> = ({
@@ -39,7 +39,7 @@ const Notifications: React.FC<NotificationsProps> = ({
   SpfxContext,
   setNotiID,
   setSelectedCase,
-  setExisting
+  setExisting,
 }) => {
   const [show, setShow] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("read");
@@ -68,7 +68,7 @@ const Notifications: React.FC<NotificationsProps> = ({
   //           "Editor/Title"
   //         )
   //         .expand("Author", "Editor", "LawyerAssigned")
-  //       .filter(`LinkedNotificationIDId eq ${notiId}`)(); 
+  //       .filter(`LinkedNotificationIDId eq ${notiId}`)();
 
   //     if (items.length > 0) {
   //       return items[0]; // return first matched case
@@ -166,10 +166,10 @@ const Notifications: React.FC<NotificationsProps> = ({
               </div>
             </div>
             <div className="text-end">
-              <small className="text-muted">  {new Date(
-                          n.date
-                        ).toLocaleDateString()}
- </small>
+              <small className="text-muted">
+                {" "}
+                {new Date(n.date).toLocaleDateString()}
+              </small>
               <div className="mt-2">
                 <Badge bg="success p-2" className="me-2">
                   {n.status === "unread" ? "New" : "Read"}
@@ -272,10 +272,9 @@ const Notifications: React.FC<NotificationsProps> = ({
                   disabled={selectedNotification.status === "read"}
                   onClick={async () => {
                     setNotiID(selectedNotification.id);
-                    newAdd();       // create case
+                    newAdd(); // create case
                     activeForm();
-                    setSelectedCase({Email:selectedNotification.from})
-
+                    setSelectedCase({ Email: selectedNotification.from });
                   }}
                 >
                   Create Case
@@ -287,18 +286,14 @@ const Notifications: React.FC<NotificationsProps> = ({
                   onClick={async () => {
                     // Case found → open in update mode
                     setNotiID(selectedNotification.id);
-                    setExisting(true);   // pass full case object to parent
-                    setSelectedCase({Email:selectedNotification.from})
+                    setExisting(true); // pass full case object to parent
+                    setSelectedCase({ Email: selectedNotification.from });
                     activeForm();
                     newAdd();
-
-
                   }}
                 >
                   Add In Existing Case
                 </Button>
-
-
               </div>
             </>
           )}
