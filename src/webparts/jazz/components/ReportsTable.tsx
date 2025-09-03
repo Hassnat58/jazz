@@ -528,13 +528,21 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               r.RiskCategory === "Probable"
           )
           .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
+           const plCurr = enriched3
+          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+          .reduce((s, r: any) => s + (Number(r.PLExposure) || 0), 0);
+
+        const plPrev = enriched3
+          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+          .reduce((s, r: any) => s + (Number(r.PLExposure) || 0), 0);
+      
         const ebitdaCurr = enriched3
           .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce((s, r: any) => s + (r.EBITDAExposure || 0), 0);
+          .reduce((s, r: any) => s + (Number(r.EBITDAExposure) || 0), 0);
 
         const ebitdaPrev = enriched3
           .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce((s, r: any) => s + (r.EBITDAExposure || 0), 0);
+          .reduce((s, r: any) => s + (Number(r.EBITDAExposure) || 0), 0);
         // --- Build matrix rows ---
         const results3 = [
           {
@@ -572,8 +580,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           },
           {
             label: "P&L Exposure",
-            current: totalExposureCurr - provisionCurr,
-            prior: totalExposurePrev - provisionPrev,
+            current: plCurr,
+            prior: plPrev,
             variance:
               totalExposureCurr -
               provisionCurr -
