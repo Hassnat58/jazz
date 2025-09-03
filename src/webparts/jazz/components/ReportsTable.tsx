@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 /* eslint-disable eqeqeq */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-floating-promises */
@@ -30,7 +31,7 @@ const getYearOptionsFY = (): IDropdownOption[] => {
   const currentYear = new Date().getFullYear();
   const years: IDropdownOption[] = [];
   for (let y = currentYear; y >= 1980; y--) {
-    years.push({ key: "FY"+y.toString(), text: "FY"+y.toString() });
+    years.push({ key: "FY" + y.toString(), text: "FY" + y.toString() });
   }
   return years;
 };
@@ -191,8 +192,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
-const [currentPage, setCurrentPage] = useState(1);
-const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const [filters, setFilters] = useState({
     dateStart: "",
@@ -270,8 +271,6 @@ const itemsPerPage = 10;
   };
 
   const normalizeData = (reportType: string, rawData: any[]) => {
-
-
     switch (reportType) {
       case "Litigation":
         return rawData.map((item) => ({
@@ -391,7 +390,7 @@ const itemsPerPage = 10;
 
         const prevDate = new Date(year, currentMonth - 1, 1);
         const prevMonth = prevDate.getMonth();
-         const filtered = rawData.filter(r => r.RiskCategory === "Probable");
+        const filtered = rawData.filter((r) => r.RiskCategory === "Probable");
 
         const enriched = filtered.map((r) => {
           const d = r.UTPDate ? new Date(r.UTPDate) : null;
@@ -402,7 +401,7 @@ const itemsPerPage = 10;
           };
         });
         const segregated = groupBy(enriched, (r) => r.TaxType);
-        console.log(segregated)
+        console.log(segregated);
 
         const exportData: any[] = [];
 
@@ -500,18 +499,34 @@ const itemsPerPage = 10;
 
         const paymentsCurr = enriched3
           .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce((s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
+          .reduce(
+            (s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0),
+            0
+          );
 
         const paymentsPrev = enriched3
           .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce((s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
+          .reduce(
+            (s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0),
+            0
+          );
 
         const provisionCurr = enriched3
-          .filter((r: any) => r.month === currentMonth3 && r.year === currentYear3 && r.RiskCategory === "Probable")
+          .filter(
+            (r: any) =>
+              r.month === currentMonth3 &&
+              r.year === currentYear3 &&
+              r.RiskCategory === "Probable"
+          )
           .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
 
         const provisionPrev = enriched3
-          .filter((r: any) => r.month === prevMonth3 && r.year === prevYear3 && r.RiskCategory === "Probable")
+          .filter(
+            (r: any) =>
+              r.month === prevMonth3 &&
+              r.year === prevYear3 &&
+              r.RiskCategory === "Probable"
+          )
           .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
         const ebitdaCurr = enriched3
           .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
@@ -538,7 +553,10 @@ const itemsPerPage = 10;
             label: "Cashflow Exposure",
             current: totalExposureCurr - paymentsCurr,
             prior: totalExposurePrev - paymentsPrev,
-            variance: (totalExposureCurr - paymentsCurr) - (totalExposurePrev - paymentsPrev),
+            variance:
+              totalExposureCurr -
+              paymentsCurr -
+              (totalExposurePrev - paymentsPrev),
           },
           {
             label: "Total Exposure",
@@ -556,15 +574,17 @@ const itemsPerPage = 10;
             label: "P&L Exposure",
             current: totalExposureCurr - provisionCurr,
             prior: totalExposurePrev - provisionPrev,
-            variance: (totalExposureCurr - provisionCurr) - (totalExposurePrev - provisionPrev),
+            variance:
+              totalExposureCurr -
+              provisionCurr -
+              (totalExposurePrev - provisionPrev),
           },
           {
             label: "EBITDA Exposure (%)",
             current: ebitdaCurr,
             prior: ebitdaPrev,
-            variance: ebitdaCurr - ebitdaPrev
-            ,
-          }
+            variance: ebitdaCurr - ebitdaPrev,
+          },
         ];
 
         return results3;
@@ -651,7 +671,6 @@ const itemsPerPage = 10;
 
           // Push only ONE row per GLCode
           exportData3.push({
-
             glCode: GMLRID,
             taxType: records[0]?.TaxType || "Brief Description",
             entity: records[0]?.Entity || "",
@@ -751,21 +770,20 @@ const itemsPerPage = 10;
     }
   };
   useEffect(() => {
- const reset = {
-                dateStart: "",
-                dateEnd: "",
-                category: "",
-                financialYear: "",
-                taxYear: "",
-                taxType: "",
-                taxAuthority: "",
-                entity: "",
-              };
-              setDateRange([null, null]);
-              setFilters(reset);
+    const reset = {
+      dateStart: "",
+      dateEnd: "",
+      category: "",
+      financialYear: "",
+      taxYear: "",
+      taxType: "",
+      taxAuthority: "",
+      entity: "",
+    };
+    setDateRange([null, null]);
+    setFilters(reset);
     fetchData();
   }, [reportType]);
-
 
   useEffect(() => {
     const fetchLOVs = async () => {
@@ -787,17 +805,19 @@ const itemsPerPage = 10;
     fetchLOVs();
   }, []);
   const handleFilterChange = (key: string, value: string) => {
-
     const updatedFilters = { ...filters, [key]: value };
     setFilters(updatedFilters);
 
     const filtered = data.filter((item) => {
-
- let dateMatch = true;
+      let dateMatch = true;
 
       if (updatedFilters.dateStart || updatedFilters.dateEnd) {
-        const start = updatedFilters.dateStart ? new Date(updatedFilters.dateStart) : null;
-        const end = updatedFilters.dateEnd ? new Date(updatedFilters.dateEnd) : null;
+        const start = updatedFilters.dateStart
+          ? new Date(updatedFilters.dateStart)
+          : null;
+        const end = updatedFilters.dateEnd
+          ? new Date(updatedFilters.dateEnd)
+          : null;
 
         let itemDate: Date | null = null;
 
@@ -820,7 +840,6 @@ const itemsPerPage = 10;
         }
       }
 
-
       // ---- OTHER FILTERS ----
       switch (reportType) {
         case "UTP":
@@ -831,10 +850,14 @@ const itemsPerPage = 10;
         case "ERM":
           return (
             dateMatch &&
-            (!updatedFilters.category || item.RiskCategory === updatedFilters.category) &&
-            (!updatedFilters.financialYear || item.FinancialYear === updatedFilters.financialYear) &&
-            (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType) &&
+            (!updatedFilters.category ||
+              item.RiskCategory === updatedFilters.category) &&
+            (!updatedFilters.financialYear ||
+              item.FinancialYear === updatedFilters.financialYear) &&
+            (!updatedFilters.taxYear ||
+              item.TaxYear === updatedFilters.taxYear) &&
+            (!updatedFilters.taxType ||
+              item.TaxType === updatedFilters.taxType) &&
             // (!updatedFilters.taxAuthority || item.taxAuthority === updatedFilters.taxAuthority) &&
             (!updatedFilters.entity || item.Entity === updatedFilters.entity)
           );
@@ -843,14 +866,15 @@ const itemsPerPage = 10;
         case "ActiveCases":
           return (
             dateMatch &&
-            (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxAuthority || item.TaxAuthority === updatedFilters.taxAuthority) &&
+            (!updatedFilters.taxYear ||
+              item.TaxYear === updatedFilters.taxYear) &&
+            (!updatedFilters.taxAuthority ||
+              item.TaxAuthority === updatedFilters.taxAuthority) &&
             (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
-            (!updatedFilters.financialYear || item.FinancialYear === updatedFilters.financialYear) &&
+            (!updatedFilters.financialYear ||
+              item.FinancialYear === updatedFilters.financialYear) &&
             (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
-
           );
-
 
         // return (
         //   dateMatch &&
@@ -862,43 +886,48 @@ const itemsPerPage = 10;
           return dateMatch;
       }
     });
-    setLoading(true)
+    setLoading(true);
     const dataf = normalizeData(reportType, filtered);
-console.log(dataf,'hhhhh');
+    console.log(dataf, "hhhhh");
 
-    setFilteredData(dataf)
-    setLoading(false)
+    setFilteredData(dataf);
+    setLoading(false);
   };
-const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-const paginatedData = ["Litigation", "UTP", "ActiveCases"].includes(reportType) ? filteredData.slice(
-  (currentPage - 1) * itemsPerPage,
-  currentPage * itemsPerPage
-):filteredData;
-const getCurrentWeekRange = () => {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon...
-  const diffToMonday = (dayOfWeek + 6) % 7; // shift so Monday=0
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - diffToMonday);
-  monday.setHours(0, 0, 0, 0);
+  const paginatedData = ["Litigation", "UTP", "ActiveCases"].includes(
+    reportType
+  )
+    ? filteredData.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      )
+    : filteredData;
+  const getCurrentWeekRange = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon...
+    const diffToMonday = (dayOfWeek + 6) % 7; // shift so Monday=0
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMonday);
+    monday.setHours(0, 0, 0, 0);
 
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
 
-  return [monday, sunday] as [Date, Date];
-};
-useEffect(() => {
-  if (reportType === "ActiveCases" && !startDate && !endDate) {
-    const [monday, sunday] = getCurrentWeekRange();
-    setDateRange([monday, sunday]);
+    return [monday, sunday] as [Date, Date];
+  };
+  useEffect(() => {
+    if (reportType === "ActiveCases" && !startDate && !endDate) {
+      const [monday, sunday] = getCurrentWeekRange();
+      setDateRange([monday, sunday]);
 
-    if (monday) handleFilterChange("dateStart", monday.toISOString().split("T")[0]); 
-    if (sunday) handleFilterChange("dateEnd", sunday.toISOString().split("T")[0]);
-  }
-}, [reportType]);
-
+      if (monday)
+        handleFilterChange("dateStart", monday.toISOString().split("T")[0]);
+      if (sunday)
+        handleFilterChange("dateEnd", sunday.toISOString().split("T")[0]);
+    }
+  }, [reportType]);
 
   return (
     <>
@@ -915,7 +944,8 @@ useEffect(() => {
     value={filters.dateEnd}
     onChange={(e) => handleFilterChange("dateEnd", e.target.value)}
     className={styles.filterInput}
-  /> */}<div className={styles.filterField}>
+  /> */}
+        <div className={styles.filterField}>
           <label className={styles.filterLabel}>Date Range</label>
           <DatePicker
             selectsRange
@@ -924,8 +954,12 @@ useEffect(() => {
             onChange={(update: [Date | null, Date | null]) => {
               setDateRange(update);
 
-              const newStart = update[0] ? update[0].toISOString().split("T")[0] : "";
-              const newEnd = update[1] ? update[1].toISOString().split("T")[0] : "";
+              const newStart = update[0]
+                ? update[0].toISOString().split("T")[0]
+                : "";
+              const newEnd = update[1]
+                ? update[1].toISOString().split("T")[0]
+                : "";
 
               // Update state
               setFilters((prev) => ({
@@ -946,8 +980,7 @@ useEffect(() => {
             }}
             // isClearable
             placeholderText="Select date range"
-             className={styles.datePickerInput} // ✅ custom height class
- 
+            className={styles.datePickerInput} // ✅ custom height class
             calendarClassName={styles.customCalendar}
             dayClassName={(date) =>
               startDate && endDate && date >= startDate && date <= endDate
@@ -956,7 +989,6 @@ useEffect(() => {
             }
             isClearable={false}
           />
-
         </div>
         <Dropdown
           label="Entity"
@@ -969,8 +1001,6 @@ useEffect(() => {
           styles={{ root: { minWidth: 160 } }}
         />
 
-
-
         <Dropdown
           label="Tax Type"
           placeholder="Select Tax Type"
@@ -981,75 +1011,78 @@ useEffect(() => {
           }
           styles={{ root: { minWidth: 160 } }}
         />
-        {(reportType == "Litigation" || reportType == "ActiveCases") && <Dropdown
-          label="Tax Authority"
-          placeholder="Select Tax Authority"
-          options={lovOptions.TaxAuthority || []}
-          selectedKey={filters.taxAuthority || null}
-          onChange={(_, option) =>
-            handleFilterChange("taxAuthority", option?.key as string)
-          }
-          styles={{ root: { minWidth: 160 } }}
-        />}
+        {(reportType == "Litigation" || reportType == "ActiveCases") && (
+          <Dropdown
+            label="Tax Authority"
+            placeholder="Select Tax Authority"
+            options={lovOptions.TaxAuthority || []}
+            selectedKey={filters.taxAuthority || null}
+            onChange={(_, option) =>
+              handleFilterChange("taxAuthority", option?.key as string)
+            }
+            styles={{ root: { minWidth: 160 } }}
+          />
+        )}
 
-    
-<ComboBox
-  label="Tax Year"
-  placeholder="Select Tax Year"
-  options={getYearOptions() || []} // should return IComboBoxOption[]
-  selectedKey={filters.taxYear || null}
-  onChange={(_, option) =>
-    handleFilterChange("taxYear", option?.key as string)
-  }
-  allowFreeform={false}  
-  autoComplete="on"   // ✅ enables suggestions while typing
-  styles={{
-    root: { minWidth: 160 },
-    callout: {
-      maxHeight: "30vh",
-      overflowY: "auto",
-      directionalHintFixed: true,
-      directionalHint: 6,
-    },
-     optionsContainerWrapper: {
-            minWidth: 160,
-          },
-  }}
-/>
-
-<ComboBox
-  label="Financial Year"
-  placeholder="Select Financial Year"
-  options={getYearOptionsFY() || []}
-  selectedKey={filters.financialYear || null}
-  onChange={(_, option) =>
-    handleFilterChange("financialYear", option?.key as string)
-  }
-  allowFreeform={false}
-  autoComplete="on"
-  styles={{
-    root: { minWidth: 160 },
-    callout: {
-      maxHeight: "30vh",
-      overflowY: "auto",
-      directionalHintFixed: true,
-      directionalHint: 6,
-    },
-     optionsContainerWrapper: {
-            minWidth: 160,
-          },
-  }}
-/>
-        {(reportType !== "Litigation" && reportType !== "ActiveCases") && (<Dropdown
-          label="Category"
-          placeholder="Select Category"
-          options={lovOptions.Category || []}
-          selectedKey={filters.category || null}
+        <ComboBox
+          label="Tax Year"
+          placeholder="Select Tax Year"
+          options={getYearOptions() || []} // should return IComboBoxOption[]
+          selectedKey={filters.taxYear || null}
           onChange={(_, option) =>
-            handleFilterChange("category", option?.key as string)
+            handleFilterChange("taxYear", option?.key as string)
           }
-          styles={{ root: { minWidth: 160 } }}
-        />)}
+          allowFreeform={false}
+          autoComplete="on" // ✅ enables suggestions while typing
+          styles={{
+            root: { minWidth: 160 },
+            callout: {
+              maxHeight: "30vh",
+              overflowY: "auto",
+              directionalHintFixed: true,
+              directionalHint: 6,
+            },
+            optionsContainerWrapper: {
+              minWidth: 160,
+            },
+          }}
+        />
+
+        <ComboBox
+          label="Financial Year"
+          placeholder="Select Financial Year"
+          options={getYearOptionsFY() || []}
+          selectedKey={filters.financialYear || null}
+          onChange={(_, option) =>
+            handleFilterChange("financialYear", option?.key as string)
+          }
+          allowFreeform={false}
+          autoComplete="on"
+          styles={{
+            root: { minWidth: 160 },
+            callout: {
+              maxHeight: "30vh",
+              overflowY: "auto",
+              directionalHintFixed: true,
+              directionalHint: 6,
+            },
+            optionsContainerWrapper: {
+              minWidth: 160,
+            },
+          }}
+        />
+        {reportType !== "Litigation" && reportType !== "ActiveCases" && (
+          <Dropdown
+            label="Category"
+            placeholder="Select Category"
+            options={lovOptions.Category || []}
+            selectedKey={filters.category || null}
+            onChange={(_, option) =>
+              handleFilterChange("category", option?.key as string)
+            }
+            styles={{ root: { minWidth: 160 } }}
+          />
+        )}
         {/* <Dropdown
   label="Report Type"
   options={[
@@ -1081,11 +1114,11 @@ useEffect(() => {
               };
               setDateRange([null, null]);
               setFilters(reset);
-              setLoading(true)
+              setLoading(true);
               const dataf = normalizeData(reportType, data);
 
-              setFilteredData(dataf)
-              setLoading(false)
+              setFilteredData(dataf);
+              setLoading(false);
             }}
           >
             Clear Filters
@@ -1112,7 +1145,7 @@ useEffect(() => {
               };
               setDateRange([null, null]);
               setFilters(reset);
-              fetchData()
+              fetchData();
               // setFilteredData(dummyData);
             }}
           >
@@ -1130,38 +1163,36 @@ useEffect(() => {
               ))}
             </tr>
           </thead>
-         <tbody>
-  {loading ? (
-    <tr>
-      <td
-        colSpan={reportConfig[reportType].columns.length}
-        style={{ textAlign: "center" }}
-      >
-        Loading...
-      </td>
-    </tr>
-  ) : paginatedData.length === 0 ? (
-    <tr>
-      <td
-        colSpan={reportConfig[reportType].columns.length}
-        style={{ textAlign: "center" }}
-      >
-        No Data Available
-      </td>
-    </tr>
-  ) : (
-    paginatedData.map((item, idx) => (
-      <tr key={idx}>
-        {reportConfig[reportType].columns.map((col) => (
-          <td key={col.header}>{item[col.field] ?? ""}</td>
-        ))}
-      </tr>
-    ))
-  )}
-</tbody>
-
+          <tbody>
+            {loading ? (
+              <tr>
+                <td
+                  colSpan={reportConfig[reportType].columns.length}
+                  style={{ textAlign: "center" }}
+                >
+                  Loading...
+                </td>
+              </tr>
+            ) : paginatedData.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={reportConfig[reportType].columns.length}
+                  style={{ textAlign: "center" }}
+                >
+                  No Data Available
+                </td>
+              </tr>
+            ) : (
+              paginatedData.map((item, idx) => (
+                <tr key={idx}>
+                  {reportConfig[reportType].columns.map((col) => (
+                    <td key={col.header}>{item[col.field] ?? ""}</td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
         </table>
-
 
         {selectedCase && (
           <CorrespondenceDetailOffCanvas
@@ -1171,13 +1202,15 @@ useEffect(() => {
           />
         )}
       </div>
-      {["Litigation", "UTP", "ActiveCases"].includes(reportType) &&<Pagination
-  currentPage={currentPage}
-  totalPages={totalPages}
-  totalItems={filteredData.length}
-  itemsPerPage={itemsPerPage}
-  onPageChange={setCurrentPage}
-/>}
+      {["Litigation", "UTP", "ActiveCases"].includes(reportType) && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredData.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
+      )}
     </>
   );
 };

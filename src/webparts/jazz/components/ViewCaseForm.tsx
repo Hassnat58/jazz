@@ -36,7 +36,15 @@ const ViewCaseOffcanvas: React.FC<{
             <td>
               <strong>Case No:</strong>
             </td>
-            <td>00-CN{data.ID}</td>
+            <td>
+              {data.ParentCaseId
+                ? data.TaxType === "Income Tax"
+                  ? `IT--00${data.ParentCaseId}`
+                  : data.TaxType === "Sales Tax"
+                  ? `ST--00${data.ParentCaseId}`
+                  : `CN--00${data.ParentCaseId}`
+                : data.Title}
+            </td>
           </tr>
           <tr>
             <td>

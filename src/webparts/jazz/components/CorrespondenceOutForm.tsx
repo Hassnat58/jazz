@@ -242,7 +242,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
             control={control}
             render={({ field: f }) => (
               <Dropdown
-                label={field}
+                label={fieldMapping[field]}
                 options={lovOptions[field] || []}
                 selectedKey={f.value}
                 onChange={(_, o) => f.onChange(o?.key)}

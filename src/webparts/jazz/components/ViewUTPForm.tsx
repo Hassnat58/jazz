@@ -36,11 +36,11 @@ const ViewUTPForm: React.FC<{
             <td>
               <strong>UTP ID:</strong>
             </td>
-            <td>UTP-00{data.Id}</td>
+            <td>{data.UTPId}</td>
             <td>
               <strong>GMLR ID:</strong>
             </td>
-            <td>{data.GMLRId}</td>
+            <td>{data.GMLRID}</td>
           </tr>
           <tr>
             <td>
@@ -58,9 +58,9 @@ const ViewUTPForm: React.FC<{
             </td>
             <td>{data.GrossExposure}</td>
             <td>
-              <strong>Tax Authority</strong>
+              <strong>P&L Exposure:</strong>
             </td>
-            <td>{data.TaxAuthority}</td>
+            <td>{data.PLExposure}</td>
           </tr>
           <tr>
             <td>
@@ -89,6 +89,10 @@ const ViewUTPForm: React.FC<{
               <strong>Payment Type:</strong>
             </td>
             <td>{data.PaymentType}</td>
+            <td>
+              <strong>EBITDA Exposure:</strong>
+            </td>
+            <td>{data.EBITDAExposure}</td>
           </tr>
           <tr>
             <td>

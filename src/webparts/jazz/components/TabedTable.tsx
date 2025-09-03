@@ -16,7 +16,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import CorrespondenceOutForm from "./CorrespondenceOutForm";
 import ViewCorrespondenceOutForm from "./ViewCorrespondenceOut";
 import UTPForm from "./UTPForm";
-// import ManagersTable from "./ManagersTable";
+import ManagersTable from "./ManagersTable";
 import ViewUTPForm from "./ViewUTPForm";
 import DocumentGrid from "./DocumentGrid";
 import ReportsTable from "./ReportsTable";
@@ -38,7 +38,7 @@ const tabs = [
   "UTP Dashboard",
   "Documents",
   "Reports",
-  // "Managers",
+  "Managers",
 ];
 
 type ReportType =
@@ -109,6 +109,7 @@ const TabbedTables: React.FC<{
   const [casesPage, setCasesPage] = useState(1);
   const [correspondencePage, setCorrespondencePage] = useState(1);
   const [utpPage, setUtpPage] = useState(1);
+  const [userRole, setUserRole] = useState<string[]>([]);
 
   const itemsPerPage = 10;
 
@@ -123,6 +124,38 @@ const TabbedTables: React.FC<{
       loadUTPData();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        // Get current user
+        const currentUser = await sp.web.currentUser();
+        console.log("Current User:", currentUser);
+
+        // Get role entry for this user
+        const items = await sp.web.lists
+          .getByTitle("Role")
+          .items.filter(`Person/Id eq ${currentUser.Id}`)
+          .select("Id", "Role", "Person/Id")
+          .expand("Person")();
+
+        if (items.length > 0) {
+          const roles = items.map((i) => i.Role?.toLowerCase());
+          setUserRole(roles);
+          console.log("User Roles:", roles);
+        } else {
+          console.log("No roles found for user");
+        }
+      } catch (error) {
+        console.error("Error fetching role:", error);
+      }
+    };
+
+    fetchUserRole();
+  }, []);
+  const hideReports =
+    userRole.includes("Manager") && !userRole.includes("Admin");
+  const visibleTabs = hideReports ? tabs.filter((t) => t !== "Reports") : tabs;
 
   // helper functions for filters
   const getFinancialYearOptions = (): IDropdownOption[] => {
@@ -487,7 +520,6 @@ const TabbedTables: React.FC<{
               <th>Financial Year</th>
               <th>Date of Compliance</th>
               <th>Lawyer Assigned</th>
-              <th>Gross Tax Demanded</th>
               <th>Case Status</th>
               <th>Actions</th>
             </tr>
@@ -509,7 +541,6 @@ const TabbedTables: React.FC<{
                 <td>{item.FinancialYear}</td>
                 <td>{item.DateofCompliance?.split("T")[0]}</td>
                 <td>{item.LawyerAssigned?.Title}</td>
-                <td>{item.GrossTaxDemanded}</td>
                 <td>
                   {item.CaseStatus && (
                     <div
@@ -676,7 +707,7 @@ const TabbedTables: React.FC<{
           <thead>
             <tr>
               <th>Case Number</th>
-              <th>CorrespondenceOut</th>
+              <th>Correspondence Out</th>
               <th>Brief Description</th>
               <th>Field Through</th>
               <th>Field At</th>
@@ -980,7 +1011,7 @@ const TabbedTables: React.FC<{
 
     switch (activeTab) {
       case "Dashboard":
-        return <PowerBIDashboard SpfxContext={SpfxContext}/>;
+        return <PowerBIDashboard SpfxContext={SpfxContext} />;
       case "Litigation":
         return renderCorrespondenceTable();
       case "Response":
@@ -1008,8 +1039,8 @@ const TabbedTables: React.FC<{
           <ReportsTable SpfxContext={SpfxContext} reportType={reportType} />
         );
 
-      // case "Managers":
-      //   return <ManagersTable SpfxContext={SpfxContext} />;
+      case "Managers":
+        return <ManagersTable SpfxContext={SpfxContext} />;
 
       default:
         return null;
@@ -1019,7 +1050,7 @@ const TabbedTables: React.FC<{
   return (
     <>
       <div className={styles.tabs}>
-        {tabs.map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab}
             className={`${styles.tab} ${
@@ -1111,7 +1142,7 @@ const TabbedTables: React.FC<{
               : activeTab}
           </h6>
           {/* Report Type Tabs */}
-          {activeTab == "Reports" && (
+          {activeTab == "Reports" && !showLOVManagement && !showManageRole && (
             <div className={styles.reportTabs}>
               {(
                 [

@@ -93,10 +93,10 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const fieldMapping: { [key: string]: string } = {
     "Tax Type": "TaxType",
     Entity: "Entity",
-    TaxAuthority: "TaxAuthority",
+    "Tax Authority": "TaxAuthority",
     "Concerning Law": "ConcerningLaw",
     "Correspondence Type": "CorrespondenceType",
-    IssuedBy: "IssuedBy",
+    "Issued By": "IssuedBy",
     "Pending Authority": "PendingAuthority",
     "Tax exposure Stage": "TaxexposureStage",
     "Tax Consultant Assigned": "TaxConsultantAssigned",
@@ -131,7 +131,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const fieldOrder = [
     { type: "dropdown", label: "Tax Type", name: "TaxType" },
     { type: "dropdown", label: "Concerning Law" },
-    { type: "dropdown", label: "TaxAuthority" },
+    { type: "dropdown", label: "Tax Authority" },
     { type: "caseNumber", label: "Case Number" }, // 4th field
     { type: "dropdown", label: "Entity" },
     {
@@ -140,7 +140,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       name: "DocumentReferenceNumber",
     },
     { type: "dropdown", label: "Correspondence Type" },
-    { type: "dropdown", label: "IssuedBy" },
+    { type: "dropdown", label: "Issued By" },
     { type: "date", label: "Date of Document", name: "Dateofdocument" },
     { type: "date", label: "Date Received", name: "DateReceived" },
     { type: "dropdown", label: "Financial Year" },
@@ -561,7 +561,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
             // 🔹 Otherwise normal LOV dropdown
             return (
               <Controller
-                key={field.label}
+                key={internalName}
                 name={internalName}
                 control={control}
                 render={({ field: f }) => (

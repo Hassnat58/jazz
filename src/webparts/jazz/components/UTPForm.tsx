@@ -414,11 +414,12 @@ const UTPForm: React.FC<UTPFormProps> = ({
           control={control}
           render={({ field }) => (
             <Dropdown
-              label="* UTP Category"
+              label="UTP Category"
               options={lovOptions["UTP Category"] || []}
               selectedKey={field.value}
               onChange={(_, o) => field.onChange(o?.key)}
               placeholder="Select"
+              required
             />
           )}
         />
@@ -441,7 +442,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           control={control}
           render={({ field }) => renderRadioGroup("P&L Exposure Exists", field)}
         /> */}
-        <Controller
+        {/* <Controller
           name="PLExposure"
           control={control}
           render={({ field }) => (
@@ -452,7 +453,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
               // disabled={plexposureExists !== true}
             />
           )}
-        />
+        /> */}
         {/* <Controller
           name="EBITDAExposureExists"
           control={control}
