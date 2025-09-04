@@ -15,7 +15,7 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any }> =  ({SpfxContext}) => {
       />
      
     </div>
-     <ManagersTable SpfxContext={SpfxContext} />;
+     <ManagersTable SpfxContext={SpfxContext} />
 
     </>
   );

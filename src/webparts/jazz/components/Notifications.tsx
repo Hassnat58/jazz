@@ -10,6 +10,11 @@ import "@pnp/sp/items";
 import jazzLogo from "../assets/jazz-logo.png";
 import { Offcanvas, Button, Badge, Row, Col } from "react-bootstrap";
 import styles from "./Notifications.module.scss";
+import pdfIcon from "../assets/pdf.png";
+import wordIcon from "../assets/word.png";
+import xlsIcon from "../assets/xls.png";
+import imageIcon from "../assets/image.png";
+import genericIcon from "../assets/document.png"; // fallback
 
 interface Notification {
   id: number;
@@ -99,17 +104,27 @@ const Notifications: React.FC<NotificationsProps> = ({
         date: item.ReceivedDate || "",
         reference: item.LinkedCaseIDId || "",
         body: item.Content || "",
-        attachments: item.AttachmentFiles
-          ? item.AttachmentFiles.map((f: any) => f.FileName)
+        attachments: item.AttachmentFiles.length>0
+          ? item.AttachmentFiles.map((f: any) => {
+
+            return {
+              id: f.FileName,
+              Name: f.FileName,
+              ServerRelativeUrl: f.ServerRelativeUrl,
+              absoluteUrl: `${window.location.origin}${f.ServerRelativeUrl}`,
+            }
+          })
           : [],
         status: item.Status?.toLowerCase() === "read" ? "read" : "unread",
       }));
+console.log(items);
 
       setNotifications(mapped);
     } catch (err) {
       console.error("Error fetching Inbox list:", err);
     }
   };
+
   const deleteNotification = async (id: number) => {
     try {
       const sp = spfi().using(SPFx(SpfxContext));
@@ -124,6 +139,23 @@ const Notifications: React.FC<NotificationsProps> = ({
   useEffect(() => {
     fetchInboxData();
   }, []);
+const handleDownload = async (serverRelativeUrl: string, fileName: string) => {
+  try {
+    const sp = spfi().using(SPFx(SpfxContext));
+
+    // get file as blob from SharePoint directly
+    const file = sp.web.getFileByServerRelativePath(serverRelativeUrl);
+    const blob = await file.getBlob();
+
+    const link = document.createElement("a");
+    link.href = window.URL.createObjectURL(blob);
+    link.download = fileName;
+    link.click();
+    window.URL.revokeObjectURL(link.href);
+  } catch (err) {
+    console.error("Download failed:", err);
+  }
+};
 
   const handleView = (notification: Notification) => {
     setSelectedNotification(notification);
@@ -134,17 +166,18 @@ const Notifications: React.FC<NotificationsProps> = ({
     <div className={styles.notificationsContainer}>
       {/* Tabs */}
       <div className={styles.tabs}>
-        <button
-          className={filter === "read" ? styles.activeTab : ""}
-          onClick={() => setFilter("read")}
-        >
-          Read
-        </button>
+        
         <button
           className={filter === "unread" ? styles.activeTab : ""}
           onClick={() => setFilter("unread")}
         >
           Unread
+        </button>
+        <button
+          className={filter === "read" ? styles.activeTab : ""}
+          onClick={() => setFilter("read")}
+        >
+          Read
         </button>
       </div>
 
@@ -252,19 +285,68 @@ const Notifications: React.FC<NotificationsProps> = ({
 
                 <pre>{selectedNotification.body}</pre>
 
-                {/* <h6>Attachments:</h6>
+                <h6>Attachments:</h6>
                 <div className={styles.attachments}>
-                  {selectedNotification.attachments.map((file, i) => (
-                    <Button
-                      key={i}
-                      variant="outline-danger"
-                      size="sm"
-                      className="me-2 mb-2"
-                    >
-                      📄 {file}
-                    </Button>
-                  ))}
-                </div> */}
+
+
+                  {selectedNotification.attachments && selectedNotification.attachments.length > 0 ? (
+                    selectedNotification?.attachments.map((file: any) => {
+                      const fileName = file?.Name || "";
+// const fileUrl = `${window.location.origin}${file.ServerRelativeUrl}`;
+                      // const fileSizeBytes = file?.Length || 0;
+                      // const fileSize =
+                      //   fileSizeBytes > 1024 * 1024
+                      //     ? (fileSizeBytes / (1024 * 1024)).toFixed(2) + " MB"
+                      //     : (fileSizeBytes / 1024).toFixed(2) + " KB";
+
+                      const extension = fileName.split(".").pop()?.toLowerCase();
+                      let iconPath = genericIcon;
+                      switch (extension) {
+                        case "pdf":
+                          iconPath = pdfIcon;
+                          break;
+                        case "doc":
+                        case "docx":
+                          iconPath = wordIcon;
+                          break;
+                        case "xls":
+                        case "xlsx":
+                          iconPath = xlsIcon;
+                          break;
+                        case "png":
+                        case "jpg":
+                        case "jpeg":
+                          iconPath = imageIcon;
+                          break;
+                        default:
+                          iconPath = genericIcon;
+                      }
+
+                      return (
+                        <div className={styles.fileItem} key={file.ID}>
+                          <img
+                            src={iconPath}
+                            alt={extension + " file"}
+                            style={{
+                              width: "24px",
+                              height: "24px",
+                              objectFit: "contain",
+                            }}
+                          />
+                          <span>{fileName}</span>
+                          {/* <span>{fileSize}</span> */}
+                          <button
+                              onClick={() => handleDownload(file.ServerRelativeUrl,fileName)}
+
+                          >
+                            ⬇
+                          </button>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p>No attachments found.</p>
+                  )}                </div>
 
                 <Button
                   variant="warning"

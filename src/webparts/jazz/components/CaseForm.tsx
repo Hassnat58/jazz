@@ -247,7 +247,9 @@ const CaseForm: React.FC<CaseFormProps> = ({
   }, [filteredCaseOptions, taxType]);
 
   // 🔸 Prefill when editing + load attachments & tax issues for selected case
+  
   useEffect(() => {
+    
     const loadExistingAttachments = async () => {
       if (selectedCase?.ID) {
         const files = await sp.web.lists
@@ -314,6 +316,34 @@ const CaseForm: React.FC<CaseFormProps> = ({
       loadExistingAttachments();
     }
   }, [selectedCase, reset]);
+useEffect(() => {
+  const loadExistingAttachmentsEmail = async () => {
+    if (notiID) {
+      const items: any[] = await sp.web.lists
+        .getByTitle("Inbox")
+        .items.filter(`Id eq ${notiID}`)
+        .select("Id")
+        .expand("AttachmentFiles")();
+// const { pageContext } = SpfxContext;
+      if (items.length > 0) {
+        const attachments = items[0].AttachmentFiles || [];
+      setExistingAttachments(
+  attachments.map((f: any) => {
+ 
+    return {
+      ID: f.FileName,
+      FileLeafRef: f.FileName,
+      FileRef2: f.ServerRelativeUrl, 
+     FileRef: `${window.location.origin}${f.ServerRelativeUrl}`, };
+  })
+);
+
+      }
+    }
+  };
+
+  if (notiID) loadExistingAttachmentsEmail();
+}, [notiID]);
 
   // 🔸 Compute next Case ID for new item
   useEffect(() => {
@@ -427,7 +457,25 @@ const CaseForm: React.FC<CaseFormProps> = ({
           .getItem();
         await fileItem.update({ CaseId: itemId });
       }
+if(notiID){
+  for (const inboxFile of existingAttachments) {
+  try {
+   const blob = await sp.web.getFileByServerRelativePath(inboxFile.FileRef2).getBlob();
 
+    const uploadResult: any = await sp.web.lists
+      .getByTitle("Core Data Repositories")
+      .rootFolder.files.addUsingPath(inboxFile.FileLeafRef, blob, { Overwrite: true });
+
+    const uploadedItem = await sp.web
+      .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+      .getItem();
+    await uploadedItem.update({ CaseId: itemId });
+  } catch (err) {
+    console.error("Failed to copy inbox attachment", err);
+  }
+}
+
+}
       loadCasesData();
       setExisting(false);
       alert(isDraft ? "Draft saved" : "Case submitted");
@@ -744,7 +792,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   ✖
                 </span>
                 <a
-                  href={file.FileRef}
+                  href={file.FileRef+`?web=1`}
                   target="_blank"
                   rel="noreferrer"
                   style={{ color: "#2563eb", textDecoration: "none" }}

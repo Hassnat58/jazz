@@ -65,7 +65,11 @@
   border-radius: 5px;
   font-size: 0.9rem;
 }
-
+ .attachments {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+ }
 .attachments button {
   font-size: 0.85rem;
 }
@@ -78,4 +82,13 @@
 .custombg {
   background-color: #F8F8F8;
   margin-bottom: 15px;
-}
+} .fileItem {
+        background: #f9f9f9;
+        padding: 10px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+      }
