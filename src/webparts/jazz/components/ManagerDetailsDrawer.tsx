@@ -114,9 +114,9 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
           <tbody>
             <tr>
               <td className="text-#6C757D">
-                <strong>Jurisdiction:</strong>
+                <strong>Tax Type:</strong>
               </td>
-              <td>{caseData.Jurisdiction}</td>
+              <td>{caseData.TaxType}</td>
               <td>
                 <strong>Consultant:</strong>
               </td>
@@ -130,7 +130,7 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
             </tr>
             <tr>
               <td>
-                <strong>Complain:</strong>
+                <strong>Complaint:</strong>
               </td>
               <td colSpan={3}>{caseData.CaseStatus}</td>
             </tr>

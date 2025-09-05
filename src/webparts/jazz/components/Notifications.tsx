@@ -47,7 +47,7 @@ const Notifications: React.FC<NotificationsProps> = ({
   setExisting,
 }) => {
   const [show, setShow] = useState(false);
-  const [filter, setFilter] = useState<"all" | "unread" | "read">("read");
+  const [filter, setFilter] = useState<"all" | "unread" | "read">("unread");
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
@@ -104,20 +104,20 @@ const Notifications: React.FC<NotificationsProps> = ({
         date: item.ReceivedDate || "",
         reference: item.LinkedCaseIDId || "",
         body: item.Content || "",
-        attachments: item.AttachmentFiles.length>0
-          ? item.AttachmentFiles.map((f: any) => {
-
-            return {
-              id: f.FileName,
-              Name: f.FileName,
-              ServerRelativeUrl: f.ServerRelativeUrl,
-              absoluteUrl: `${window.location.origin}${f.ServerRelativeUrl}`,
-            }
-          })
-          : [],
+        attachments:
+          item.AttachmentFiles.length > 0
+            ? item.AttachmentFiles.map((f: any) => {
+                return {
+                  id: f.FileName,
+                  Name: f.FileName,
+                  ServerRelativeUrl: f.ServerRelativeUrl,
+                  absoluteUrl: `${window.location.origin}${f.ServerRelativeUrl}`,
+                };
+              })
+            : [],
         status: item.Status?.toLowerCase() === "read" ? "read" : "unread",
       }));
-console.log(items);
+      console.log(items);
 
       setNotifications(mapped);
     } catch (err) {
@@ -139,23 +139,26 @@ console.log(items);
   useEffect(() => {
     fetchInboxData();
   }, []);
-const handleDownload = async (serverRelativeUrl: string, fileName: string) => {
-  try {
-    const sp = spfi().using(SPFx(SpfxContext));
+  const handleDownload = async (
+    serverRelativeUrl: string,
+    fileName: string
+  ) => {
+    try {
+      const sp = spfi().using(SPFx(SpfxContext));
 
-    // get file as blob from SharePoint directly
-    const file = sp.web.getFileByServerRelativePath(serverRelativeUrl);
-    const blob = await file.getBlob();
+      // get file as blob from SharePoint directly
+      const file = sp.web.getFileByServerRelativePath(serverRelativeUrl);
+      const blob = await file.getBlob();
 
-    const link = document.createElement("a");
-    link.href = window.URL.createObjectURL(blob);
-    link.download = fileName;
-    link.click();
-    window.URL.revokeObjectURL(link.href);
-  } catch (err) {
-    console.error("Download failed:", err);
-  }
-};
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob);
+      link.download = fileName;
+      link.click();
+      window.URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error("Download failed:", err);
+    }
+  };
 
   const handleView = (notification: Notification) => {
     setSelectedNotification(notification);
@@ -166,7 +169,6 @@ const handleDownload = async (serverRelativeUrl: string, fileName: string) => {
     <div className={styles.notificationsContainer}>
       {/* Tabs */}
       <div className={styles.tabs}>
-        
         <button
           className={filter === "unread" ? styles.activeTab : ""}
           onClick={() => setFilter("unread")}
@@ -287,19 +289,21 @@ const handleDownload = async (serverRelativeUrl: string, fileName: string) => {
 
                 <h6>Attachments:</h6>
                 <div className={styles.attachments}>
-
-
-                  {selectedNotification.attachments && selectedNotification.attachments.length > 0 ? (
+                  {selectedNotification.attachments &&
+                  selectedNotification.attachments.length > 0 ? (
                     selectedNotification?.attachments.map((file: any) => {
                       const fileName = file?.Name || "";
-// const fileUrl = `${window.location.origin}${file.ServerRelativeUrl}`;
+                      // const fileUrl = `${window.location.origin}${file.ServerRelativeUrl}`;
                       // const fileSizeBytes = file?.Length || 0;
                       // const fileSize =
                       //   fileSizeBytes > 1024 * 1024
                       //     ? (fileSizeBytes / (1024 * 1024)).toFixed(2) + " MB"
                       //     : (fileSizeBytes / 1024).toFixed(2) + " KB";
 
-                      const extension = fileName.split(".").pop()?.toLowerCase();
+                      const extension = fileName
+                        .split(".")
+                        .pop()
+                        ?.toLowerCase();
                       let iconPath = genericIcon;
                       switch (extension) {
                         case "pdf":
@@ -336,8 +340,9 @@ const handleDownload = async (serverRelativeUrl: string, fileName: string) => {
                           <span>{fileName}</span>
                           {/* <span>{fileSize}</span> */}
                           <button
-                              onClick={() => handleDownload(file.ServerRelativeUrl,fileName)}
-
+                            onClick={() =>
+                              handleDownload(file.ServerRelativeUrl, fileName)
+                            }
                           >
                             ⬇
                           </button>
@@ -346,7 +351,8 @@ const handleDownload = async (serverRelativeUrl: string, fileName: string) => {
                     })
                   ) : (
                     <p>No attachments found.</p>
-                  )}                </div>
+                  )}{" "}
+                </div>
 
                 <Button
                   variant="warning"

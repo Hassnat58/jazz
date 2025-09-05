@@ -16,7 +16,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import CorrespondenceOutForm from "./CorrespondenceOutForm";
 import ViewCorrespondenceOutForm from "./ViewCorrespondenceOut";
 import UTPForm from "./UTPForm";
-import ManagersTable from "./ManagersTable";
+// import ManagersTable from "./ManagersTable";
 import ViewUTPForm from "./ViewUTPForm";
 import DocumentGrid from "./DocumentGrid";
 import ReportsTable from "./ReportsTable";
@@ -38,7 +38,7 @@ const tabs = [
   "UTP Dashboard",
   "Documents",
   "Reports",
-  "Managers",
+  // "Managers",
 ];
 
 type ReportType =
@@ -530,10 +530,10 @@ const TabbedTables: React.FC<{
                 <td>
                   {item.ParentCaseId
                     ? item.TaxType === "Income Tax"
-                      ? `IT--00${item.ParentCaseId}`
+                      ? `IT-0${item.ParentCaseId}`
                       : item.TaxType === "Sales Tax"
-                      ? `ST--00${item.ParentCaseId}`
-                      : `CN--00${item.ParentCaseId}`
+                      ? `ST-0${item.ParentCaseId}`
+                      : `CN-0${item.ParentCaseId}`
                     : item.Title}
                 </td>
                 <td>{item.CorrespondenceType}</td>
@@ -640,9 +640,9 @@ const TabbedTables: React.FC<{
             options={correspondenceOutData
               .filter((i) => i.CaseNumber?.Title)
               .map((i) => {
-                let prefix = "CN--";
-                if (i.CaseNumber?.TaxType === "Income Tax") prefix = "IT--";
-                else if (i.CaseNumber?.TaxType === "Sales Tax") prefix = "ST--";
+                let prefix = "CN-";
+                if (i.CaseNumber?.TaxType === "Income Tax") prefix = "IT-";
+                else if (i.CaseNumber?.TaxType === "Sales Tax") prefix = "ST-";
 
                 return {
                   key: i.CaseNumber?.Title,
@@ -1039,8 +1039,8 @@ const TabbedTables: React.FC<{
           <ReportsTable SpfxContext={SpfxContext} reportType={reportType} />
         );
 
-      case "Managers":
-        return <ManagersTable SpfxContext={SpfxContext} />;
+      // case "Managers":
+      // return <ManagersTable SpfxContext={SpfxContext} />;
 
       default:
         return null;

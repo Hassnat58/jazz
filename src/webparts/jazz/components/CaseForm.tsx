@@ -86,9 +86,9 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   // 🔹 helper: prefix from Tax Type
   const getCaseNumberPrefix = () => {
-    if (taxType === "Income Tax") return "IT--00";
-    if (taxType === "Sales Tax") return "ST--00";
-    return "CN--00";
+    if (taxType === "Income Tax") return "IT-0";
+    if (taxType === "Sales Tax") return "ST-0";
+    return "CN-0";
   };
 
   const fieldMapping: { [key: string]: string } = {
@@ -212,26 +212,32 @@ const CaseForm: React.FC<CaseFormProps> = ({
       .then((items) => {
         const options: IComboBoxOption[] = items.map((item) => ({
           key: item.ID.toString(),
-          text: `CN--00${item.ID}`,
+          text:
+            item.TaxType === "Income Tax"
+              ? `IT-0${item.ID}`
+              : item.TaxType === "Sales Tax"
+              ? `ST-0${item.ID}`
+              : `CN-0${item.ID}`,
           data: { taxType: item.TaxType },
         }));
         setCasesOptions(options);
       });
   }, []);
 
+  // filter by Tax Type
   const filteredCaseOptions = React.useMemo(() => {
     let filtered = casesOptions;
 
-    // filter by Tax Type
+    // Filter by Tax Type first
     if (taxType) {
       filtered = filtered.filter((opt) => opt.data?.taxType === taxType);
     }
 
-    // also apply search filter
+    // Then apply search filter if there's search text
     if (caseSearch) {
-      const q = caseSearch.toLowerCase();
-      filtered = filtered.filter((o) =>
-        (o.text as string).toLowerCase().includes(q)
+      const searchLower = caseSearch.toLowerCase();
+      filtered = filtered.filter((opt) =>
+        opt.text?.toString().toLowerCase().includes(searchLower)
       );
     }
 
@@ -242,14 +248,13 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const caseNumberOptions = React.useMemo(() => {
     return filteredCaseOptions.map((opt) => ({
       ...opt,
-      text: opt.text.replace(/^CN--00/, getCaseNumberPrefix()),
+      text: opt.text.replace(/^CN-00/, getCaseNumberPrefix()),
     }));
   }, [filteredCaseOptions, taxType]);
 
   // 🔸 Prefill when editing + load attachments & tax issues for selected case
-  
+
   useEffect(() => {
-    
     const loadExistingAttachments = async () => {
       if (selectedCase?.ID) {
         const files = await sp.web.lists
@@ -316,34 +321,33 @@ const CaseForm: React.FC<CaseFormProps> = ({
       loadExistingAttachments();
     }
   }, [selectedCase, reset]);
-useEffect(() => {
-  const loadExistingAttachmentsEmail = async () => {
-    if (notiID) {
-      const items: any[] = await sp.web.lists
-        .getByTitle("Inbox")
-        .items.filter(`Id eq ${notiID}`)
-        .select("Id")
-        .expand("AttachmentFiles")();
-// const { pageContext } = SpfxContext;
-      if (items.length > 0) {
-        const attachments = items[0].AttachmentFiles || [];
-      setExistingAttachments(
-  attachments.map((f: any) => {
- 
-    return {
-      ID: f.FileName,
-      FileLeafRef: f.FileName,
-      FileRef2: f.ServerRelativeUrl, 
-     FileRef: `${window.location.origin}${f.ServerRelativeUrl}`, };
-  })
-);
-
+  useEffect(() => {
+    const loadExistingAttachmentsEmail = async () => {
+      if (notiID) {
+        const items: any[] = await sp.web.lists
+          .getByTitle("Inbox")
+          .items.filter(`Id eq ${notiID}`)
+          .select("Id")
+          .expand("AttachmentFiles")();
+        // const { pageContext } = SpfxContext;
+        if (items.length > 0) {
+          const attachments = items[0].AttachmentFiles || [];
+          setExistingAttachments(
+            attachments.map((f: any) => {
+              return {
+                ID: f.FileName,
+                FileLeafRef: f.FileName,
+                FileRef2: f.ServerRelativeUrl,
+                FileRef: `${window.location.origin}${f.ServerRelativeUrl}`,
+              };
+            })
+          );
+        }
       }
-    }
-  };
+    };
 
-  if (notiID) loadExistingAttachmentsEmail();
-}, [notiID]);
+    if (notiID) loadExistingAttachmentsEmail();
+  }, [notiID]);
 
   // 🔸 Compute next Case ID for new item
   useEffect(() => {
@@ -457,25 +461,28 @@ useEffect(() => {
           .getItem();
         await fileItem.update({ CaseId: itemId });
       }
-if(notiID){
-  for (const inboxFile of existingAttachments) {
-  try {
-   const blob = await sp.web.getFileByServerRelativePath(inboxFile.FileRef2).getBlob();
+      if (notiID) {
+        for (const inboxFile of existingAttachments) {
+          try {
+            const blob = await sp.web
+              .getFileByServerRelativePath(inboxFile.FileRef2)
+              .getBlob();
 
-    const uploadResult: any = await sp.web.lists
-      .getByTitle("Core Data Repositories")
-      .rootFolder.files.addUsingPath(inboxFile.FileLeafRef, blob, { Overwrite: true });
+            const uploadResult: any = await sp.web.lists
+              .getByTitle("Core Data Repositories")
+              .rootFolder.files.addUsingPath(inboxFile.FileLeafRef, blob, {
+                Overwrite: true,
+              });
 
-    const uploadedItem = await sp.web
-      .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
-      .getItem();
-    await uploadedItem.update({ CaseId: itemId });
-  } catch (err) {
-    console.error("Failed to copy inbox attachment", err);
-  }
-}
-
-}
+            const uploadedItem = await sp.web
+              .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+              .getItem();
+            await uploadedItem.update({ CaseId: itemId });
+          } catch (err) {
+            console.error("Failed to copy inbox attachment", err);
+          }
+        }
+      }
       loadCasesData();
       setExisting(false);
       alert(isDraft ? "Draft saved" : "Case submitted");
@@ -563,15 +570,18 @@ if(notiID){
                       ...caseNumberOptions,
                     ]}
                     selectedKey={f.value?.toString() ?? ""}
-                    onChange={(_, option) =>
-                      f.onChange((option?.key as string) || "")
-                    }
-                    placeholder={`Type to search case number (e.g. ${getCaseNumberPrefix()}0015)`}
+                    onChange={(_, option) => {
+                      f.onChange((option?.key as string) || "");
+                      setCaseSearch(""); // Clear search after selection
+                    }}
+                    placeholder={`Type to search case number (e.g. ${getCaseNumberPrefix()}15)`}
                     allowFreeform
-                    onInputValueChange={(text) => setCaseSearch(text || "")}
-                    onMenuDismissed={() => setCaseSearch("")}
+                    onInputValueChange={(text) => {
+                      setCaseSearch(text || "");
+                    }}
                     openOnKeyboardFocus
                     useComboBoxAsMenuWidth
+                    autoComplete="on"
                   />
                 )}
               />
@@ -792,7 +802,7 @@ if(notiID){
                   ✖
                 </span>
                 <a
-                  href={file.FileRef+`?web=1`}
+                  href={file.FileRef + `?web=1`}
                   target="_blank"
                   rel="noreferrer"
                   style={{ color: "#2563eb", textDecoration: "none" }}

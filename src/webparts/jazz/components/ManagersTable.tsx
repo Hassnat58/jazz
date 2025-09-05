@@ -77,8 +77,12 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
               <td>{index + 1}</td>
               <td>
                 {item.ParentCaseId
-                  ? `00-CN${item.ParentCaseId}`
-                  : `00-CN${item.ID}`}
+                  ? item.TaxType === "Income Tax"
+                    ? `IT-0${item.ParentCaseId}`
+                    : item.TaxType === "Sales Tax"
+                    ? `ST-0${item.ParentCaseId}`
+                    : `CN-0${item.ParentCaseId}`
+                  : item.Title}
               </td>
               <td>{item.TaxAuthority}</td>
               <td>{item.Jurisdiction}</td>
