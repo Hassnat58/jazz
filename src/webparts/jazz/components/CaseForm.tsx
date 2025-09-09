@@ -275,31 +275,68 @@ const CaseForm: React.FC<CaseFormProps> = ({
   }, [caseSearch, casesOptions, taxType]);
   // Recursively check if option’s parent is satisfied
   // ✅ Parent-child dependency check
-  const isOptionAllowed = (
-    opt: { key: string | number; text: string; parentId?: number },
-    fieldLabel: string,
-    watchedValues: any
-  ): boolean => {
-    // agar option ka parent hi nai hai → sab allowed
-    if (!opt.parentId) return true;
+//  const isOptionAllowed = (
+//   opt: { key: string | number; text: string; parentId?: number },
+//   fieldLabel: string,
+//   watchedValues: any
+// ): boolean => {
+//   // agar option ka parent hi nai hai → sab allowed
+//   if (!opt.parentId) return true;
 
-    // parent field find karo
-    const parentField = Object.keys(lovOptions).find((fld) =>
-      lovOptions[fld]?.some((p: any) => p.key === opt.parentId)
-    );
+//   // parent field find karo (jahan parentId ka match mile)
+//   const parentField = Object.keys(lovOptions).find((fld) =>
+//     lovOptions[fld]?.some((p: any) => String(p.key) === String(opt.parentId))
+//   );
 
-    if (!parentField) return true;
+//   if (!parentField) return true;
 
-    // parent ki current selected value (Dropdown me selectedKey = Id)
-    const selectedParentKey = watchedValues[parentField];
+//   // parent ki current selected value
+//   const selectedParentKey = watchedValues[parentField];
 
-    console.log(
-      `Child Field: ${fieldLabel} | Option: ${opt.text} | ParentField: ${parentField} | SelectedParent: ${selectedParentKey}`
-    );
+//   // agar koi parent select hi nai hai → sab allow
+//   if (!selectedParentKey) return true;
 
-    // sirf tab show karo jab option ka parentId == selected parent ki Id
-    return String(selectedParentKey) === String(opt.parentId);
-  };
+//   // filter karo: sirf tab show karo jab option ka parentId == selected parent
+//   const isAllowed = String(selectedParentKey) === String(opt.parentId);
+
+//   // check karo kya is parent ke liye koi child exist karta hai
+//   const anyAllowed = lovOptions[fieldLabel]?.some(
+//     (o: any) => String(o.parentId) === String(selectedParentKey)
+//   );
+
+//   // agar is parent ke liye koi child hi nai hai → sab allow (fallback)
+//   if (!anyAllowed) return true;
+
+//   return isAllowed;
+// };
+const filterLovOptions = (
+  options: any[],
+  filters: any,
+  getID: (val: any) => string | null,
+  lovOptions: Record<string, any[]>
+) => {
+  // if no parentId on any option → just return as-is
+  if (!options.some(opt => opt.parentId)) return options;
+
+  // collect all selected keys across filters
+  const selectedParentIds = Object.keys(filters)
+    .map(key => getID(filters[key]))
+    .filter(Boolean);
+
+  console.log("Selected Parent IDs:", selectedParentIds, "Options:", options);
+
+  // filter by matching parentId
+  const filtered = options.filter(opt =>
+    selectedParentIds.includes(String(opt.parentId))
+  );
+
+  console.log("Filtered Options:", filtered);
+
+  // if no match → fallback to all
+  return filtered.length > 0 ? filtered : options;
+};
+
+
 
   // 🔸 Apply dynamic prefix to dropdown texts
   const caseNumberOptions = React.useMemo(() => {
@@ -770,27 +807,38 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
             // 🔹 Otherwise normal LOV dropdown
             return (
-              <Controller
-                key={internalName}
-                name={internalName}
-                control={control}
-                render={({ field: f }) => {
-                  const allOptions = lovOptions[field.label] || [];
-                  const filteredOptions = allOptions.filter((opt) =>
-                    isOptionAllowed(opt, field.label, watchedValues)
-                  );
+           <Controller
+  key={internalName}
+  name={internalName}
+  control={control}
+  render={({ field: f }) => {
+    const allOptions = lovOptions[field.label] || [];
 
-                  return (
-                    <Dropdown
-                      label={field.label}
-                      options={filteredOptions}
-                      selectedKey={f.value}
-                      onChange={(_, o) => f.onChange(o?.key)}
-                      placeholder={`Select ${field.label}`}
-                    />
-                  );
-                }}
-              />
+    const getID = (val: any): string | null => {
+      if (!val) return null;
+      return typeof val === "object" ? val.key?.toString() : val.toString();
+    };
+    
+
+    const filteredOptions = filterLovOptions(
+      allOptions,
+      watchedValues,
+      getID,
+      lovOptions
+    );
+
+    return (
+      <Dropdown
+        label={field.label}
+        options={filteredOptions}
+        selectedKey={f.value}
+        onChange={(_, o) => f.onChange(o?.key)}
+        placeholder={`Select ${field.label}`}
+      />
+    );
+  }}
+/>
+
             );
           }
           if (field.type === "date")
