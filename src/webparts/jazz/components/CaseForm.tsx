@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable prefer-const */
 /* eslint-disable dot-notation */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -57,6 +59,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [caseSearch, setCaseSearch] = useState("");
+  const [removedAttachments, setRemovedAttachments] = useState<string[]>([]);
   const [taxIssueEntries, setTaxIssueEntries] = useState<
     {
       id: any;
@@ -188,40 +191,67 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   // 🔸 Load LOVs & base cases list
   useEffect(() => {
-    const fetchLOVs = async () => {
-      const items = await sp.web.lists
-        .getByTitle("LOV Data")
-        .items.select("Id", "Title", "Description", "Status")();
-      const activeItems = items.filter((item) => item.Status === "Active");
-      const grouped: { [key: string]: IDropdownOption[] } = {};
-      activeItems.forEach((item) => {
+    const fetchLOVsAndCases = async () => {
+      // 🔹 Fetch LOVs and filter Active
+      const lovItems = await sp.web.lists
+        .getByTitle("LOVData1")
+        .items.select(
+          "Id",
+          "Title",
+          "Value",
+          "Status",
+          "Parent/Id",
+          "Parent/Title",
+          "Parent/Value"
+        )
+        .expand("Parent")();
+
+      const activeLOVs = lovItems.filter((item) => item.Status === "Active");
+      const grouped: {
+        [key: string]: {
+          key: number;
+          text: string;
+          parentId?: number;
+          parentValue?: string;
+        }[];
+      } = {};
+
+      activeLOVs.forEach((item) => {
         if (!grouped[item.Title]) grouped[item.Title] = [];
         grouped[item.Title].push({
-          key: item.Description,
-          text: item.Description,
+          key: item.Id,
+          text: item.Value,
+          parentId: item.Parent?.Id || null,
+          parentValue: item.Parent?.Value || null,
         });
       });
+      console.log("Grouped LOV Options:", grouped);
       setLovOptions(grouped);
+
+      // 🔹 Fetch only Active Cases
+      const caseItems = await sp.web.lists
+        .getByTitle("Cases")
+        .items.select("ID", "Title", "TaxType", "CaseStatus")(); // 👈 include Status
+
+      const activeCases = caseItems.filter(
+        (item) => item.CaseStatus === "Active"
+      ); // 👈 filter
+
+      const options: IComboBoxOption[] = activeCases.map((item) => ({
+        key: item.ID.toString(),
+        text:
+          item.TaxType === "Income Tax"
+            ? `IT-${item.ID.toString().padStart(4, "0")}`
+            : item.TaxType === "Sales Tax"
+            ? `ST-${item.ID.toString().padStart(4, "0")}`
+            : `CN-${item.ID.toString().padStart(4, "0")}`,
+        data: { taxType: item.TaxType },
+      }));
+
+      setCasesOptions(options);
     };
 
-    fetchLOVs();
-
-    sp.web.lists
-      .getByTitle("Cases")
-      .items.select("ID", "Title, TaxType")()
-      .then((items) => {
-        const options: IComboBoxOption[] = items.map((item) => ({
-          key: item.ID.toString(),
-          text:
-            item.TaxType === "Income Tax"
-              ? `IT-0${item.ID}`
-              : item.TaxType === "Sales Tax"
-              ? `ST-0${item.ID}`
-              : `CN-0${item.ID}`,
-          data: { taxType: item.TaxType },
-        }));
-        setCasesOptions(options);
-      });
+    fetchLOVsAndCases();
   }, []);
 
   // filter by Tax Type
@@ -243,12 +273,39 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     return filtered;
   }, [caseSearch, casesOptions, taxType]);
+  // Recursively check if option’s parent is satisfied
+  // ✅ Parent-child dependency check
+  const isOptionAllowed = (
+    opt: { key: string | number; text: string; parentId?: number },
+    fieldLabel: string,
+    watchedValues: any
+  ): boolean => {
+    // agar option ka parent hi nai hai → sab allowed
+    if (!opt.parentId) return true;
+
+    // parent field find karo
+    const parentField = Object.keys(lovOptions).find((fld) =>
+      lovOptions[fld]?.some((p: any) => p.key === opt.parentId)
+    );
+
+    if (!parentField) return true;
+
+    // parent ki current selected value (Dropdown me selectedKey = Id)
+    const selectedParentKey = watchedValues[parentField];
+
+    console.log(
+      `Child Field: ${fieldLabel} | Option: ${opt.text} | ParentField: ${parentField} | SelectedParent: ${selectedParentKey}`
+    );
+
+    // sirf tab show karo jab option ka parentId == selected parent ki Id
+    return String(selectedParentKey) === String(opt.parentId);
+  };
 
   // 🔸 Apply dynamic prefix to dropdown texts
   const caseNumberOptions = React.useMemo(() => {
     return filteredCaseOptions.map((opt) => ({
       ...opt,
-      text: opt.text.replace(/^CN-00/, getCaseNumberPrefix()),
+      text: opt.text.replace(/^CN-0/, getCaseNumberPrefix()),
     }));
   }, [filteredCaseOptions, taxType]);
 
@@ -370,14 +427,13 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   // 🔸 Submit
   const submitForm = async (isDraft: boolean) => {
-    if (isSubmitting) return; // lock double clicks
+    if (isSubmitting) return; // prevent double clicks
     setIsSubmitting(true);
-    const data = getValues();
 
+    const data = getValues();
     const prefix = getCaseNumberPrefix();
 
     const itemData: any = {
-      Title: `${prefix}${nextCaseNumber}`,
       IsDraft: isDraft,
       CaseStatus: isDraft ? "Draft" : "Active",
       ParentCaseId: existing
@@ -389,6 +445,11 @@ const CaseForm: React.FC<CaseFormProps> = ({
         : null,
     };
 
+    // Only assign new Title if creating a new case (not updating draft)
+    if (!(selectedCase?.ID && selectedCase.CaseStatus === "Draft")) {
+      itemData.Title = `${prefix}${nextCaseNumber}`;
+    }
+
     // dropdowns
     dropdownFields.forEach((field) => {
       const key = fieldMapping[field];
@@ -396,7 +457,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       itemData[key] =
         typeof value === "string"
           ? value
-          : value?.text || value?.Description || value?.toString?.() || "";
+          : value?.text || value?.Value || value?.toString?.() || "";
     });
 
     // inputs
@@ -406,7 +467,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     // dates
     dateFields.forEach(({ name }) => {
-      const key = name as keyof typeof data; // make TS happy
+      const key = name as keyof typeof data;
       const val = data[key];
       if (val instanceof Date) {
         itemData[key] = val.toISOString();
@@ -430,26 +491,53 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     try {
       console.log("Submitting itemData:", itemData);
-      const addResult = await sp.web.lists.getByTitle("Cases").items.add({
-        ...itemData,
-        LinkedNotificationIDId: notiID || null,
-      });
+      let itemId: number;
 
-      if (notiID) await markAsRead(notiID);
-
-      const itemId = addResult.ID;
-
-      // 🔹 save tax issues
-      for (const entry of taxIssueEntries) {
-        await sp.web.lists.getByTitle("Tax Issues").items.add({
-          Title: entry.taxIssue,
-          AmountContested: entry.amountContested,
-          GrossTaxExposure: entry.grossTaxExposure,
-          CaseId: itemId,
+      // 🔹 Update draft or add new case
+      if (isDraft && selectedCase?.ID && selectedCase.CaseStatus === "Draft") {
+        await sp.web.lists
+          .getByTitle("Cases")
+          .items.getById(selectedCase.ID)
+          .update({
+            ...itemData,
+            LinkedNotificationIDId: notiID || null,
+          });
+        itemId = selectedCase.ID;
+        console.log(`Updated draft case ID ${itemId}`);
+      } else {
+        const addResult = await sp.web.lists.getByTitle("Cases").items.add({
+          ...itemData,
+          LinkedNotificationIDId: notiID || null,
         });
+        itemId = addResult.ID;
+        console.log(`Created new case ID ${itemId}`);
       }
 
-      // 🔹 upload attachments & tag CaseId
+      // 🔹 Mark notification as read if linked
+      if (notiID) await markAsRead(notiID);
+
+      // 🔹 Save Tax Issues (update if exists, else add)
+      for (const entry of taxIssueEntries) {
+        if (entry.id) {
+          await sp.web.lists
+            .getByTitle("Tax Issues")
+            .items.getById(entry.id)
+            .update({
+              Title: entry.taxIssue,
+              AmountContested: entry.amountContested,
+              GrossTaxExposure: entry.grossTaxExposure,
+            });
+        } else {
+          await sp.web.lists.getByTitle("Tax Issues").items.add({
+            Title: entry.taxIssue,
+            AmountContested: entry.amountContested,
+            GrossTaxExposure: entry.grossTaxExposure,
+            CaseId: itemId,
+          });
+        }
+      }
+
+      // 🔹 Upload attachments & link to Case
       for (const file of attachments) {
         const uploadResult: any = await sp.web.lists
           .getByTitle("Core Data Repositories")
@@ -459,10 +547,19 @@ const CaseForm: React.FC<CaseFormProps> = ({
         const fileItem = await sp.web
           .getFileByServerRelativePath(serverRelativeUrl)
           .getItem();
+
         await fileItem.update({ CaseId: itemId });
       }
+
+      // 🔹 Copy inbox attachments (if from notification)
       if (notiID) {
         for (const inboxFile of existingAttachments) {
+          if (removedAttachments.includes(inboxFile.FileLeafRef)) {
+            console.log(
+              `Skipping removed attachment: ${inboxFile.FileLeafRef}`
+            );
+            continue; // skip this one
+          }
           try {
             const blob = await sp.web
               .getFileByServerRelativePath(inboxFile.FileRef2)
@@ -477,6 +574,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
             const uploadedItem = await sp.web
               .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
               .getItem();
+
             await uploadedItem.update({ CaseId: itemId });
           } catch (err) {
             console.error("Failed to copy inbox attachment", err);
@@ -507,6 +605,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   };
 
   const datePickerRef = React.useRef<IDatePicker>(null);
+  const watchedValues = useWatch({ control });
 
   return (
     <form
@@ -675,18 +774,25 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 key={internalName}
                 name={internalName}
                 control={control}
-                render={({ field: f }) => (
-                  <Dropdown
-                    label={field.label}
-                    options={lovOptions[field.label] || []}
-                    selectedKey={f.value}
-                    onChange={(_, o) => f.onChange(o?.key)}
-                  />
-                )}
+                render={({ field: f }) => {
+                  const allOptions = lovOptions[field.label] || [];
+                  const filteredOptions = allOptions.filter((opt) =>
+                    isOptionAllowed(opt, field.label, watchedValues)
+                  );
+
+                  return (
+                    <Dropdown
+                      label={field.label}
+                      options={filteredOptions}
+                      selectedKey={f.value}
+                      onChange={(_, o) => f.onChange(o?.key)}
+                      placeholder={`Select ${field.label}`}
+                    />
+                  );
+                }}
               />
             );
           }
-
           if (field.type === "date")
             return (
               <Controller
@@ -792,15 +898,27 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   fontSize: 14,
                 }}
               >
-                <span
+                <button
+                  onClick={() => {
+                    setRemovedAttachments((prev) => [
+                      ...prev,
+                      file.FileLeafRef,
+                    ]);
+
+                    setExistingAttachments((prev) =>
+                      prev.filter((f) => f.FileLeafRef !== file.FileLeafRef)
+                    );
+                  }}
                   style={{
+                    border: "none",
+                    background: "none",
                     color: "red",
                     fontWeight: "bold",
-                    cursor: "not-allowed",
+                    cursor: "pointer",
                   }}
                 >
                   ✖
-                </span>
+                </button>
                 <a
                   href={file.FileRef + `?web=1`}
                   target="_blank"

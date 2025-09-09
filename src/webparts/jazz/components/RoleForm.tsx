@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-floating-promises */
@@ -20,10 +21,17 @@ import {
 interface RoleFormProps {
   onCancel: () => void;
   SpfxContext: any;
+  editItem?: any; // <-- NEW: optional edit item
+  reloadRoles?: () => void; // <-- NEW: callback to refresh table
 }
 
-const RoleForm: React.FC<RoleFormProps> = ({ onCancel, SpfxContext }) => {
-  const { handleSubmit, control, reset } = useForm();
+const RoleForm: React.FC<RoleFormProps> = ({
+  onCancel,
+  SpfxContext,
+  editItem,
+  reloadRoles,
+}) => {
+  const { handleSubmit, control, reset, setValue } = useForm();
   const [roleChoices, setRoleChoices] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const sp = spfi().using(SPFx(SpfxContext));
@@ -44,6 +52,20 @@ const RoleForm: React.FC<RoleFormProps> = ({ onCancel, SpfxContext }) => {
     loadRoles();
   }, []);
 
+  // Pre-fill data when editing
+  useEffect(() => {
+    if (editItem) {
+      setValue("Role", editItem.Role);
+      setSelectedUser([
+        {
+          id: 1,
+          loginName: editItem.PersonEmail,
+          text: editItem.Person,
+        },
+      ]);
+    }
+  }, [editItem]);
+
   // Save data to SharePoint
   const onSubmit = async (data: any) => {
     if (!selectedUser || selectedUser.length === 0) {
@@ -55,15 +77,29 @@ const RoleForm: React.FC<RoleFormProps> = ({ onCancel, SpfxContext }) => {
       // Resolve selected person to SharePoint User Id
       const user = await sp.web.ensureUser(selectedUser[0].loginName);
 
-      await sp.web.lists.getByTitle("Role").items.add({
-        Role: data.Role,
-        PersonId: user.Id, // correct numeric ID
-      });
+      if (editItem) {
+        // 🔹 Update existing record
+        await sp.web.lists
+          .getByTitle("Role")
+          .items.getById(editItem.ItemId)
+          .update({
+            Role: data.Role,
+            PersonId: user.Id,
+          });
+        alert("Role updated successfully!");
+      } else {
+        // 🔹 Add new record
+        await sp.web.lists.getByTitle("Role").items.add({
+          Role: data.Role,
+          PersonId: user.Id, // correct numeric ID
+        });
+        alert("Role assigned successfully!");
+      }
 
-      alert("Role assigned successfully!");
       reset();
-      onCancel();
       setSelectedUser(null);
+      onCancel();
+      reloadRoles && reloadRoles();
     } catch (err) {
       console.error("Error saving role:", err);
       alert("Error while saving role");
@@ -77,7 +113,7 @@ const RoleForm: React.FC<RoleFormProps> = ({ onCancel, SpfxContext }) => {
           Cancel
         </button>
         <button type="submit" className={styles.savebtn}>
-          Submit
+          {editItem ? "Update" : "Submit"} {/* Change button text */}
         </button>
       </div>
 
@@ -94,6 +130,9 @@ const RoleForm: React.FC<RoleFormProps> = ({ onCancel, SpfxContext }) => {
               required={true}
               ensureUser={true}
               principalTypes={[PrincipalType.User]}
+              defaultSelectedUsers={
+                editItem ? [editItem.PersonEmail] : [] // Pre-fill when editing
+              }
               onChange={(items) => setSelectedUser(items)}
             />
           </Form.Group>

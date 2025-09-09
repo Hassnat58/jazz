@@ -1,3 +1,4 @@
+/* eslint-disable react/self-closing-comp */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -5,48 +6,62 @@ import * as React from "react";
 import styles from "./TabedTables.module.scss";
 import { spfi, SPFx } from "@pnp/sp";
 import { useEffect, useState } from "react";
-import { Button } from "react-bootstrap";
-import LOVDetailsDrawer from "./LOVDetailsDrawer";
+import { Button, Modal } from "react-bootstrap";
+import LOVForm from "./LOVForm"; // import your form
+import LOVDetailsDrawer from "./LOVDetailsDrawer"; // keep your drawer
 
 const LOVManagement: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
-  const [selectedLOV, setSelectedLOV] = useState(null);
-  const [showDrawer, setShowDrawer] = useState(false);
+  const [selectedLOV, setSelectedLOV] = useState<any | null>(null);
   const [lovData, setLOVData] = useState<any[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [showDrawer, setShowDrawer] = useState(false);
+
   const sp = spfi().using(SPFx(SpfxContext));
 
   const loadLoVData = async () => {
     try {
       const items = await sp.web.lists
-        .getByTitle("LOV Data")
+        .getByTitle("LOVData1")
         .items.select(
-          "*",
           "ID",
           "Title",
-          "Description",
+          "Value",
           "Status",
-          "Author/Title",
-          "Author/ID",
-          //   "Editor/Title",
-          //   "Editor/ID",
-          "Modified/Title",
-          "Modified/ID"
+          "Parent/Title",
+          "Parent/ID",
+          "Parent/Value"
         )
-        .expand("Author")
+        .expand("Parent")
         .orderBy("ID", false)();
       setLOVData(items);
-      console.log("LOV data:", items);
     } catch (err) {
       console.error("Error fetching data from LOV list:", err);
     }
   };
 
+  useEffect(() => {
+    loadLoVData();
+  }, []);
+
   const handleView = (item: any) => {
     setSelectedLOV(item);
     setShowDrawer(true);
   };
-  useEffect(() => {
-    loadLoVData();
-  }, []);
+
+  const handleEdit = (item: any) => {
+    setSelectedLOV(item);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this item?")) return;
+    try {
+      await sp.web.lists.getByTitle("LOVData1").items.getById(id).delete();
+      await loadLoVData();
+    } catch (err) {
+      console.error("Error deleting item:", err);
+    }
+  };
 
   return (
     <>
@@ -56,7 +71,8 @@ const LOVManagement: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           <tr>
             <th>S.No</th>
             <th>LOV Type</th>
-            <th>Description</th>
+            <th>Values</th>
+            <th>Parent</th>
             <th>Status</th>
             <th>Action</th>
           </tr>
@@ -66,15 +82,42 @@ const LOVManagement: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
             <tr key={item.ID}>
               <td>{index + 1}</td>
               <td>{item.Title}</td>
-              <td>{item.Description}</td>
+              <td>{item.Value}</td>
+              <td>
+                {item.Parent
+                  ? `${item.Parent.Title} -> ${item.Parent.Value}`
+                  : "N/A"}
+              </td>
               <td>{item.Status}</td>
               <td>
+                {/* View button */}
                 <Button
                   variant="outline-warning"
                   size="sm"
                   onClick={() => handleView(item)}
+                  className="me-2"
                 >
                   👁
+                </Button>
+
+                {/* Edit button */}
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => handleEdit(item)}
+                  className="me-2"
+                >
+                  ✏
+                </Button>
+
+                {/* Delete button */}
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={() => handleDelete(item.ID)}
+                  className="me-2"
+                >
+                  🗑️
                 </Button>
               </td>
             </tr>
@@ -82,6 +125,7 @@ const LOVManagement: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         </tbody>
       </table>
 
+      {/* Drawer for view */}
       <LOVDetailsDrawer
         show={showDrawer}
         SpfxContext={SpfxContext}
@@ -89,6 +133,23 @@ const LOVManagement: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         LOVData={selectedLOV}
         loadLOVData={loadLoVData}
       />
+
+      {/* Modal for edit */}
+      <Modal show={showForm} onHide={() => setShowForm(false)} size="lg">
+        <Modal.Header closeButton></Modal.Header>
+        <Modal.Body>
+          <LOVForm
+            mode="edit"
+            editItem={selectedLOV}
+            SpfxContext={SpfxContext}
+            onCancel={() => setShowForm(false)}
+            onSaved={() => {
+              setShowForm(false);
+              loadLoVData();
+            }}
+          />
+        </Modal.Body>
+      </Modal>
     </>
   );
 };

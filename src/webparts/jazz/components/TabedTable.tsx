@@ -406,6 +406,37 @@ const TabbedTables: React.FC<{
     }
   }, [showManageRole]);
 
+  useEffect(() => {
+    setIsAddingNew(false);
+    setSelectedCase(null);
+    setExisting(false);
+    setAttachments([]);
+    setActiveFormType(null);
+    setShowOffcanvas(false);
+
+    setFilters({
+      Entity: "",
+      category: "",
+      financialYear: "",
+      taxYear: "",
+      taxType: "",
+      taxAuthority: "",
+    });
+    setCorrespondenceFilters({
+      caseNumber: "",
+      taxType: "",
+      taxAuthority: "",
+    });
+    setUtpFilters({
+      entity: "",
+      category: "",
+      financialYear: "",
+      taxYear: "",
+      taxType: "",
+      taxAuthority: "",
+    });
+  }, [activeTab]);
+
   const renderCorrespondenceTable = () => {
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
     const paginatedData = filteredData.slice(
@@ -431,8 +462,6 @@ const TabbedTables: React.FC<{
       });
 
       setFilteredData(filtered);
-
-      // 👇 reset to first page after filtering
       setCasesPage(1);
     };
 
@@ -463,7 +492,7 @@ const TabbedTables: React.FC<{
           <Dropdown
             label="Tax Authority"
             placeholder="Select Tax Authority"
-            options={lovOptions.TaxAuthority || []}
+            options={lovOptions["Tax Authority"] || []}
             selectedKey={filters.taxAuthority || null}
             onChange={(_, option) =>
               handleFilterChange("taxAuthority", option?.key as string)
@@ -676,7 +705,7 @@ const TabbedTables: React.FC<{
           <Dropdown
             label="Tax Authority"
             placeholder="Select Tax Authority"
-            options={lovOptions.TaxAuthority || []}
+            options={lovOptions["Tax Authority"] || []}
             selectedKey={correspondenceFilters.taxAuthority || null}
             onChange={(_, option) =>
               handleCorrespondenceFilterChange(
@@ -962,7 +991,13 @@ const TabbedTables: React.FC<{
   const renderTabContent = () => {
     if (showLOVManagement) {
       if (isAddingNew && activeFormType === "LOV") {
-        return <LOVForm SpfxContext={SpfxContext} onCancel={handleCancel} />;
+        return (
+          <LOVForm
+            SpfxContext={SpfxContext}
+            onCancel={handleCancel}
+            mode="add"
+          />
+        );
       }
       return <LOVManagement SpfxContext={SpfxContext} />;
     }

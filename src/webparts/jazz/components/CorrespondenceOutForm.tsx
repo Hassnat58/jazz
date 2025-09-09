@@ -57,7 +57,6 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
 
   const [caseOptions, setCaseOptions] = useState<IDropdownOption[]>([]);
 
-  // Get Case list items for Lookup
   useEffect(() => {
     const fetchCases = async () => {
       const items = await sp.web.lists
@@ -74,10 +73,9 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           } else if (item.TaxType === "Sales Tax") {
             prefix = "ST";
           }
-
           return {
-            key: item.Id, // 🔹 only ID stored in form
-            text: `${prefix}--${item.Id}`, // 🔹 display prefix + number
+            key: item.Id,
+            text: `${prefix}-${item.Id}`,
           };
         });
 
@@ -147,27 +145,42 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
       CaseNumberId: data.CaseNumber || null,
     };
 
+    // Dropdowns
     dropdownFields.forEach((key) => {
       itemData[key] = data[key] || "";
     });
 
+    // Dates
     dateFields.forEach(({ name }) => {
       itemData[name] = data[name] ? data[name].toISOString() : null;
     });
 
+    // Multiline text
     multilineFields.forEach(({ name }) => {
       itemData[name] = data[name] || "";
     });
 
     try {
-      // 🔹 Always ADD new item, no update
-      const addResult = await sp.web.lists
-        .getByTitle("CorrespondenceOut")
-        .items.add(itemData);
+      let itemId: number;
 
-      const itemId = addResult.ID;
+      if (isDraft && selectedCase?.ID && selectedCase?.Status === "Draft") {
+        // 🔹 Update existing Draft
+        await sp.web.lists
+          .getByTitle("CorrespondenceOut")
+          .items.getById(selectedCase.ID)
+          .update(itemData);
 
-      // Upload files
+        itemId = selectedCase.ID;
+      } else {
+        // 🔹 Always create new item (for Submit OR new Draft)
+        const addResult = await sp.web.lists
+          .getByTitle("CorrespondenceOut")
+          .items.add(itemData);
+
+        itemId = addResult.ID;
+      }
+
+      // 🔹 Upload new attachments
       for (const file of attachments) {
         const uploadResult = await sp.web.lists
           .getByTitle("Core Data Repositories")
@@ -182,7 +195,17 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
         });
       }
 
-      alert(isDraft ? "Draft saved" : "Correspondence submitted");
+      // 🔹 Success messages
+      if (isDraft) {
+        alert(
+          selectedCase?.Status === "Draft"
+            ? "Draft updated successfully"
+            : "Draft saved successfully"
+        );
+      } else {
+        alert("Correspondence submitted successfully");
+      }
+
       onSave(data);
       reset();
       setAttachments([]);

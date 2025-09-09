@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-floating-promises */
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { spfi, SPFx } from "@pnp/sp";
@@ -8,9 +8,10 @@ import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
 import "@pnp/sp/fields";
-import { Button } from "react-bootstrap";
+import { Button, Modal } from "react-bootstrap";
 import styles from "./TabedTables.module.scss";
 import RoleDetailsDrawer from "./RoleDetailoffcanvas";
+import RoleForm from "./RoleForm";
 
 interface IManageRoleProps {
   SpfxContext: any;
@@ -19,7 +20,13 @@ interface IManageRoleProps {
 const ManageRole: React.FC<IManageRoleProps> = ({ SpfxContext }) => {
   const [roleData, setRoleData] = useState<any[]>([]);
   const [selectedRow, setSelectedRow] = useState<any>(null);
+
+  // For drawer (view)
   const [showDrawer, setShowDrawer] = useState(false);
+
+  // For modal (edit)
+  const [showEditForm, setShowEditForm] = useState(false);
+
   const sp = spfi().using(SPFx(SpfxContext));
 
   const loadRoleData = async () => {
@@ -55,6 +62,11 @@ const ManageRole: React.FC<IManageRoleProps> = ({ SpfxContext }) => {
     setShowDrawer(true);
   };
 
+  const handleEdit = (row: any) => {
+    setSelectedRow(row);
+    setShowEditForm(true);
+  };
+
   useEffect(() => {
     loadRoleData();
   }, []);
@@ -79,12 +91,23 @@ const ManageRole: React.FC<IManageRoleProps> = ({ SpfxContext }) => {
               <td>{row.PersonEmail}</td>
               <td>{row.Role}</td>
               <td>
+                {/* View Button */}
                 <Button
                   variant="outline-warning"
                   size="sm"
+                  className="me-2"
                   onClick={() => handleView(row)}
                 >
                   👁
+                </Button>
+
+                {/* Edit Button */}
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => handleEdit(row)}
+                >
+                  ✏
                 </Button>
               </td>
             </tr>
@@ -92,6 +115,7 @@ const ManageRole: React.FC<IManageRoleProps> = ({ SpfxContext }) => {
         </tbody>
       </table>
 
+      {/* View Drawer */}
       {showDrawer && selectedRow && (
         <RoleDetailsDrawer
           show={showDrawer}
@@ -101,6 +125,28 @@ const ManageRole: React.FC<IManageRoleProps> = ({ SpfxContext }) => {
           reloadRoles={loadRoleData}
         />
       )}
+
+      {/* Edit Modal */}
+      <Modal
+        show={showEditForm}
+        onHide={() => setShowEditForm(false)}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Role</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedRow && (
+            <RoleForm
+              SpfxContext={SpfxContext}
+              onCancel={() => setShowEditForm(false)}
+              editItem={selectedRow}
+              reloadRoles={loadRoleData}
+            />
+          )}
+        </Modal.Body>
+      </Modal>
     </>
   );
 };

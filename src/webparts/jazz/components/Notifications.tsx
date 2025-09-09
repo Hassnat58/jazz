@@ -179,7 +179,7 @@ const Notifications: React.FC<NotificationsProps> = ({
           className={filter === "read" ? styles.activeTab : ""}
           onClick={() => setFilter("read")}
         >
-          Read
+          Submited
         </button>
       </div>
 

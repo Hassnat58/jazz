@@ -45,6 +45,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
   const [caseOptions, setCaseOptions] = useState<IDropdownOption[]>([]);
   const [allCases, setAllCases] = useState<any[]>([]);
   const [showDialog, setShowDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [taxIssueEntries, setTaxIssueEntries] = useState<
     {
       id: any;
@@ -86,7 +87,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
       const [cases, lovs] = await Promise.all([
         sp.web.lists
           .getByTitle("Cases")
-          .items.select("Id", "Title", "TaxType")(), // 👈 include TaxType
+          .items.select("Id", "Title", "TaxType", "CaseStatus")(), // 🔹 include CaseStatus
         sp.web.lists
           .getByTitle("LOV Data")
           .items.select("Id", "Title", "Description", "Status")(),
@@ -105,15 +106,14 @@ const UTPForm: React.FC<UTPFormProps> = ({
     })();
   }, []);
 
-  // Build case dropdown whenever tax type changes
   useEffect(() => {
+    const activeCases = allCases.filter((item) => item.CaseStatus === "Active");
+
     if (selectedTaxType) {
-      // filter only cases of that tax type
-      const filtered = allCases.filter(
+      const filtered = activeCases.filter(
         (item) => item.TaxType === selectedTaxType
       );
 
-      // choose prefix
       const prefix = selectedTaxType === "Income Tax" ? "IT" : "ST";
 
       setCaseOptions(
@@ -123,9 +123,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
         }))
       );
     } else {
-      // no tax type → show all cases with CN prefix
       setCaseOptions(
-        allCases.map((item) => ({
+        activeCases.map((item) => ({
           key: item.Id,
           text: `CN-${item.Id.toString().padStart(4, "0")}`,
         }))
@@ -209,6 +208,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
   }, [selectedCase, reset]);
 
   const submitForm = async (isDraft: boolean) => {
+    if (isSubmitting) return; // prevent double clicks
+    setIsSubmitting(true);
     const data = getValues();
     const itemData: any = {
       IsDraft: isDraft,
@@ -216,67 +217,108 @@ const UTPForm: React.FC<UTPFormProps> = ({
       CaseNumberId: data.CaseNumber || null,
     };
 
+    // Dropdowns
     ["UTPCategory", "TaxType", "RiskCategory", "PaymentType"].forEach(
       (key) => (itemData[key] = data[key] || "")
     );
+
+    // Text fields
     ["GRSCode", "ERMUniqueNumbering", "GrossExposure"].forEach(
       (name) => (itemData[name] = data[name] || "")
     );
+
+    // Date
     itemData.UTPDate = data.UTPDate ? data.UTPDate.toISOString() : null;
 
+    // Numbers
     itemData.PLExposure =
       data.PLExposure !== undefined && data.PLExposure !== ""
         ? Number(data.PLExposure)
         : null;
 
-    // itemData.EBITDAExposure =
-    //   data.EBITDAExposure !== undefined && data.EBITDAExposure !== ""
-    //     ? Number(data.EBITDAExposure)
-    //     : null;
+    // itemData.EBITDAExposure = ...
 
+    // Notes
     itemData.ContigencyNote = data.ContigencyNote || "";
     itemData.GMLRID = data.GMLRID || "";
 
     try {
-      // 🚀 Always create new item
-      const result = await sp.web.lists
-        .getByTitle("UTPData")
-        .items.add(itemData);
+      let itemId: number;
 
-      const itemId = result.ID;
+      if (isDraft && selectedCase?.ID && selectedCase?.Status === "Draft") {
+        // 🔹 Update existing Draft
+        await sp.web.lists
+          .getByTitle("UTPData")
+          .items.getById(selectedCase.ID)
+          .update(itemData);
 
-      // Update UTPId with generated ID
-      await sp.web.lists
-        .getByTitle("UTPData")
-        .items.getById(itemId)
-        .update({
-          UTPId: `UTP-00${itemId}`,
-        });
+        itemId = selectedCase.ID;
+      } else {
+        // 🔹 Always create new item (Submit OR new Draft)
+        const result = await sp.web.lists
+          .getByTitle("UTPData")
+          .items.add(itemData);
 
-      // Attachments
+        itemId = result.ID;
+
+        // Update UTPId with generated ID
+        await sp.web.lists
+          .getByTitle("UTPData")
+          .items.getById(itemId)
+          .update({
+            UTPId: `UTP-0${itemId}`,
+          });
+      }
+
+      // 🔹 Upload Attachments
       for (const file of attachments) {
         const upload = await sp.web.lists
           .getByTitle("Core Data Repositories")
           .rootFolder.files.addUsingPath(file.name, file, { Overwrite: true });
+
         const fileItem = await sp.web
           .getFileByServerRelativePath(upload.ServerRelativeUrl)
           .getItem();
+
         await fileItem.update({ UTPId: itemId });
       }
 
-      // Tax Issues
+      // 🔹 Save Tax Issues
       for (const entry of taxIssueEntries) {
-        await sp.web.lists.getByTitle("UTP Tax Issue").items.add({
-          Title: entry.taxIssue,
-          RiskCategory: entry.RiskCategory,
-          GrossTaxExposure: entry.grossTaxExposure,
-          UTPId: itemId,
-        });
+        if (entry.id && isDraft && selectedCase?.Status === "Draft") {
+          // update existing tax issue
+          await sp.web.lists
+            .getByTitle("UTP Tax Issue")
+            .items.getById(entry.id)
+            .update({
+              Title: entry.taxIssue,
+              RiskCategory: entry.RiskCategory,
+              GrossTaxExposure: entry.grossTaxExposure,
+            });
+        } else {
+          // create new tax issue
+          await sp.web.lists.getByTitle("UTP Tax Issue").items.add({
+            Title: entry.taxIssue,
+            RiskCategory: entry.RiskCategory,
+            GrossTaxExposure: entry.grossTaxExposure,
+            UTPId: itemId,
+          });
+        }
       }
 
-      alert(isDraft ? "Draft saved" : "UTP submitted");
+      // 🔹 Success message
+      if (isDraft) {
+        alert(
+          selectedCase?.Status === "Draft"
+            ? "Draft updated successfully"
+            : "Draft saved successfully"
+        );
+      } else {
+        alert("UTP submitted successfully");
+      }
+
       onSave(data);
-      loadUtpData;
+      loadUtpData();
       reset();
       setAttachments([]);
     } catch (error) {
@@ -299,7 +341,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
         const nextId = lastItem.length > 0 ? lastItem[0].ID + 1 : 1;
 
         reset({
-          UTPId: `UTP-00${nextId}`,
+          UTPId: `UTP-0${nextId}`,
           GMLRID: "",
         });
       }
@@ -323,10 +365,15 @@ const UTPForm: React.FC<UTPFormProps> = ({
           type="button"
           className={styles.draftbtn}
           onClick={() => submitForm(true)}
+          disabled={isSubmitting}
         >
           Save as Draft
         </button>
-        <button type="submit" className={styles.savebtn}>
+        <button
+          type="submit"
+          className={styles.savebtn}
+          disabled={isSubmitting}
+        >
           Submit
         </button>
       </div>
@@ -370,7 +417,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
               onChange={(_, option) => field.onChange(option?.key)}
               placeholder="Select"
               required
-              disabled={caseOptions.length === 0} // 👈 optional: disable if no options
+              disabled={caseOptions.length === 0}
             />
           )}
         />
