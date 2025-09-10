@@ -340,6 +340,8 @@ const Notifications: React.FC<NotificationsProps> = ({
                           <span>{fileName}</span>
                           {/* <span>{fileSize}</span> */}
                           <button
+                    className="btn btn-outline-secondary btn-sm"
+
                             onClick={() =>
                               handleDownload(file.ServerRelativeUrl, fileName)
                             }
@@ -362,7 +364,7 @@ const Notifications: React.FC<NotificationsProps> = ({
                     setNotiID(selectedNotification.id);
                     newAdd(); // create case
                     activeForm();
-                    setSelectedCase({ Email: selectedNotification.from });
+                    setSelectedCase({ Email: selectedNotification.title });
                   }}
                 >
                   Create Case
@@ -375,7 +377,7 @@ const Notifications: React.FC<NotificationsProps> = ({
                     // Case found → open in update mode
                     setNotiID(selectedNotification.id);
                     setExisting(true); // pass full case object to parent
-                    setSelectedCase({ Email: selectedNotification.from });
+                    setSelectedCase({ Email: selectedNotification.title });
                     activeForm();
                     newAdd();
                   }}
