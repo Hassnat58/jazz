@@ -1029,6 +1029,7 @@ const TabbedTables: React.FC<{
             onCancel={handleCancel}
             onSave={handleSave}
             selectedCase={selectedCase}
+            notiID={notiID}
           />
         );
       } else if (activeTab === "UTP Dashboard") {
@@ -1062,6 +1063,7 @@ const TabbedTables: React.FC<{
             setExisting={setExisting}
             SpfxContext={SpfxContext}
             setNotiID={setNotiID}
+             activeFormOut={() => setActiveFormType("correspondenceOut")}
             activeForm={() => setActiveFormType("case")}
           />
         );

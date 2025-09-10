@@ -36,6 +36,7 @@ interface NotificationsProps {
   setNotiID: any;
   setSelectedCase: any;
   setExisting: any;
+  activeFormOut:any
 }
 
 const Notifications: React.FC<NotificationsProps> = ({
@@ -43,6 +44,7 @@ const Notifications: React.FC<NotificationsProps> = ({
   activeForm,
   SpfxContext,
   setNotiID,
+  activeFormOut,
   setSelectedCase,
   setExisting,
 }) => {
@@ -367,7 +369,7 @@ const Notifications: React.FC<NotificationsProps> = ({
                     setSelectedCase({ Email: selectedNotification.title });
                   }}
                 >
-                  Create Case
+                  New Litigation
                 </Button>
                 <Button
                   variant="warning"
@@ -382,7 +384,20 @@ const Notifications: React.FC<NotificationsProps> = ({
                     newAdd();
                   }}
                 >
-                  Add In Existing Case
+                 Add to Existing Litigation
+                </Button><br/>
+                  <Button
+                  variant="warning"
+                  className="mt-3 me-3"
+                  disabled={selectedNotification.status === "read"}
+                  onClick={async () => {
+                    setNotiID(selectedNotification.id);
+                    newAdd(); // create case
+                    activeFormOut();
+                    setSelectedCase({ Email: selectedNotification.title });
+                  }}
+                >
+                  New Response
                 </Button>
               </div>
             </>
