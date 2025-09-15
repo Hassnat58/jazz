@@ -22,7 +22,8 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { ComboBox } from "@fluentui/react";
 import Pagination from "./Pagination";
-
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 // import { Button } from "react-bootstrap";
 interface CaseItem {
   [key: string]: any; // flexible structure, since fields differ per report
@@ -194,6 +195,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   }>({});
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showExportOptions, setShowExportOptions] = useState(false);
 
   const [filters, setFilters] = useState({
     dateStart: "",
@@ -205,12 +208,80 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     taxAuthority: "",
     entity: "",
   });
-  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([
-    filters.dateStart ? new Date(filters.dateStart) : null,
-    filters.dateEnd ? new Date(filters.dateEnd) : null,
-  ]);
-  const [startDate, endDate] = dateRange;
 
+  const exportRef = React.useRef<HTMLDivElement | null>(null);
+
+  // keep a ref copy of the boolean to avoid stale closure issues
+  const showExportOptionsRef = React.useRef(showExportOptions);
+  useEffect(() => {
+    showExportOptionsRef.current = showExportOptions;
+  }, [showExportOptions]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      // only do anything if menu is open
+      if (!showExportOptionsRef.current) return;
+      const target = e.target as Node;
+      if (exportRef.current && !exportRef.current.contains(target)) {
+        setShowExportOptions(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showExportOptionsRef.current) {
+        setShowExportOptions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []); // empty deps -> attach once
+
+  const exportReportPDF = (type: ReportType, data: CaseItem[]) => {
+    const config = reportConfig[type];
+    if (!config) return;
+
+    // Prepare headers and rows
+    const headers = config.columns.map((col) => col.header);
+    const rows = data.map((item) =>
+      config.columns.map((col) => item[col.field] ?? "")
+    );
+
+    const doc = new jsPDF({
+      orientation: "landscape", // use portrait if you have fewer columns
+      unit: "pt",
+      format: "a4",
+    });
+
+    doc.setFontSize(14);
+    doc.text(`${type} Report`, 40, 30);
+
+    autoTable(doc, {
+      startY: 50,
+      head: [headers],
+      body: rows,
+      styles: {
+        fontSize: 8,
+        cellPadding: 4,
+        halign: "left",
+        valign: "middle",
+      },
+      headStyles: {
+        fillColor: [22, 160, 133], // teal header
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      alternateRowStyles: {
+        fillColor: [240, 240, 240],
+      },
+    });
+
+    doc.save(`${type}_Report.pdf`);
+  };
   const exportReport = (type: ReportType, data: CaseItem[]) => {
     const config = reportConfig[type];
     let exportData: Record<string, any>[] = [];
@@ -303,6 +374,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           complianceDate: item.DateofCompliance
             ? new Date(item.DateofCompliance).toLocaleDateString()
             : "", // "Compliance Date"
+          DateofCompliance: item.DateofCompliance
+            ? new Date(item.DateofCompliance).toLocaleDateString()
+            : "",
           stayExpiringOn: item.StayExpiringOn
             ? new Date(item.StayExpiringOn).toLocaleDateString()
             : "", // "Stay Expiring On"
@@ -355,6 +429,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           complianceDate: item.DateofCompliance
             ? new Date(item.DateofCompliance).toLocaleDateString()
             : "", // "Compliance Date"
+          DateofCompliance: item.DateofCompliance
+            ? new Date(item.DateofCompliance).toLocaleDateString()
+            : "",
           stayExpiringOn: item.StayExpiringOn
             ? new Date(item.StayExpiringOn).toLocaleDateString()
             : "", // "Stay Expiring On"
@@ -467,7 +544,6 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           "Previous Month Amount": totalPrev,
           Variance: totalCurr - totalPrev,
         });
-        console.log(exportData);
         return exportData;
 
       case "Provisions3":
@@ -765,12 +841,33 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
   const fetchData = async () => {
     setLoading(true);
+    let items_updated;
     try {
       const listName = getListName(reportType);
       const items = await sp.web.lists.getByTitle(listName).items();
-      const items_updated = normalizeData(reportType, items);
+      if (reportType === "ActiveCases") {
+        const today = new Date();
+        const next30 = new Date();
+        next30.setDate(today.getDate() + 30);
+
+        // ✅ Construct UTC dates so .toISOString() won't shift days
+        const startUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        const endUTC = new Date(Date.UTC(next30.getFullYear(), next30.getMonth(), next30.getDate()));
+
+        const newStart = startUTC.toISOString().split("T")[0]; // YYYY-MM-DD
+        const newEnd = endUTC.toISOString().split("T")[0];     // YYYY-MM-DD
+
+       
+
+        handleFilterChangeDate2(newStart, newEnd, items);
+
+      }
+      else {
+        items_updated = normalizeData(reportType, items);
+        setFilteredData(items_updated);
+      }
       setData(items);
-      setFilteredData(items_updated); // start unfiltered
+      // start unfiltered
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
@@ -788,7 +885,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
       taxAuthority: "",
       entity: "",
     };
-    setDateRange([null, null]);
+    setSelectedDate(null)
     setFilters(reset);
     fetchData();
   }, [reportType]);
@@ -816,23 +913,34 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     const updatedFilters = { ...filters, [key]: value };
     setFilters(updatedFilters);
 
+    // Normalize start/end dates to midnight to avoid timezone issues
+    const normalizeDate = (date: Date) => {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+
     const filtered = data.filter((item) => {
       let dateMatch = true;
 
       if (updatedFilters.dateStart || updatedFilters.dateEnd) {
         const start = updatedFilters.dateStart
-          ? new Date(updatedFilters.dateStart)
+          ? normalizeDate(new Date(updatedFilters.dateStart))
           : null;
         const end = updatedFilters.dateEnd
-          ? new Date(updatedFilters.dateEnd)
+          ? normalizeDate(new Date(updatedFilters.dateEnd))
           : null;
 
         let itemDate: Date | null = null;
 
-        if (reportType === "Litigation" || reportType === "ActiveCases") {
-          itemDate = item.DateReceived ? new Date(item.DateReceived) : null;
+        if (reportType === "Litigation") {
+          itemDate = item.DateReceived ? normalizeDate(new Date(item.DateReceived)) : null;
+        } else if (reportType === "ActiveCases") {
+          itemDate = item.DateofCompliance
+            ? normalizeDate(new Date(item.DateofCompliance))
+            : null;
         } else {
-          itemDate = item.UTPDate ? new Date(item.UTPDate) : null;
+          itemDate = item.UTPDate ? normalizeDate(new Date(item.UTPDate)) : null;
         }
 
         if (itemDate) {
@@ -842,6 +950,77 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             dateMatch = itemDate >= start;
           } else if (end) {
             dateMatch = itemDate <= end;
+          }
+        } else {
+          dateMatch = false;
+        }
+      }
+
+      // ---- OTHER FILTERS ----
+      if (["UTP", "Provisions1", "Provisions2", "Provisions3", "Contingencies", "ERM"].includes(reportType)) {
+        return (
+          dateMatch &&
+          (!updatedFilters.category || item.RiskCategory === updatedFilters.category) &&
+          (!updatedFilters.financialYear || item.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType) &&
+          (!updatedFilters.entity || item.Entity === updatedFilters.entity)
+        );
+      }
+
+      if (["Litigation", "ActiveCases"].includes(reportType)) {
+        return (
+          dateMatch &&
+          (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxAuthority || item.TaxAuthority === updatedFilters.taxAuthority) &&
+          (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
+          (!updatedFilters.financialYear || item.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
+        );
+      }
+
+      return dateMatch;
+    });
+
+    setLoading(true);
+    const dataf = normalizeData(reportType, filtered);
+    setFilteredData(dataf);
+    setLoading(false);
+  };
+
+  const handleFilterChangeDate = (value1: string, value2: string) => {
+    const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
+    setFilters(updatedFilters);
+
+    const filtered = data.filter((item) => {
+      let dateMatch = true;
+
+      if (value1 || value2) {
+        // convert to YYYY-MM-DD for comparison
+        const startStr = updatedFilters.dateStart || null;
+        const endStr = updatedFilters.dateEnd || null;
+
+        const itemDateRaw =
+          reportType === "Litigation"
+            ? item.DateReceived
+            : reportType === "ActiveCases"
+              ? item.DateofCompliance
+              : item.UTPDate;
+
+        const itemDateStr = itemDateRaw
+          ? new Date(itemDateRaw).toISOString().split("T")[0]
+          : null;
+
+        console.log(updatedFilters, item, item.DateofCompliance, itemDateStr, "updatedFilters23");
+
+        if (itemDateStr) {
+          dateMatch = true;
+
+          if (startStr && itemDateStr < startStr) {
+            dateMatch = false;
+          }
+          if (endStr && itemDateStr > endStr) {
+            dateMatch = false;
           }
         } else {
           dateMatch = false;
@@ -866,7 +1045,6 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               item.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
               item.TaxType === updatedFilters.taxType) &&
-            // (!updatedFilters.taxAuthority || item.taxAuthority === updatedFilters.taxAuthority) &&
             (!updatedFilters.entity || item.Entity === updatedFilters.entity)
           );
 
@@ -874,8 +1052,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         case "ActiveCases":
           return (
             dateMatch &&
-            (!updatedFilters.taxYear ||
-              item.TaxYear === updatedFilters.taxYear) &&
+            (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxAuthority ||
               item.TaxAuthority === updatedFilters.taxAuthority) &&
             (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
@@ -884,20 +1061,91 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
           );
 
-        // return (
-        //   dateMatch &&
-        //   (!updatedFilters.entity || item.entity === updatedFilters.entity) &&
-        //   (!updatedFilters.taxType || item.taxType === updatedFilters.taxType)
-        // );
+        default:
+          return dateMatch;
+      }
+    });
+
+    setLoading(true);
+    const dataf = normalizeData(reportType, filtered);
+    setFilteredData(dataf);
+    setLoading(false);
+  };
+  const handleFilterChangeDate2 = (value1: string, value2: string, data2: any) => {
+    const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
+    setFilters(updatedFilters);
+
+    const filtered = data2.filter((item: any) => {
+      let dateMatch = true;
+
+      if (value1 || value2) {
+        // convert to YYYY-MM-DD for comparison
+        const startStr = updatedFilters.dateStart || null;
+        const endStr = updatedFilters.dateEnd || null;
+
+        const itemDateRaw =item.DateofCompliance;
+
+        const itemDateStr = itemDateRaw
+          ? new Date(itemDateRaw).toISOString().split("T")[0]
+          : null;
+
+        console.log(updatedFilters, item, item.DateofCompliance, itemDateStr, "updatedFilters2346");
+
+        if (itemDateStr) {
+          dateMatch = true;
+
+          if (startStr && itemDateStr < startStr) {
+            dateMatch = false;
+          }
+          if (endStr && itemDateStr > endStr) {
+            dateMatch = false;
+          }
+        } else {
+          dateMatch = false;
+        }
+      }
+
+      // ---- OTHER FILTERS ----
+      switch (reportType) {
+        case "UTP":
+        case "Provisions1":
+        case "Provisions2":
+        case "Provisions3":
+        case "Contingencies":
+        case "ERM":
+          return (
+            dateMatch &&
+            (!updatedFilters.category ||
+              item.RiskCategory === updatedFilters.category) &&
+            (!updatedFilters.financialYear ||
+              item.FinancialYear === updatedFilters.financialYear) &&
+            (!updatedFilters.taxYear ||
+              item.TaxYear === updatedFilters.taxYear) &&
+            (!updatedFilters.taxType ||
+              item.TaxType === updatedFilters.taxType) &&
+            (!updatedFilters.entity || item.Entity === updatedFilters.entity)
+          );
+
+        case "Litigation":
+        case "ActiveCases":
+          return (
+            dateMatch &&
+            (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
+            (!updatedFilters.taxAuthority ||
+              item.TaxAuthority === updatedFilters.taxAuthority) &&
+            (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
+            (!updatedFilters.financialYear ||
+              item.FinancialYear === updatedFilters.financialYear) &&
+            (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
+          );
 
         default:
           return dateMatch;
       }
     });
+
     setLoading(true);
     const dataf = normalizeData(reportType, filtered);
-    console.log(dataf, "hhhhh");
-
     setFilteredData(dataf);
     setLoading(false);
   };
@@ -907,35 +1155,12 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     reportType
   )
     ? filteredData.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-      )
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    )
     : filteredData;
-  const getCurrentWeekRange = () => {
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon...
-    const diffToMonday = (dayOfWeek + 6) % 7; // shift so Monday=0
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - diffToMonday);
-    monday.setHours(0, 0, 0, 0);
 
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
 
-    return [monday, sunday] as [Date, Date];
-  };
-  useEffect(() => {
-    if (reportType === "ActiveCases" && !startDate && !endDate) {
-      const [monday, sunday] = getCurrentWeekRange();
-      setDateRange([monday, sunday]);
-
-      if (monday)
-        handleFilterChange("dateStart", monday.toISOString().split("T")[0]);
-      if (sunday)
-        handleFilterChange("dateEnd", sunday.toISOString().split("T")[0]);
-    }
-  }, [reportType]);
 
   return (
     <>
@@ -956,47 +1181,27 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         <div className={styles.filterField}>
           <label className={styles.filterLabel}>Date Range</label>
           <DatePicker
-            selectsRange
-            startDate={startDate}
-            endDate={endDate}
-            onChange={(update: [Date | null, Date | null]) => {
-              setDateRange(update);
-
-              const newStart = update[0]
-                ? update[0].toISOString().split("T")[0]
-                : "";
-              const newEnd = update[1]
-                ? update[1].toISOString().split("T")[0]
-                : "";
-
-              // Update state
-              setFilters((prev) => ({
-                ...prev,
-                dateStart: newStart,
-                dateEnd: newEnd,
-              }));
-
-              // Only apply filters that actually exist
-              if (update[0]) handleFilterChange("dateStart", newStart);
-              if (update[1]) handleFilterChange("dateEnd", newEnd);
-
-              // If both are cleared
-              if (!update[0] && !update[1]) {
-                handleFilterChange("dateStart", "");
-                handleFilterChange("dateEnd", "");
+            selected={selectedDate}
+            onChange={(date: Date | null) => {
+              setSelectedDate(date);
+              if (date) {
+                const startUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1));
+                const endUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth() + 1, 0));
+                const newStart = startUTC.toISOString().split("T")[0];
+                const newEnd = endUTC.toISOString().split("T")[0];
+                handleFilterChangeDate(newStart, newEnd);
+              } else {
+                handleFilterChangeDate("", "");
               }
             }}
-            // isClearable
-            placeholderText="Select date range"
-            className={styles.datePickerInput} // ✅ custom height class
-            calendarClassName={styles.customCalendar}
-            dayClassName={(date) =>
-              startDate && endDate && date >= startDate && date <= endDate
-                ? `${styles.customDay} ${styles.inRange}`
-                : styles.customDay
-            }
-            isClearable={false}
+
+            dateFormat="MM/yyyy"
+            showMonthYearPicker
+            className={styles.datePickerInput}
+            placeholderText="Select month and year"
           />
+
+
         </div>
         <Dropdown
           label="Entity"
@@ -1106,7 +1311,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   onChange={(_, option) => setReportType(option?.key as ReportType)}
 /> */}
 
-        <div className={styles.buttonGroup}>
+        <div className={styles.buttonGroup} ref={exportRef} style={{ position: "relative" }}>
           <button
             className={styles.clearButton}
             onClick={() => {
@@ -1120,7 +1325,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 taxAuthority: "",
                 entity: "",
               };
-              setDateRange([null, null]);
+              setSelectedDate(null)
               setFilters(reset);
               setLoading(true);
               const dataf = normalizeData(reportType, data);
@@ -1131,13 +1336,39 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           >
             Clear Filters
           </button>
-
           <button
             className={styles.exportButton}
-            onClick={() => exportReport(reportType, filteredData)}
+            onClick={() => setShowExportOptions((s) => !s)}
+            aria-haspopup="menu"
+            aria-expanded={showExportOptions}
           >
-            Export {reportType} Report
+            Export {reportType} Report ▾
           </button>
+
+          {/* Dropdown menu */}
+          {showExportOptions && (
+            <div className={styles.exportOptionsDropdown} role="menu" aria-label="Export options">
+              <button
+                role="menuitem"
+                onClick={() => {
+                  exportReportPDF(reportType, filteredData);
+                  setShowExportOptions(false);
+                }}
+              >
+                Download as PDF
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  exportReport(reportType, filteredData);
+                  setShowExportOptions(false);
+                }}
+              >
+                Download as Excel
+              </button>
+            </div>
+          )}
+
           <button
             className={styles.refreshButton}
             onClick={() => {
@@ -1151,7 +1382,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 taxAuthority: "",
                 entity: "",
               };
-              setDateRange([null, null]);
+              setSelectedDate(null)
               setFilters(reset);
               fetchData();
               // setFilteredData(dummyData);

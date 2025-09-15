@@ -25,12 +25,15 @@ interface CorrespondenceOutFormProps {
   onSave: (data: any) => void;
   SpfxContext: any;
   selectedCase?: any;
+  notiID?: any;
+
 }
 
 const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
   SpfxContext,
   onCancel,
   onSave,
+  notiID,
   selectedCase,
 }) => {
   const { control, handleSubmit, reset, getValues } = useForm();
@@ -140,7 +143,44 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
       loadExistingAttachments();
     }
   }, [selectedCase, reset]);
+useEffect(() => {
+    const loadExistingAttachmentsEmail = async () => {
+      if (notiID) {
+        const items: any[] = await sp.web.lists
+          .getByTitle("Inbox")
+          .items.filter(`Id eq ${notiID}`)
+          .select("Id")
+          .expand("AttachmentFiles")();
+        // const { pageContext } = SpfxContext;
+        if (items.length > 0) {
+          const attachments = items[0].AttachmentFiles || [];
+          setExistingAttachments(
+            attachments.map((f: any) => {
+              return {
+                ID: f.FileName,
+                FileLeafRef: f.FileName,
+                FileRef2: f.ServerRelativeUrl,
+                FileRef: `${window.location.origin}${f.ServerRelativeUrl}`,
+              };
+            })
+          );
+        }
+      }
+    };
 
+    if (notiID) loadExistingAttachmentsEmail();
+  }, [notiID]);
+ const markAsRead = async (id: number) => {
+    try {
+      const spLocal = spfi().using(SPFx(SpfxContext));
+      await spLocal.web.lists
+        .getByTitle("Inbox")
+        .items.getById(id)
+        .update({ Status: "Read" });
+    } catch (err) {
+      console.error("Error updating notification status:", err);
+    }
+  };
   const submitForm = async (isDraft: boolean) => {
     const data = getValues();
     const itemData: any = {
@@ -173,18 +213,24 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
         await sp.web.lists
           .getByTitle("CorrespondenceOut")
           .items.getById(selectedCase.ID)
-          .update(itemData);
+          .update({
+            ...itemData,
+            LinkedNotificationIDId: notiID || null,
+          });
 
         itemId = selectedCase.ID;
       } else {
         // 🔹 Always create new item (for Submit OR new Draft)
         const addResult = await sp.web.lists
           .getByTitle("CorrespondenceOut")
-          .items.add(itemData);
+          .items.add({
+            ...itemData,
+            LinkedNotificationIDId: notiID || null,
+          });
 
         itemId = addResult.ID;
       }
-
+  if (notiID) await markAsRead(notiID);
       // 🔹 Upload new attachments
       for (const file of attachments) {
         const uploadResult = await sp.web.lists
@@ -199,7 +245,35 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           CorrespondenceOutId: itemId,
         });
       }
+  if (notiID) {
+        for (const inboxFile of existingAttachments) {
+          if (attachments.includes(inboxFile.FileLeafRef)) {
+            console.log(
+              `Skipping removed attachment: ${inboxFile.FileLeafRef}`
+            );
+            continue; // skip this one
+          }
+          try {
+            const blob = await sp.web
+              .getFileByServerRelativePath(inboxFile.FileRef2)
+              .getBlob();
 
+            const uploadResult: any = await sp.web.lists
+              .getByTitle("Core Data Repositories")
+              .rootFolder.files.addUsingPath(inboxFile.FileLeafRef, blob, {
+                Overwrite: true,
+              });
+
+            const uploadedItem = await sp.web
+              .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+              .getItem();
+
+            await uploadedItem.update({ CorrespondenceOutId: itemId });
+          } catch (err) {
+            console.error("Failed to copy inbox attachment", err);
+          }
+        }
+      }
       // 🔹 Success messages
       if (isDraft) {
         alert(
@@ -361,7 +435,8 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                   ✖
                 </span>
                 <a
-                  href={file.FileRef}
+                                 href={file.FileRef + `?web=1`}
+
                   target="_blank"
                   rel="noreferrer"
                   style={{ color: "#2563eb", textDecoration: "none" }}
