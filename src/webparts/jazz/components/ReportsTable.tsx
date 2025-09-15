@@ -528,14 +528,14 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               r.RiskCategory === "Probable"
           )
           .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
-           const plCurr = enriched3
+        const plCurr = enriched3
           .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
           .reduce((s, r: any) => s + (Number(r.PLExposure) || 0), 0);
 
         const plPrev = enriched3
           .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
           .reduce((s, r: any) => s + (Number(r.PLExposure) || 0), 0);
-      
+
         const ebitdaCurr = enriched3
           .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
           .reduce((s, r: any) => s + (Number(r.EBITDAExposure) || 0), 0);
@@ -796,15 +796,15 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   useEffect(() => {
     const fetchLOVs = async () => {
       const items = await sp.web.lists
-        .getByTitle("LOV Data")
-        .items.select("Id", "Title", "Description", "Status")();
+        .getByTitle("LOVData1")
+        .items.select("Id", "Title", "Value", "Status")();
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
         if (!grouped[item.Title]) grouped[item.Title] = [];
         grouped[item.Title].push({
-          key: item.Description,
-          text: item.Description,
+          key: item.Value,
+          text: item.Value,
         });
       });
       setLovOptions(grouped);

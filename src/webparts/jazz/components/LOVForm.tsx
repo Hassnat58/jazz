@@ -380,11 +380,8 @@ const LOVForm: React.FC<LOVFormProps> = ({
                     control={control}
                     render={({ field }) => (
                       <Form.Select {...field}>
-                        <option value="">
-                          {mode === "add"
-                            ? "Select Parent (Optional)"
-                            : "Select Parent"}
-                        </option>
+                        <option value="">Select Parent</option>{" "}
+                        {/* this allows removing parent */}
                         {parent1Options.map((item) => (
                           <option key={item.Id} value={item.Id}>
                             {item.Title} - {item.Value}

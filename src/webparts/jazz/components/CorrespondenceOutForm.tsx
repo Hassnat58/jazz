@@ -61,10 +61,15 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
     const fetchCases = async () => {
       const items = await sp.web.lists
         .getByTitle("Cases")
-        .items.select("Id", "Title", "TaxType")();
+        .items.select("Id", "Title", "TaxType", "CaseStatus")();
 
       const options = items
-        .filter((item) => item.Title && item.Title.trim() !== "")
+        .filter(
+          (item) =>
+            item.Title &&
+            item.Title.trim() !== "" &&
+            item.CaseStatus === "Approved"
+        )
         .map((item) => {
           let prefix = "CN"; // default
 
@@ -75,7 +80,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           }
           return {
             key: item.Id,
-            text: `${prefix}-${item.Id}`,
+            text: `${prefix}-${item.TaxAuthority}-${item.Id}`,
           };
         });
 
@@ -84,15 +89,15 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
 
     const fetchLOVs = async () => {
       const items = await sp.web.lists
-        .getByTitle("LOV Data")
-        .items.select("Id", "Title", "Description", "Status")();
+        .getByTitle("LOVData1")
+        .items.select("Id", "Title", "Value", "Status")();
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
         if (!grouped[item.Title]) grouped[item.Title] = [];
         grouped[item.Title].push({
-          key: item.Description,
-          text: item.Description,
+          key: item.Value,
+          text: item.Value,
         });
       });
       setLovOptions(grouped);
@@ -324,7 +329,10 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
               id="file-upload"
               type="file"
               multiple
-              onChange={(e) => setAttachments(Array.from(e.target.files || []))}
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                setAttachments((prev) => [...prev, ...files]);
+              }}
               style={{ display: "none" }}
             />
           </div>
@@ -376,6 +384,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                 }}
               >
                 <button
+                  type="button"
                   onClick={() => {
                     const updated = [...attachments];
                     updated.splice(idx, 1);
@@ -385,6 +394,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                     border: "none",
                     background: "none",
                     color: "red",
+                    marginTop: "20px",
                     fontWeight: "bold",
                     cursor: "pointer",
                   }}

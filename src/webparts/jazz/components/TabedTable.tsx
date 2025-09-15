@@ -110,7 +110,7 @@ const TabbedTables: React.FC<{
   const [correspondencePage, setCorrespondencePage] = useState(1);
   const [utpPage, setUtpPage] = useState(1);
   const [userRole, setUserRole] = useState<string[]>([]);
-
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const itemsPerPage = 10;
 
   const sp = spfi().using(SPFx(SpfxContext));
@@ -129,13 +129,14 @@ const TabbedTables: React.FC<{
     const fetchUserRole = async () => {
       try {
         // Get current user
-        const currentUser = await sp.web.currentUser();
-        console.log("Current User:", currentUser);
+        const user = await sp.web.currentUser();
+        setCurrentUser(user); // store full object
+        console.log("Current User:", user);
 
         // Get role entry for this user
         const items = await sp.web.lists
           .getByTitle("Role")
-          .items.filter(`Person/Id eq ${currentUser.Id}`)
+          .items.filter(`Person/Id eq ${user.Id}`)
           .select("Id", "Role", "Person/Id")
           .expand("Person")();
 
@@ -227,7 +228,8 @@ const TabbedTables: React.FC<{
           "Editor/Title",
           "ParentCase/Id",
           "ParentCase/Title",
-          "ParentCase/TaxType"
+          "ParentCase/TaxType",
+          "ParentCase/TaxAuthority"
         )
         .expand("Author", "Editor", "LawyerAssigned", "ParentCase")
         .orderBy("ID", false)();
@@ -378,15 +380,15 @@ const TabbedTables: React.FC<{
   useEffect(() => {
     const fetchLOVs = async () => {
       const items = await sp.web.lists
-        .getByTitle("LOV Data")
-        .items.select("Id", "Title", "Description", "Status")();
+        .getByTitle("LOVData1")
+        .items.select("Id", "Title", "Value", "Status")();
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
         if (!grouped[item.Title]) grouped[item.Title] = [];
         grouped[item.Title].push({
-          key: item.Description,
-          text: item.Description,
+          key: item.Value,
+          text: item.Value,
         });
       });
       setLovOptions(grouped);
@@ -463,6 +465,18 @@ const TabbedTables: React.FC<{
 
       setFilteredData(filtered);
       setCasesPage(1);
+    };
+    const getFormattedCaseNumber = (
+      taxType: string,
+      taxAuthority: string,
+      parentCaseId: number
+    ) => {
+      let prefix = "CN";
+      if (taxType === "Income Tax") prefix = "IT";
+      else if (taxType === "Sales Tax") prefix = "ST";
+      const authority = taxAuthority ? `-${taxAuthority}` : "";
+
+      return `${prefix}${authority}-${parentCaseId}`;
     };
 
     return (
@@ -558,11 +572,11 @@ const TabbedTables: React.FC<{
               <tr key={item.ID}>
                 <td>
                   {item.ParentCaseId
-                    ? item.TaxType === "Income Tax"
-                      ? `IT-0${item.ParentCaseId}`
-                      : item.TaxType === "Sales Tax"
-                      ? `ST-0${item.ParentCaseId}`
-                      : `CN-0${item.ParentCaseId}`
+                    ? getFormattedCaseNumber(
+                        item.TaxType,
+                        item.TaxAuthority,
+                        item.ParentCaseId
+                      )
                     : item.Title}
                 </td>
                 <td>{item.CorrespondenceType}</td>
@@ -604,6 +618,10 @@ const TabbedTables: React.FC<{
                       setIsAddingNew(true);
                       setExisting(true);
                     }}
+                    disabled={
+                      item.CaseStatus === "Draft" &&
+                      item.Author?.Id !== currentUser?.Id
+                    }
                   >
                     ✏️
                   </Button>
@@ -750,10 +768,10 @@ const TabbedTables: React.FC<{
               <tr key={item.ID}>
                 <td>
                   {item.CaseNumber?.TaxType === "Income Tax"
-                    ? `IT--${item.CaseNumber?.ID}`
+                    ? `IT-${item.CaseNumber?.ID}`
                     : item.CaseNumber?.TaxType === "Sales Tax"
-                    ? `ST--${item.CaseNumber?.ID}`
-                    : `CN--${item.CaseNumber?.ID}`}
+                    ? `ST-${item.CaseNumber?.ID}`
+                    : `CN-${item.CaseNumber?.ID}`}
                 </td>
                 <td>{item.CorrespondenceOut}</td>
                 <td>{item.BriefDescription}</td>
@@ -779,6 +797,10 @@ const TabbedTables: React.FC<{
                       setActiveFormType("correspondenceOut");
                       setIsAddingNew(true);
                     }}
+                    disabled={
+                      item.CaseStatus === "Draft" &&
+                      item.Author?.Id !== currentUser?.Id
+                    }
                   >
                     ✏️
                   </Button>
@@ -854,7 +876,7 @@ const TabbedTables: React.FC<{
           <Dropdown
             label="Tax Authority"
             placeholder="Select Tax Authority"
-            options={lovOptions.TaxAuthority || []}
+            options={lovOptions["Tax Authority"] || []}
             selectedKey={utpFilters.taxAuthority || null}
             onChange={(_, option) =>
               handleUtpFilterChange("taxAuthority", option?.key as string)
@@ -970,6 +992,10 @@ const TabbedTables: React.FC<{
                       setActiveFormType("UTP");
                       setIsAddingNew(true);
                     }}
+                    disabled={
+                      item.CaseStatus === "Draft" &&
+                      item.Author?.Id !== currentUser?.Id
+                    }
                   >
                     ✏️
                   </Button>
@@ -1138,11 +1164,13 @@ const TabbedTables: React.FC<{
               ? "Manage Role"
               : activeTab}
           </h3>
-          {(activeTab === "Litigation" ||
-            activeTab === "Response" ||
-            activeTab === "UTP Dashboard" ||
-            showLOVManagement ||
-            showManageRole) &&
+          {(userRole.includes("admin") ||
+            userRole.includes("tax litigation team")) &&
+            (activeTab === "Litigation" ||
+              activeTab === "Response" ||
+              activeTab === "UTP Dashboard" ||
+              showLOVManagement ||
+              showManageRole) &&
             !isAddingNew && (
               <button
                 className={styles.addBtn}

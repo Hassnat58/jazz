@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable prefer-const */
 /* eslint-disable dot-notation */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -26,7 +25,7 @@ import {
   PeoplePicker,
   PrincipalType,
 } from "@pnp/spfx-controls-react/lib/PeoplePicker";
-import { ComboBox, IComboBoxOption } from "@fluentui/react";
+import { ComboBox, IComboBox, IComboBoxOption } from "@fluentui/react";
 
 interface CaseFormProps {
   onCancel: () => void;
@@ -49,8 +48,9 @@ const CaseForm: React.FC<CaseFormProps> = ({
   existing,
   setExisting,
 }) => {
-  const { control, handleSubmit, reset, getValues } = useForm();
+  const { control, handleSubmit, reset, getValues, setValue } = useForm();
   const taxType = useWatch({ control, name: "TaxType" });
+  const taxAuthority = useWatch({ control, name: "TaxAuthority" });
 
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
@@ -59,7 +59,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [caseSearch, setCaseSearch] = useState("");
-  const [removedAttachments, setRemovedAttachments] = useState<string[]>([]);
+  // const [isFinancialOpen, setIsFinancialOpen] = React.useState(false);
   const [taxIssueEntries, setTaxIssueEntries] = useState<
     {
       id: any;
@@ -88,11 +88,17 @@ const CaseForm: React.FC<CaseFormProps> = ({
   };
 
   // 🔹 helper: prefix from Tax Type
-  const getCaseNumberPrefix = () => {
-    if (taxType === "Income Tax") return "IT-0";
-    if (taxType === "Sales Tax") return "ST-0";
-    return "CN-0";
-  };
+  const getCaseNumberPrefix = React.useCallback(() => {
+    let prefix = "CN"; // default
+    if (taxType === "Income Tax") prefix = "IT";
+    else if (taxType === "Sales Tax") prefix = "ST";
+
+    // handle tax authority
+    const authorityPart = taxAuthority ? `-${taxAuthority}` : "";
+
+    // return combined prefix + authority
+    return `${prefix}${authorityPart}-0`;
+  }, [taxType, taxAuthority]);
 
   const fieldMapping: { [key: string]: string } = {
     "Tax Type": "TaxType",
@@ -102,13 +108,11 @@ const CaseForm: React.FC<CaseFormProps> = ({
     "Correspondence Type": "CorrespondenceType",
     "Issued By": "IssuedBy",
     "Pending Authority": "PendingAuthority",
-    "Tax exposure Stage": "TaxexposureStage",
     "Tax Consultant Assigned": "TaxConsultantAssigned",
     "Exposure Issues": "Exposure_x0020_Issues",
     "Financial Year": "FinancialYear",
     "Tax Year": "TaxYear",
     "Stay Expiring On": "StayExpiringOn",
-    "Tax Exposure": "TaxExposure",
   };
 
   const dropdownFields = Object.keys(fieldMapping);
@@ -152,16 +156,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { type: "date", label: "Date of Compliance", name: "DateofCompliance" },
     { type: "date", label: "Hearing Date", name: "Hearingdate" },
     { type: "date", label: "Stay Expiring On", name: "StayExpiringOn" },
-    { type: "dropdown", label: "Tax exposure Stage" },
-    { type: "input", label: "Tax Exposure", name: "TaxExposure" },
     { type: "dropdown", label: "Tax Consultant Assigned" },
     { type: "dropdown", label: "Exposure Issues" },
     { type: "input", label: "Email – Title", name: "Email" },
   ];
 
-  const getYearOptions = (): IDropdownOption[] => {
+  const getYearOptions = (): IComboBoxOption[] => {
     const currentYear = new Date().getFullYear();
-    const years: IDropdownOption[] = [];
+    const years: IComboBoxOption[] = [];
     for (let y = currentYear; y >= 1980; y--) {
       years.push({ key: "FY" + y.toString(), text: "FY" + y.toString() });
     }
@@ -170,8 +172,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   const getTaxYearOptions = () => {
     const currentYear = new Date().getFullYear();
-    const years: IDropdownOption[] = [];
-    for (let i = currentYear; i >= 1980; i--) {
+    const years: IComboBoxOption[] = [];
+    for (let i = currentYear + 1; i >= 1980; i--) {
       years.push({
         key: i.toString(),
         text: i.toString(),
@@ -179,79 +181,125 @@ const CaseForm: React.FC<CaseFormProps> = ({
     }
     return years;
   };
+  // outside the component OR inside useMemo
+  const allFinancialYears = React.useMemo(() => getYearOptions(), []);
+  const allTaxYears = React.useMemo(() => getTaxYearOptions(), []);
+  const [financialYearOptions, setFinancialYearOptions] =
+    React.useState<IComboBoxOption[]>(allFinancialYears);
+  const [taxYearOptions, setTaxYearOptions] =
+    React.useState<IComboBoxOption[]>(allTaxYears);
 
-  // Check if we're creating a new case from a notification
-  // useEffect(() => {
-  //   if (selectedCase && selectedCase.Email && !selectedCase.ID) {
-  //     setIsNewCaseFromNotification(true);
-  //   } else {
-  //     setIsNewCaseFromNotification(false);
-  //   }
-  // }, [selectedCase]);
+  const handleFinancialYearInputChange = (value: string) => {
+    const filtered = allFinancialYears.filter((o) =>
+      o.text.toLowerCase().includes(value.toLowerCase())
+    );
+    setFinancialYearOptions(filtered.length > 0 ? filtered : allFinancialYears);
+  };
 
-  // 🔸 Load LOVs & base cases list
+  const handleTaxYearInputChange = (value: string) => {
+    const filtered = allTaxYears.filter((o) =>
+      o.text.toLowerCase().includes(value.toLowerCase())
+    );
+    setTaxYearOptions(filtered.length > 0 ? filtered : allTaxYears);
+  };
+
+  //  useEffect(() => {
+  //    const fetchLOVsAndCases = async () => {
+  //      // 🔹 Fetch LOVs and filter Active
+  //      const lovItems = await sp.web.lists
+  //        .getByTitle("LOVData1")
+  //        .items.select(
+  //          "Id",
+  //          "Title",
+  //          "Value",
+  //          "Status",
+  //          "Parent/Id",
+  //          "Parent/Title",
+  //          "Parent/Value"
+  //        )
+  //        .expand("Parent")();
+
+  //      const activeLOVs = lovItems.filter((item) => item.Status === "Active");
+  //      const grouped: {
+  //        [key: string]: {
+  //          key: number;
+  //          text: string;
+  //          parentId?: number;
+  //          parentValue?: string;
+  //        }[];
+  //      } = {};
+
+  //      activeLOVs.forEach((item) => {
+  //        if (!grouped[item.Title]) grouped[item.Title] = [];
+  //        grouped[item.Title].push({
+  //          key: item.Id,
+  //          text: item.Value,
+  //          parentId: item.Parent?.Id || null,
+  //          parentValue: item.Parent?.Value || null,
+  //        });
+  //      });
+  //      console.log("Grouped LOV Options:", grouped);
+  //      setLovOptions(grouped);
+
+  //      // 🔹 Fetch only Active Cases
+  //      const caseItems = await sp.web.lists
+  //        .getByTitle("Cases")
+  //        .items.select("ID", "Title", "TaxType", "CaseStatus")(); // 👈 include Status
+
+  //      const activeCases = caseItems.filter(
+  //        (item) => item.CaseStatus === "Active"
+  //      ); // 👈 filter
+
+  //      const options: IComboBoxOption[] = activeCases.map((item) => ({
+  //        key: item.ID.toString(),
+  //        text:
+  //          item.TaxType === "Income Tax"
+  //            ? `IT-${item.ID.toString().padStart(4, "0")}`
+  //            : item.TaxType === "Sales Tax"
+  //            ? `ST-${item.ID.toString().padStart(4, "0")}`
+  //            : `CN-${item.ID.toString().padStart(4, "0")}`,
+  //        data: { taxType: item.TaxType },
+  //      }));
+
+  //      setCasesOptions(options);
+  //    };
+
+  //    fetchLOVsAndCases();
+  //  }, []);
+
   useEffect(() => {
-    const fetchLOVsAndCases = async () => {
-      // 🔹 Fetch LOVs and filter Active
-      const lovItems = await sp.web.lists
+    const fetchLOVs = async () => {
+      const items = await sp.web.lists
         .getByTitle("LOVData1")
-        .items.select(
-          "Id",
-          "Title",
-          "Value",
-          "Status",
-          "Parent/Id",
-          "Parent/Title",
-          "Parent/Value"
-        )
-        .expand("Parent")();
-
-      const activeLOVs = lovItems.filter((item) => item.Status === "Active");
-      const grouped: {
-        [key: string]: {
-          key: number;
-          text: string;
-          parentId?: number;
-          parentValue?: string;
-        }[];
-      } = {};
-
-      activeLOVs.forEach((item) => {
+        .items.select("Id", "Title", "Value", "Status")();
+      const activeItems = items.filter((item) => item.Status === "Active");
+      const grouped: { [key: string]: IDropdownOption[] } = {};
+      activeItems.forEach((item) => {
         if (!grouped[item.Title]) grouped[item.Title] = [];
         grouped[item.Title].push({
-          key: item.Id,
+          key: item.Value,
           text: item.Value,
-          parentId: item.Parent?.Id || null,
-          parentValue: item.Parent?.Value || null,
         });
       });
-      console.log("Grouped LOV Options:", grouped);
       setLovOptions(grouped);
-
-      // 🔹 Fetch only Active Cases
-      const caseItems = await sp.web.lists
-        .getByTitle("Cases")
-        .items.select("ID", "Title", "TaxType", "CaseStatus")(); // 👈 include Status
-
-      const activeCases = caseItems.filter(
-        (item) => item.CaseStatus === "Active"
-      ); // 👈 filter
-
-      const options: IComboBoxOption[] = activeCases.map((item) => ({
-        key: item.ID.toString(),
-        text:
-          item.TaxType === "Income Tax"
-            ? `IT-${item.ID.toString().padStart(4, "0")}`
-            : item.TaxType === "Sales Tax"
-            ? `ST-${item.ID.toString().padStart(4, "0")}`
-            : `CN-${item.ID.toString().padStart(4, "0")}`,
-        data: { taxType: item.TaxType },
-      }));
-
-      setCasesOptions(options);
     };
 
-    fetchLOVsAndCases();
+    fetchLOVs();
+
+    sp.web.lists
+      .getByTitle("Cases")
+      .items.select("ID", "Title", "TaxType", "CaseStatus", "TaxAuthority")()
+      .then((items) => {
+        const options: IComboBoxOption[] = items.map((item) => ({
+          key: item.ID.toString(),
+          text: item.Title,
+          data: {
+            taxType: item.TaxType,
+            taxAuthority: item.TaxAuthority,
+          },
+        }));
+        setCasesOptions(options);
+      });
   }, []);
 
   // filter by Tax Type
@@ -273,78 +321,55 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     return filtered;
   }, [caseSearch, casesOptions, taxType]);
-  // Recursively check if option’s parent is satisfied
-  // ✅ Parent-child dependency check
-//  const isOptionAllowed = (
-//   opt: { key: string | number; text: string; parentId?: number },
-//   fieldLabel: string,
-//   watchedValues: any
-// ): boolean => {
-//   // agar option ka parent hi nai hai → sab allowed
-//   if (!opt.parentId) return true;
 
-//   // parent field find karo (jahan parentId ka match mile)
-//   const parentField = Object.keys(lovOptions).find((fld) =>
-//     lovOptions[fld]?.some((p: any) => String(p.key) === String(opt.parentId))
-//   );
+  // const filterLovOptions = (
+  //   options: any[],
+  //   filters: any,
+  //   getID: (val: any) => string | null,
+  //   lovOptions: Record<string, any[]>
+  // ) => {
+  //   // if no parentId on any option → just return as-is
+  //   if (!options.some((opt) => opt.parentId)) return options;
 
-//   if (!parentField) return true;
+  //   // collect all selected keys across filters
+  //   const selectedParentIds = Object.keys(filters)
+  //     .map((key) => getID(filters[key]))
+  //     .filter(Boolean);
 
-//   // parent ki current selected value
-//   const selectedParentKey = watchedValues[parentField];
+  //   console.log(
+  //     "Selected Parent IDs:",
+  //     selectedParentIds,
+  //     "Options:",
+  //     options
+  //   );
 
-//   // agar koi parent select hi nai hai → sab allow
-//   if (!selectedParentKey) return true;
+  //   // filter by matching parentId
+  //   const filtered = options.filter((opt) =>
+  //     selectedParentIds.includes(String(opt.parentId))
+  //   );
 
-//   // filter karo: sirf tab show karo jab option ka parentId == selected parent
-//   const isAllowed = String(selectedParentKey) === String(opt.parentId);
+  //   console.log("Filtered Options:", filtered);
 
-//   // check karo kya is parent ke liye koi child exist karta hai
-//   const anyAllowed = lovOptions[fieldLabel]?.some(
-//     (o: any) => String(o.parentId) === String(selectedParentKey)
-//   );
-
-//   // agar is parent ke liye koi child hi nai hai → sab allow (fallback)
-//   if (!anyAllowed) return true;
-
-//   return isAllowed;
-// };
-const filterLovOptions = (
-  options: any[],
-  filters: any,
-  getID: (val: any) => string | null,
-  lovOptions: Record<string, any[]>
-) => {
-  // if no parentId on any option → just return as-is
-  if (!options.some(opt => opt.parentId)) return options;
-
-  // collect all selected keys across filters
-  const selectedParentIds = Object.keys(filters)
-    .map(key => getID(filters[key]))
-    .filter(Boolean);
-
-  console.log("Selected Parent IDs:", selectedParentIds, "Options:", options);
-
-  // filter by matching parentId
-  const filtered = options.filter(opt =>
-    selectedParentIds.includes(String(opt.parentId))
-  );
-
-  console.log("Filtered Options:", filtered);
-
-  // if no match → fallback to all
-  return filtered.length > 0 ? filtered : options;
-};
-
-
+  //   // if no match → fallback to all
+  //   return filtered.length > 0 ? filtered : options;
+  // };
 
   // 🔸 Apply dynamic prefix to dropdown texts
+
   const caseNumberOptions = React.useMemo(() => {
-    return filteredCaseOptions.map((opt) => ({
-      ...opt,
-      text: opt.text.replace(/^CN-0/, getCaseNumberPrefix()),
-    }));
-  }, [filteredCaseOptions, taxType]);
+    return filteredCaseOptions.map((opt) => {
+      const authority = opt.data?.taxAuthority || "Unknown";
+      const taxType = opt.data?.taxType;
+      let prefix = "CN";
+      if (taxType === "Income Tax") prefix = "IT";
+      else if (taxType === "Sales Tax") prefix = "ST";
+      // Combine
+      return {
+        ...opt,
+        text: `${prefix}-${authority}-${opt.key}`,
+      };
+    });
+  }, [filteredCaseOptions]);
 
   // 🔸 Prefill when editing + load attachments & tax issues for selected case
 
@@ -407,6 +432,13 @@ const filterLovOptions = (
       multilineFields.forEach(({ name }) => {
         prefilledValues[name] = selectedCase[name] || "";
       });
+      if (selectedCase.LawyerAssigned) {
+        prefilledValues["LawyerAssigned"] = {
+          Id: selectedCase.LawyerAssigned.Id,
+          Email: selectedCase.LawyerAssigned.EMail,
+          Title: selectedCase.LawyerAssigned.Title,
+        };
+      }
 
       prefilledValues["CaseNumber"] = selectedCase["ID"] || "";
       prefilledValues["ParentCaseId"] = selectedCase["ParentCaseId"] || "";
@@ -464,13 +496,14 @@ const filterLovOptions = (
 
   // 🔸 Submit
   const submitForm = async (isDraft: boolean) => {
-    if (isSubmitting) return; // prevent double clicks
+    if (isSubmitting) return; // lock double clicks
     setIsSubmitting(true);
-
     const data = getValues();
+
     const prefix = getCaseNumberPrefix();
 
     const itemData: any = {
+      Title: `${prefix}${nextCaseNumber}`,
       IsDraft: isDraft,
       CaseStatus: isDraft ? "Draft" : "Active",
       ParentCaseId: existing
@@ -482,11 +515,14 @@ const filterLovOptions = (
         : null,
     };
 
-    // Only assign new Title if creating a new case (not updating draft)
-    if (!(selectedCase?.ID && selectedCase.CaseStatus === "Draft")) {
-      itemData.Title = `${prefix}${nextCaseNumber}`;
-    }
-
+    //  dropdownFields.forEach((field) => {
+    //    const key = fieldMapping[field];
+    //    const value = data[key];
+    //    itemData[key] =
+    //      typeof value === "string"
+    //        ? value
+    //        : value?.text || value?.Value || value?.toString?.() || "";
+    //  });
     // dropdowns
     dropdownFields.forEach((field) => {
       const key = fieldMapping[field];
@@ -523,58 +559,31 @@ const filterLovOptions = (
 
     if (data.LawyerAssigned) {
       itemData["LawyerAssignedId"] =
-        data.LawyerAssigned.Id || data.LawyerAssigned.id || null;
+        data.LawyerAssigned?.Id || data.LawyerAssigned?.id || null;
     }
 
     try {
       console.log("Submitting itemData:", itemData);
-      let itemId: number;
+      const addResult = await sp.web.lists.getByTitle("Cases").items.add({
+        ...itemData,
+        LinkedNotificationIDId: notiID || null,
+      });
 
-      // 🔹 Update draft or add new case
-      if (isDraft && selectedCase?.ID && selectedCase.CaseStatus === "Draft") {
-        await sp.web.lists
-          .getByTitle("Cases")
-          .items.getById(selectedCase.ID)
-          .update({
-            ...itemData,
-            LinkedNotificationIDId: notiID || null,
-          });
-        itemId = selectedCase.ID;
-        console.log(`Updated draft case ID ${itemId}`);
-      } else {
-        const addResult = await sp.web.lists.getByTitle("Cases").items.add({
-          ...itemData,
-          LinkedNotificationIDId: notiID || null,
-        });
-        itemId = addResult.ID;
-        console.log(`Created new case ID ${itemId}`);
-      }
-
-      // 🔹 Mark notification as read if linked
       if (notiID) await markAsRead(notiID);
 
-      // 🔹 Save Tax Issues (update if exists, else add)
+      const itemId = addResult.ID;
+
+      // 🔹 save tax issues
       for (const entry of taxIssueEntries) {
-        if (entry.id) {
-          await sp.web.lists
-            .getByTitle("Tax Issues")
-            .items.getById(entry.id)
-            .update({
-              Title: entry.taxIssue,
-              AmountContested: entry.amountContested,
-              GrossTaxExposure: entry.grossTaxExposure,
-            });
-        } else {
-          await sp.web.lists.getByTitle("Tax Issues").items.add({
-            Title: entry.taxIssue,
-            AmountContested: entry.amountContested,
-            GrossTaxExposure: entry.grossTaxExposure,
-            CaseId: itemId,
-          });
-        }
+        await sp.web.lists.getByTitle("Tax Issues").items.add({
+          Title: entry.taxIssue,
+          AmountContested: entry.amountContested,
+          GrossTaxExposure: entry.grossTaxExposure,
+          CaseId: itemId,
+        });
       }
 
-      // 🔹 Upload attachments & link to Case
+      // 🔹 upload attachments & tag CaseId
       for (const file of attachments) {
         const uploadResult: any = await sp.web.lists
           .getByTitle("Core Data Repositories")
@@ -584,19 +593,10 @@ const filterLovOptions = (
         const fileItem = await sp.web
           .getFileByServerRelativePath(serverRelativeUrl)
           .getItem();
-
         await fileItem.update({ CaseId: itemId });
       }
-
-      // 🔹 Copy inbox attachments (if from notification)
       if (notiID) {
         for (const inboxFile of existingAttachments) {
-          if (removedAttachments.includes(inboxFile.FileLeafRef)) {
-            console.log(
-              `Skipping removed attachment: ${inboxFile.FileLeafRef}`
-            );
-            continue; // skip this one
-          }
           try {
             const blob = await sp.web
               .getFileByServerRelativePath(inboxFile.FileRef2)
@@ -611,7 +611,6 @@ const filterLovOptions = (
             const uploadedItem = await sp.web
               .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
               .getItem();
-
             await uploadedItem.update({ CaseId: itemId });
           } catch (err) {
             console.error("Failed to copy inbox attachment", err);
@@ -642,7 +641,22 @@ const filterLovOptions = (
   };
 
   const datePickerRef = React.useRef<IDatePicker>(null);
-  const watchedValues = useWatch({ control });
+  const financialYear = useWatch({ control, name: "FinancialYear" });
+  // const { setValue } = useFormContext();
+
+  useEffect(() => {
+    if (financialYear && taxType === "Income Tax") {
+      const yearString = financialYear.toString().replace("FY", "");
+      const yearNum = parseInt(yearString, 10);
+      if (!isNaN(yearNum)) {
+        const nextYear = (yearNum + 1).toString();
+        setValue("TaxYear", nextYear, { shouldValidate: true });
+      }
+    }
+  }, [financialYear, taxType, setValue]);
+
+  const financialComboRef = React.useRef<IComboBox>(null);
+  const taxComboRef = React.useRef<IComboBox>(null);
 
   return (
     <form
@@ -681,7 +695,6 @@ const filterLovOptions = (
         {fieldOrder.map((field) => {
           if (field.type === "caseNumber") {
             return !existing ? (
-              // New Case → readonly Case Number with dynamic prefix
               <TextField
                 key="CaseNumber"
                 label="Case Number"
@@ -693,7 +706,6 @@ const filterLovOptions = (
                 readOnly
               />
             ) : (
-              // Editing Case → Dropdown for ParentCaseId (with dynamic prefix in text)
               <Controller
                 key="CaseNumber"
                 name="ParentCaseId"
@@ -701,14 +713,10 @@ const filterLovOptions = (
                 render={({ field: f }) => (
                   <ComboBox
                     label="Case Number"
-                    options={[
-                      { key: "", text: "-- None --" },
-                      ...caseNumberOptions,
-                    ]}
+                    options={caseNumberOptions}
                     selectedKey={f.value?.toString() ?? ""}
                     onChange={(_, option) => {
                       f.onChange((option?.key as string) || "");
-                      setCaseSearch(""); // Clear search after selection
                     }}
                     placeholder={`Type to search case number (e.g. ${getCaseNumberPrefix()}15)`}
                     allowFreeform
@@ -718,6 +726,20 @@ const filterLovOptions = (
                     openOnKeyboardFocus
                     useComboBoxAsMenuWidth
                     autoComplete="on"
+                    styles={{
+                      root: { width: "100%" },
+                      container: { width: "100%" },
+                      callout: {
+                        width: "100%",
+                        maxHeight: 5 * 36, // ~5 visible items
+                        overflowY: "auto",
+                      },
+                      optionsContainerWrapper: {
+                        maxHeight: 5 * 36,
+                        overflowY: "auto",
+                      },
+                      input: { width: "100%" },
+                    }}
                   />
                 )}
               />
@@ -753,22 +775,30 @@ const filterLovOptions = (
                   render={({ field: f }) => (
                     <ComboBox
                       label={field.label}
-                      options={getYearOptions()}
+                      options={financialYearOptions}
                       selectedKey={f.value}
+                      componentRef={financialComboRef}
+                      onClick={() => financialComboRef.current?.focus(true)}
                       onChange={(_, o) => f.onChange(o?.key)}
+                      // onChange={(_, o) => f.onChange(o?.text)}
                       placeholder="Select Year"
-                      allowFreeform={false}
+                      allowFreeform={true}
                       autoComplete="on"
+                      useComboBoxAsMenuWidth
+                      onInputValueChange={handleFinancialYearInputChange}
                       styles={{
+                        root: { width: "100%" },
+                        container: { width: "100%" },
                         callout: {
-                          maxHeight: "30vh",
+                          width: "100%",
+                          maxHeight: 5 * 36, // ~5 visible items
                           overflowY: "auto",
-                          directionalHintFixed: true,
-                          directionalHint: 6,
                         },
                         optionsContainerWrapper: {
-                          minWidth: 100,
+                          maxHeight: 5 * 36,
+                          overflowY: "auto",
                         },
+                        input: { width: "100%" },
                       }}
                     />
                   )}
@@ -784,20 +814,29 @@ const filterLovOptions = (
                   render={({ field: f }) => (
                     <ComboBox
                       label={field.label}
-                      options={getTaxYearOptions()}
+                      options={taxYearOptions}
                       selectedKey={f.value}
+                      componentRef={taxComboRef}
+                      onClick={() => taxComboRef.current?.focus(true)}
+                      allowFreeform={true}
+                      onInputValueChange={handleTaxYearInputChange}
+                      useComboBoxAsMenuWidth
                       onChange={(_, o) => f.onChange(o?.key)}
+                      // onChange={(_, o) => f.onChange(o?.text)}
                       placeholder="Select Tax Year"
                       styles={{
+                        root: { width: "100%" },
+                        container: { width: "100%" },
                         callout: {
-                          maxHeight: "30vh",
+                          width: "100%",
+                          maxHeight: 5 * 36,
                           overflowY: "auto",
-                          directionalHintFixed: true,
-                          directionalHint: 6,
                         },
                         optionsContainerWrapper: {
-                          minWidth: 100,
+                          maxHeight: 5 * 36,
+                          overflowY: "auto",
                         },
+                        input: { width: "100%" },
                       }}
                     />
                   )}
@@ -807,40 +846,30 @@ const filterLovOptions = (
 
             // 🔹 Otherwise normal LOV dropdown
             return (
-           <Controller
-  key={internalName}
-  name={internalName}
-  control={control}
-  render={({ field: f }) => {
-    const allOptions = lovOptions[field.label] || [];
-
-    const getID = (val: any): string | null => {
-      if (!val) return null;
-      return typeof val === "object" ? val.key?.toString() : val.toString();
-    };
-    
-
-    const filteredOptions = filterLovOptions(
-      allOptions,
-      watchedValues,
-      getID,
-      lovOptions
-    );
-
-    return (
-      <Dropdown
-        label={field.label}
-        options={filteredOptions}
-        selectedKey={f.value}
-        onChange={(_, o) => f.onChange(o?.key)}
-        placeholder={`Select ${field.label}`}
-      />
-    );
-  }}
-/>
-
+              <Controller
+                key={internalName}
+                name={internalName}
+                control={control}
+                render={({ field: f }) => (
+                  <Dropdown
+                    label={field.label}
+                    options={lovOptions[field.label] || []}
+                    selectedKey={f.value}
+                    // onChange={(_, o) => f.onChange(o?.key)}
+                    onChange={(_, o) => f.onChange(o?.text)}
+                    required={
+                      field.label === "Tax Type" ||
+                      field.label === "Tax Authority" ||
+                      field.label === "Concerning Law" ||
+                      field.label === "Entity"
+                    }
+                    placeholder={`Select ${field.label}`}
+                  />
+                )}
+              />
             );
           }
+
           if (field.type === "date")
             return (
               <Controller
@@ -879,8 +908,7 @@ const filterLovOptions = (
                 principalTypes={[PrincipalType.User]}
                 resolveDelay={500}
                 defaultSelectedUsers={
-                  selectedCase?.LawyerAssigned &&
-                  selectedCase.LawyerAssigned.Title
+                  selectedCase?.LawyerAssigned && selectedCase.LawyerAssigned.Id
                     ? [selectedCase.LawyerAssigned.Title]
                     : []
                 }
@@ -927,7 +955,10 @@ const filterLovOptions = (
               id="file-upload"
               type="file"
               multiple
-              onChange={(e) => setAttachments(Array.from(e.target.files || []))}
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                setAttachments((prev) => [...prev, ...files]);
+              }}
               style={{ display: "none" }}
             />
           </div>
@@ -946,27 +977,15 @@ const filterLovOptions = (
                   fontSize: 14,
                 }}
               >
-                <button
-                  onClick={() => {
-                    setRemovedAttachments((prev) => [
-                      ...prev,
-                      file.FileLeafRef,
-                    ]);
-
-                    setExistingAttachments((prev) =>
-                      prev.filter((f) => f.FileLeafRef !== file.FileLeafRef)
-                    );
-                  }}
+                <span
                   style={{
-                    border: "none",
-                    background: "none",
                     color: "red",
                     fontWeight: "bold",
-                    cursor: "pointer",
+                    cursor: "not-allowed",
                   }}
                 >
                   ✖
-                </button>
+                </span>
                 <a
                   href={file.FileRef + `?web=1`}
                   target="_blank"
@@ -991,6 +1010,7 @@ const filterLovOptions = (
                 }}
               >
                 <button
+                  type="button"
                   onClick={() => {
                     const updated = [...attachments];
                     updated.splice(idx, 1);
@@ -1120,6 +1140,7 @@ const filterLovOptions = (
               style={{
                 background: "none",
                 border: "none",
+                marginTop: "20px",
                 color: "red",
                 fontWeight: "bold",
                 cursor: "pointer",

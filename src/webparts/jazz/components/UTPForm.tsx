@@ -57,29 +57,29 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
   const sp = spfi().using(SPFx(SpfxContext));
 
-  const renderRadioGroup = (label: string, field: any) => (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      <label style={{ fontWeight: 600, marginBottom: "4px" }}>{label}</label>
-      <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <input
-            type="radio"
-            checked={field.value === true}
-            onChange={() => field.onChange(true)}
-          />
-          Yes
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <input
-            type="radio"
-            checked={field.value === false}
-            onChange={() => field.onChange(false)}
-          />
-          No
-        </label>
-      </div>
-    </div>
-  );
+  // const renderRadioGroup = (label: string, field: any) => (
+  //   <div style={{ display: "flex", flexDirection: "column" }}>
+  //     <label style={{ fontWeight: 600, marginBottom: "4px" }}>{label}</label>
+  //     <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
+  //       <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+  //         <input
+  //           type="radio"
+  //           checked={field.value === true}
+  //           onChange={() => field.onChange(true)}
+  //         />
+  //         Yes
+  //       </label>
+  //       <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+  //         <input
+  //           type="radio"
+  //           checked={field.value === false}
+  //           onChange={() => field.onChange(false)}
+  //         />
+  //         No
+  //       </label>
+  //     </div>
+  //   </div>
+  // );
 
   const selectedTaxType = watch("TaxType");
   useEffect(() => {
@@ -89,8 +89,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
           .getByTitle("Cases")
           .items.select("Id", "Title", "TaxType", "CaseStatus")(), // 🔹 include CaseStatus
         sp.web.lists
-          .getByTitle("LOV Data")
-          .items.select("Id", "Title", "Description", "Status")(),
+          .getByTitle("LOVData1")
+          .items.select("Id", "Title", "Value", "Status")(),
       ]);
 
       setAllCases(cases);
@@ -98,9 +98,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
       // LOV grouped options
       const activeLOVs = lovs.filter((item) => item.Status === "Active");
       const groupedLOVs: { [key: string]: IDropdownOption[] } = {};
-      activeLOVs.forEach(({ Title, Description }) => {
+      activeLOVs.forEach(({ Title, Value }) => {
         if (!groupedLOVs[Title]) groupedLOVs[Title] = [];
-        groupedLOVs[Title].push({ key: Description, text: Description });
+        groupedLOVs[Title].push({ key: Value, text: Value });
       });
       setLovOptions(groupedLOVs);
     })();
@@ -140,7 +140,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
       ["UTPCategory", "TaxType", "RiskCategory", "PaymentType"].forEach(
         (f) => (prefilled[f] = selectedCase[f] || "")
       );
-      ["GRSCode", "ERMUniqueNumbering", "GrossExposure"].forEach(
+      ["GRSCode", "ERMUniqueNumbering"].forEach(
         (name) => (prefilled[name] = selectedCase[name] || "")
       );
       [{ name: "UTPDate" }].forEach(
@@ -149,7 +149,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
             ? new Date(selectedCase[name])
             : null)
       );
-      ["ContingencyNoteExists", "ProvisionRequired"].forEach((name) => {
+      ["ContingencyNoteExists"].forEach((name) => {
         prefilled[name] =
           selectedCase[name] === true
             ? true
@@ -163,11 +163,11 @@ const UTPForm: React.FC<UTPFormProps> = ({
       prefilled.UTPId = selectedCase?.UTPId || null;
       prefilled.GMLRID = selectedCase?.GMLRID || null;
 
-      prefilled.PLExposure =
-        selectedCase.PLExposure !== undefined &&
-        selectedCase.PLExposure !== null
-          ? Number(selectedCase.PLExposure)
-          : "";
+      // prefilled.PLExposure =
+      //   selectedCase.PLExposure !== undefined &&
+      //   selectedCase.PLExposure !== null
+      //     ? Number(selectedCase.PLExposure)
+      //     : "";
 
       // prefilled.EBITDAExposure =
       //   selectedCase.EBITDAExposure !== undefined &&
@@ -177,7 +177,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
       // Text fields
       prefilled.ContigencyNote = selectedCase.ContigencyNote || "";
-      prefilled.TaxMatter = selectedCase.TaxMatter || "";
+      // prefilled.TaxMatter = selectedCase.TaxMatter || "";
 
       reset(prefilled);
 
@@ -470,7 +470,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
             />
           )}
         />
-        <Controller
+        {/* <Controller
           name="GrossExposure"
           control={control}
           render={({ field }) => (
@@ -481,7 +481,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
               {...field}
             />
           )}
-        />
+        /> */}
 
         {/* Row 3 */}
         {/* <Controller
@@ -564,11 +564,11 @@ const UTPForm: React.FC<UTPFormProps> = ({
             </div>
           )}
         />
-        <Controller
+        {/* <Controller
           name="ProvisionRequired"
           control={control}
           render={({ field }) => renderRadioGroup("Provision Required", field)}
-        />
+        /> */}
 
         {/* Row 5 */}
 
@@ -625,7 +625,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
               id="file-upload"
               type="file"
               multiple
-              onChange={(e) => setAttachments(Array.from(e.target.files || []))}
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                setAttachments((prev) => [...prev, ...files]);
+              }}
               style={{ display: "none" }}
             />
           </div>
@@ -677,6 +680,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 }}
               >
                 <button
+                  type="button"
                   onClick={() => {
                     const updated = [...attachments];
                     updated.splice(idx, 1);

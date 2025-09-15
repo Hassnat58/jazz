@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
 import styles from "../components/ViewCaseFor.module.scss";
@@ -15,6 +16,27 @@ const ViewCaseOffcanvas: React.FC<{
   attachments: any;
 }> = ({ show, onClose, caseData: data, attachments }) => {
   if (!data) return null;
+
+  const getFormattedCaseNumber = (
+    taxType: string,
+    taxAuthority: string,
+    parentCaseId: number
+  ) => {
+    let prefix = "CN"; // default
+    if (taxType === "Income Tax") prefix = "IT";
+    else if (taxType === "Sales Tax") prefix = "ST";
+
+    // add tax authority if present
+    const authority = taxAuthority ? `-${taxAuthority}` : "";
+
+    return `${prefix}${authority}-${parentCaseId}`;
+  };
+
+  // const formattedCaseNumber = getFormattedCaseNumber(
+  //   data.TaxType,
+  //   data.TaxAuthority,
+  //   data.ParentCaseId
+  // );
 
   return (
     <div className={styles.viewCaseContainer}>
@@ -38,11 +60,11 @@ const ViewCaseOffcanvas: React.FC<{
             </td>
             <td>
               {data.ParentCaseId
-                ? data.TaxType === "Income Tax"
-                  ? `IT--00${data.ParentCaseId}`
-                  : data.TaxType === "Sales Tax"
-                  ? `ST--00${data.ParentCaseId}`
-                  : `CN--00${data.ParentCaseId}`
+                ? getFormattedCaseNumber(
+                    data.TaxType,
+                    data.TaxAuthority,
+                    data.ParentCaseId
+                  )
                 : data.Title}
             </td>
           </tr>
