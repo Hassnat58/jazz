@@ -223,7 +223,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
     );
 
     // Text fields
-    ["GRSCode", "ERMUniqueNumbering", "GrossExposure"].forEach(
+    ["GRSCode", "ERMUniqueNumbering"].forEach(
       (name) => (itemData[name] = data[name] || "")
     );
 
@@ -530,13 +530,13 @@ const UTPForm: React.FC<UTPFormProps> = ({
             renderRadioGroup("Contingency Note Exists", field)
           }
         /> */}
-        {riskCategory === "Probable" && (
+        {riskCategory === "Possible" && (
           <Controller
             name="ContigencyNote"
             control={control}
             rules={{
               required:
-                "Contingency Note is required when Risk Category is Probable",
+                "Contingency Note is required when Risk Category is Possible",
             }}
             render={({ field, fieldState }) => (
               <TextField
