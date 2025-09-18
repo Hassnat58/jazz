@@ -22,7 +22,7 @@ import DocumentGrid from "./DocumentGrid";
 import ReportsTable from "./ReportsTable";
 import LOVManagement from "./LOVManagement";
 import Notifications from "./Notifications";
-import LOVForm from "./LOVForm";
+// import LOVForm from "./LOVForm";
 import Pagination from "./Pagination";
 import { Dropdown, IDropdownOption } from "@fluentui/react";
 import { ComboBox } from "@fluentui/react";
@@ -185,11 +185,12 @@ const TabbedTables: React.FC<{
       const items = await sp.web.lists
         .getByTitle("CorrespondenceOut")
         .items.select(
-          "*",
           "ID",
           "Title",
           "Dateoffiling",
           "FiledAt",
+          "Status",
+          "CorrespondenceOut",
           "Filedthrough",
           "BriefDescription",
           "CaseNumber/ID",
@@ -214,14 +215,19 @@ const TabbedTables: React.FC<{
       const items = await sp.web.lists
         .getByTitle("Cases")
         .items.select(
-          "*",
           "ID",
           "Title",
           "CorrespondenceType",
-          "DateReceived",
+          "Dateofdocument",
+          "Entity",
           "FinancialYear",
+          "TaxYear",
+          "TaxType",
+          "TaxAuthority",
+          "Hearingdate",
           "DateofCompliance",
           "LawyerAssigned/Title",
+          "LawyerAssigned/Id",
           "GrossTaxDemanded",
           "CaseStatus",
           "Author/Title",
@@ -229,7 +235,20 @@ const TabbedTables: React.FC<{
           "ParentCase/Id",
           "ParentCase/Title",
           "ParentCase/TaxType",
-          "ParentCase/TaxAuthority"
+          "ParentCase/TaxAuthority",
+          "DateReceived",
+          "DateofCompliance",
+          "StayExpiringOn",
+          "DateofCompliance",
+          "OrderSummary",
+          "Email",
+          "Exposure_x0020_Issues",
+          "PendingAuthority",
+          "CorrespondenceType",
+          "IssuedBy",
+          "DocumentReferenceNumber",
+          "BriefDescription",
+          "TaxConsultant"
         )
         .expand("Author", "Editor", "LawyerAssigned", "ParentCase")
         .orderBy("ID", false)();
@@ -246,7 +265,6 @@ const TabbedTables: React.FC<{
       const items = await sp.web.lists
         .getByTitle("UTPData")
         .items.select(
-          "*",
           "ID",
           "Title",
           "GMLRID",
@@ -254,18 +272,22 @@ const TabbedTables: React.FC<{
           "ERMUniqueNumbering",
           "GrossExposure",
           "CashFlowExposure",
-          "TaxMatter/Title",
           "PaymentType/Title",
           "Status",
           "Author/Title",
           "Editor/Title",
-          "UTPId"
+          "UTPId",
+          "TaxType",
+          "CaseNumber/ID",
+          "CaseNumber/TaxType",
+          "ERMCategory",
+          "UTPCategory",
+          "UTPDate"
         )
         .orderBy("ID", false)
-        .expand("Author", "Editor")();
+        .expand("Author", "Editor", "CaseNumber")();
       setUtpData(items);
       setFilteredUtpData(items);
-      // console.log("UTP data:", items);
     } catch (err) {
       console.error("Error fetching data from UTP list:", err);
     }
@@ -522,7 +544,20 @@ const TabbedTables: React.FC<{
             onChange={(_, option) =>
               handleFilterChange("taxYear", option?.key as string)
             }
-            styles={{ root: { minWidth: 160 } }}
+            styles={{
+              root: { width: "160px" },
+              dropdown: { width: "100%" },
+              callout: {
+                width: "100%",
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              dropdownItems: {
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              title: { width: "160px" },
+            }}
           />
 
           <Dropdown
@@ -533,10 +568,24 @@ const TabbedTables: React.FC<{
             onChange={(_, option) =>
               handleFilterChange("financialYear", option?.key as string)
             }
-            styles={{ root: { minWidth: 160 } }}
+            styles={{
+              root: { width: "160px" },
+              dropdown: { width: "100%" },
+              callout: {
+                width: "100%",
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              dropdownItems: {
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              title: { width: "160px" },
+            }}
           />
 
           <button
+            type="button"
             className={styles.clearFiltersButton}
             onClick={() => {
               setFilters({
@@ -571,11 +620,11 @@ const TabbedTables: React.FC<{
             {paginatedData.map((item) => (
               <tr key={item.ID}>
                 <td>
-                  {item.ParentCaseId
+                  {item.ParentCase
                     ? getFormattedCaseNumber(
                         item.TaxType,
                         item.TaxAuthority,
-                        item.ParentCaseId
+                        item.ParentCase.Id
                       )
                     : item.Title}
                 </td>
@@ -649,6 +698,23 @@ const TabbedTables: React.FC<{
       (correspondencePage - 1) * itemsPerPage,
       correspondencePage * itemsPerPage
     );
+
+    const getFormattedCaseNumber = (caseNumber: any) => {
+      if (!caseNumber) return "";
+
+      let prefix = "CN";
+      if (caseNumber.TaxType === "Income Tax") prefix = "IT";
+      if (caseNumber.TaxType === "Sales Tax") prefix = "ST";
+
+      // handle Tax Authority
+      const taxAuth = caseNumber?.TaxAuthority || "";
+
+      // handle Id from lookup
+      const id = caseNumber?.Id || caseNumber?.ID || "";
+
+      return `${prefix}${taxAuth ? "-" + taxAuth : ""}${id ? "-" + id : ""}`;
+    };
+
     const handleCorrespondenceFilterChange = (key: string, value: string) => {
       const updatedFilters = { ...correspondenceFilters, [key]: value };
       setCorrespondenceFilters(updatedFilters);
@@ -656,9 +722,9 @@ const TabbedTables: React.FC<{
       const filtered = correspondenceOutData.filter((item) => {
         const matchesCase =
           !updatedFilters.caseNumber ||
-          item.CaseNumber?.Title?.toLowerCase().includes(
-            updatedFilters.caseNumber.toLowerCase()
-          );
+          getFormattedCaseNumber(item.CaseNumber)
+            .toLowerCase()
+            .includes(updatedFilters.caseNumber.toLowerCase());
 
         const matchesTaxType =
           !updatedFilters.taxType ||
@@ -684,24 +750,36 @@ const TabbedTables: React.FC<{
             placeholder="Select or type Case Number"
             allowFreeform
             autoComplete="on"
+            useComboBoxAsMenuWidth
             options={correspondenceOutData
-              .filter((i) => i.CaseNumber?.Title)
-              .map((i) => {
-                let prefix = "CN-";
-                if (i.CaseNumber?.TaxType === "Income Tax") prefix = "IT-";
-                else if (i.CaseNumber?.TaxType === "Sales Tax") prefix = "ST-";
-
-                return {
-                  key: i.CaseNumber?.Title,
-                  text: `${prefix}${i.CaseNumber?.Title}`,
-                };
-              })}
+              .filter((i) => i.CaseNumber)
+              .map((i) => ({
+                key: i.CaseNumber.Id,
+                text: getFormattedCaseNumber(i.CaseNumber),
+              }))}
             text={correspondenceFilters.caseNumber || ""}
+            onInputValueChange={(newText) => {
+              // update filters live while typing
+              handleCorrespondenceFilterChange("caseNumber", newText);
+            }}
             onChange={(_, option, __, value) => {
-              const newValue = option ? (option.key as string) : value || "";
+              const newValue = option ? (option.text as string) : value || "";
               handleCorrespondenceFilterChange("caseNumber", newValue);
             }}
-            styles={{ root: { minWidth: 200 } }}
+            styles={{
+              root: { width: "200px" },
+              container: { width: "200px" },
+              callout: {
+                width: "100%",
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              optionsContainerWrapper: {
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              input: { width: "100%" },
+            }}
           />
 
           {/* Tax Type */}
@@ -735,6 +813,7 @@ const TabbedTables: React.FC<{
           />
 
           <button
+            type="button"
             className={styles.clearFiltersButton}
             onClick={() => {
               setCorrespondenceFilters({
@@ -767,12 +846,16 @@ const TabbedTables: React.FC<{
             {paginatedData.map((item) => (
               <tr key={item.ID}>
                 <td>
-                  {item.CaseNumber?.TaxType === "Income Tax"
-                    ? `IT-${item.CaseNumber?.ID}`
-                    : item.CaseNumber?.TaxType === "Sales Tax"
-                    ? `ST-${item.CaseNumber?.ID}`
-                    : `CN-${item.CaseNumber?.ID}`}
+                  {(() => {
+                    if (!item.CaseNumber) return "";
+                    let prefix = "CN";
+                    if (item.CaseNumber.TaxType === "Income Tax") prefix = "IT";
+                    if (item.CaseNumber.TaxType === "Sales Tax") prefix = "ST";
+                    const taxAuth = item.CaseNumber.TaxAuthority || "N/A";
+                    return `${prefix}-${taxAuth}-${item.CaseNumber?.ID}`;
+                  })()}
                 </td>
+
                 <td>{item.CorrespondenceOut}</td>
                 <td>{item.BriefDescription}</td>
                 <td>{item.Filedthrough}</td>
@@ -887,29 +970,55 @@ const TabbedTables: React.FC<{
           <Dropdown
             label="Tax Year"
             placeholder="Select Tax Year"
-            options={getTaxYearOptions()} // 👈 use helper
+            options={getTaxYearOptions()}
             selectedKey={utpFilters.taxYear || null}
             onChange={(_, option) =>
               handleUtpFilterChange("taxYear", option?.key as string)
             }
-            styles={{ root: { minWidth: 160 } }}
+            styles={{
+              root: { width: "160px" },
+              dropdown: { width: "100%" },
+              callout: {
+                width: "100%",
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              dropdownItems: {
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              title: { width: "160px" },
+            }}
           />
 
           <Dropdown
             label="Financial Year"
             placeholder="Select Financial Year"
-            options={getFinancialYearOptions()} // 👈 use helper
+            options={getFinancialYearOptions()}
             selectedKey={utpFilters.financialYear || null}
             onChange={(_, option) =>
               handleUtpFilterChange("financialYear", option?.key as string)
             }
-            styles={{ root: { minWidth: 160 } }}
+            styles={{
+              root: { width: "160px" },
+              dropdown: { width: "100%" },
+              callout: {
+                width: "100%",
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              dropdownItems: {
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              title: { width: "160px" },
+            }}
           />
 
           <Dropdown
             label="Category"
             placeholder="Select Category"
-            options={lovOptions.Category || []}
+            options={lovOptions["Risk Category"] || []}
             selectedKey={utpFilters.category || null}
             onChange={(_, option) =>
               handleUtpFilterChange("category", option?.key as string)
@@ -918,6 +1027,7 @@ const TabbedTables: React.FC<{
           />
 
           <button
+            type="button"
             className={styles.clearFiltersButton}
             onClick={() => {
               setUtpFilters({
@@ -1016,15 +1126,15 @@ const TabbedTables: React.FC<{
   };
   const renderTabContent = () => {
     if (showLOVManagement) {
-      if (isAddingNew && activeFormType === "LOV") {
-        return (
-          <LOVForm
-            SpfxContext={SpfxContext}
-            onCancel={handleCancel}
-            mode="add"
-          />
-        );
-      }
+      // if (isAddingNew && activeFormType === "LOV") {
+      //   return (
+      //     <LOVForm
+      //       SpfxContext={SpfxContext}
+      //       onCancel={handleCancel}
+      //       // mode="add"
+      //     />
+      //   );
+      // }
       return <LOVManagement SpfxContext={SpfxContext} />;
     }
     if (showManageRole) {
@@ -1089,7 +1199,7 @@ const TabbedTables: React.FC<{
             setExisting={setExisting}
             SpfxContext={SpfxContext}
             setNotiID={setNotiID}
-             activeFormOut={() => setActiveFormType("correspondenceOut")}
+            activeFormOut={() => setActiveFormType("correspondenceOut")}
             activeForm={() => setActiveFormType("case")}
           />
         );
@@ -1115,6 +1225,7 @@ const TabbedTables: React.FC<{
       <div className={styles.tabs}>
         {visibleTabs.map((tab) => (
           <button
+            type="button"
             key={tab}
             className={`${styles.tab} ${
               !showLOVManagement && !showManageRole && activeTab === tab
@@ -1171,17 +1282,15 @@ const TabbedTables: React.FC<{
             (activeTab === "Litigation" ||
               activeTab === "Response" ||
               activeTab === "UTP Dashboard" ||
-              showLOVManagement ||
               showManageRole) &&
             !isAddingNew && (
               <button
+                type="button"
                 className={styles.addBtn}
                 onClick={() => {
                   setNotiID(null);
 
-                  if (showLOVManagement) {
-                    setActiveFormType("LOV");
-                  } else if (showManageRole) {
+                  if (showManageRole) {
                     setActiveFormType("Role");
                   } else if (activeTab === "Litigation") {
                     setActiveFormType("case");
@@ -1223,6 +1332,7 @@ const TabbedTables: React.FC<{
                 ] as { key: ReportType; text: string }[]
               ).map((tab) => (
                 <button
+                  type="button"
                   key={tab.key}
                   className={`${styles.tabButton} ${
                     reportType == tab.key ? styles.activeTab2 : ""

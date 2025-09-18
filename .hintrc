@@ -6,6 +6,12 @@
     "no-inline-styles": "off",
     "axe/forms": "off",
     "typescript-config/is-valid": "off",
-    "compat-api/css": "off"
+    "compat-api/css": "off",
+    "axe/aria": [
+      "default",
+      {
+        "aria-valid-attr-value": "off"
+      }
+    ]
   }
 }

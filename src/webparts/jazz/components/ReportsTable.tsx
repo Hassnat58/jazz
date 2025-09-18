@@ -851,18 +851,18 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         next30.setDate(today.getDate() + 30);
 
         // ✅ Construct UTC dates so .toISOString() won't shift days
-        const startUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-        const endUTC = new Date(Date.UTC(next30.getFullYear(), next30.getMonth(), next30.getDate()));
+        const startUTC = new Date(
+          Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+        );
+        const endUTC = new Date(
+          Date.UTC(next30.getFullYear(), next30.getMonth(), next30.getDate())
+        );
 
         const newStart = startUTC.toISOString().split("T")[0]; // YYYY-MM-DD
-        const newEnd = endUTC.toISOString().split("T")[0];     // YYYY-MM-DD
-
-       
+        const newEnd = endUTC.toISOString().split("T")[0]; // YYYY-MM-DD
 
         handleFilterChangeDate2(newStart, newEnd, items);
-
-      }
-      else {
+      } else {
         items_updated = normalizeData(reportType, items);
         setFilteredData(items_updated);
       }
@@ -885,7 +885,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
       taxAuthority: "",
       entity: "",
     };
-    setSelectedDate(null)
+    setSelectedDate(null);
     setFilters(reset);
     fetchData();
   }, [reportType]);
@@ -934,13 +934,17 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         let itemDate: Date | null = null;
 
         if (reportType === "Litigation") {
-          itemDate = item.DateReceived ? normalizeDate(new Date(item.DateReceived)) : null;
+          itemDate = item.DateReceived
+            ? normalizeDate(new Date(item.DateReceived))
+            : null;
         } else if (reportType === "ActiveCases") {
           itemDate = item.DateofCompliance
             ? normalizeDate(new Date(item.DateofCompliance))
             : null;
         } else {
-          itemDate = item.UTPDate ? normalizeDate(new Date(item.UTPDate)) : null;
+          itemDate = item.UTPDate
+            ? normalizeDate(new Date(item.UTPDate))
+            : null;
         }
 
         if (itemDate) {
@@ -957,13 +961,26 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
       }
 
       // ---- OTHER FILTERS ----
-      if (["UTP", "Provisions1", "Provisions2", "Provisions3", "Contingencies", "ERM"].includes(reportType)) {
+      if (
+        [
+          "UTP",
+          "Provisions1",
+          "Provisions2",
+          "Provisions3",
+          "Contingencies",
+          "ERM",
+        ].includes(reportType)
+      ) {
         return (
           dateMatch &&
-          (!updatedFilters.category || item.RiskCategory === updatedFilters.category) &&
-          (!updatedFilters.financialYear || item.FinancialYear === updatedFilters.financialYear) &&
-          (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
-          (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType) &&
+          (!updatedFilters.category ||
+            item.RiskCategory === updatedFilters.category) &&
+          (!updatedFilters.financialYear ||
+            item.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.taxYear ||
+            item.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxType ||
+            item.TaxType === updatedFilters.taxType) &&
           (!updatedFilters.entity || item.Entity === updatedFilters.entity)
         );
       }
@@ -971,10 +988,13 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
       if (["Litigation", "ActiveCases"].includes(reportType)) {
         return (
           dateMatch &&
-          (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
-          (!updatedFilters.taxAuthority || item.TaxAuthority === updatedFilters.taxAuthority) &&
+          (!updatedFilters.taxYear ||
+            item.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxAuthority ||
+            item.TaxAuthority === updatedFilters.taxAuthority) &&
           (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
-          (!updatedFilters.financialYear || item.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.financialYear ||
+            item.FinancialYear === updatedFilters.financialYear) &&
           (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
         );
       }
@@ -1004,14 +1024,20 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           reportType === "Litigation"
             ? item.DateReceived
             : reportType === "ActiveCases"
-              ? item.DateofCompliance
-              : item.UTPDate;
+            ? item.DateofCompliance
+            : item.UTPDate;
 
         const itemDateStr = itemDateRaw
           ? new Date(itemDateRaw).toISOString().split("T")[0]
           : null;
 
-        console.log(updatedFilters, item, item.DateofCompliance, itemDateStr, "updatedFilters23");
+        console.log(
+          updatedFilters,
+          item,
+          item.DateofCompliance,
+          itemDateStr,
+          "updatedFilters23"
+        );
 
         if (itemDateStr) {
           dateMatch = true;
@@ -1052,7 +1078,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         case "ActiveCases":
           return (
             dateMatch &&
-            (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
+            (!updatedFilters.taxYear ||
+              item.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxAuthority ||
               item.TaxAuthority === updatedFilters.taxAuthority) &&
             (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
@@ -1071,7 +1098,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     setFilteredData(dataf);
     setLoading(false);
   };
-  const handleFilterChangeDate2 = (value1: string, value2: string, data2: any) => {
+  const handleFilterChangeDate2 = (
+    value1: string,
+    value2: string,
+    data2: any
+  ) => {
     const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
     setFilters(updatedFilters);
 
@@ -1083,13 +1114,19 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         const startStr = updatedFilters.dateStart || null;
         const endStr = updatedFilters.dateEnd || null;
 
-        const itemDateRaw =item.DateofCompliance;
+        const itemDateRaw = item.DateofCompliance;
 
         const itemDateStr = itemDateRaw
           ? new Date(itemDateRaw).toISOString().split("T")[0]
           : null;
 
-        console.log(updatedFilters, item, item.DateofCompliance, itemDateStr, "updatedFilters2346");
+        console.log(
+          updatedFilters,
+          item,
+          item.DateofCompliance,
+          itemDateStr,
+          "updatedFilters2346"
+        );
 
         if (itemDateStr) {
           dateMatch = true;
@@ -1130,7 +1167,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         case "ActiveCases":
           return (
             dateMatch &&
-            (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
+            (!updatedFilters.taxYear ||
+              item.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxAuthority ||
               item.TaxAuthority === updatedFilters.taxAuthority) &&
             (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
@@ -1155,12 +1193,10 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     reportType
   )
     ? filteredData.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    )
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      )
     : filteredData;
-
-
 
   return (
     <>
@@ -1185,8 +1221,12 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             onChange={(date: Date | null) => {
               setSelectedDate(date);
               if (date) {
-                const startUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1));
-                const endUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth() + 1, 0));
+                const startUTC = new Date(
+                  Date.UTC(date.getFullYear(), date.getMonth(), 1)
+                );
+                const endUTC = new Date(
+                  Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)
+                );
                 const newStart = startUTC.toISOString().split("T")[0];
                 const newEnd = endUTC.toISOString().split("T")[0];
                 handleFilterChangeDate(newStart, newEnd);
@@ -1194,14 +1234,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 handleFilterChangeDate("", "");
               }
             }}
-
             dateFormat="MM/yyyy"
             showMonthYearPicker
             className={styles.datePickerInput}
             placeholderText="Select month and year"
           />
-
-
         </div>
         <Dropdown
           label="Entity"
@@ -1311,7 +1348,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   onChange={(_, option) => setReportType(option?.key as ReportType)}
 /> */}
 
-        <div className={styles.buttonGroup} ref={exportRef} style={{ position: "relative" }}>
+        <div
+          className={styles.buttonGroup}
+          ref={exportRef}
+          style={{ position: "relative" }}
+        >
           <button
             className={styles.clearButton}
             onClick={() => {
@@ -1325,7 +1366,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 taxAuthority: "",
                 entity: "",
               };
-              setSelectedDate(null)
+              setSelectedDate(null);
               setFilters(reset);
               setLoading(true);
               const dataf = normalizeData(reportType, data);
@@ -1337,6 +1378,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             Clear Filters
           </button>
           <button
+            type="button"
             className={styles.exportButton}
             onClick={() => setShowExportOptions((s) => !s)}
             aria-haspopup="menu"
@@ -1347,7 +1389,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
           {/* Dropdown menu */}
           {showExportOptions && (
-            <div className={styles.exportOptionsDropdown} role="menu" aria-label="Export options">
+            <div
+              className={styles.exportOptionsDropdown}
+              role="menu"
+              aria-label="Export options"
+            >
               <button
                 role="menuitem"
                 onClick={() => {
@@ -1382,7 +1428,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 taxAuthority: "",
                 entity: "",
               };
-              setSelectedDate(null)
+              setSelectedDate(null);
               setFilters(reset);
               fetchData();
               // setFilteredData(dummyData);
