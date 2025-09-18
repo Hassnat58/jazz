@@ -69,6 +69,8 @@ const reportConfig: Record<
       { header: "Type", field: "type" },
       { header: "Financial Year", field: "fy" },
       { header: "Tax Year", field: "taxYear" },
+      { header: "UTP Issue", field: "utpIssue" },
+
       // { header: "Gross Exposure PKR Jul 2024", field: "grossExposureJul" },
       { header: "Gross Exposure ", field: "grossExposureJun" },
       // { header: "Variance with last month PKR", field: "varianceLastMonth" },
@@ -98,6 +100,8 @@ const reportConfig: Record<
       // { header: "Tax period Start", field: "taxPeriodStart" },
       // { header: "Tax period End", field: "taxPeriodEnd" },
       { header: "Date of Receipt", field: "dateOfReceipt" },
+      { header: "Gross Exposure", field: "grossExp" },
+
       // { header: "Stay obtained From", field: "stayObtainedFrom" },
       { header: "Pending Authority Level", field: "pendingAuthorityLevel" },
       { header: "Stay Expiring On", field: "stayExpiringOn" },
@@ -128,6 +132,8 @@ const reportConfig: Record<
       // { header: "Forum to file appeal", field: "nextForum" },
       // { header: "Forum to file stay application", field: "pendingAuthority" },
       { header: "Description", field: "briefDescription" },
+      { header: "Gross Exposure", field: "grossExp" },
+
       // { header: "Wayforward", field: "contingencyNote" },
     ],
   },
@@ -341,7 +347,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     });
   };
 
-  const normalizeData = (reportType: string, rawData: any[]) => {
+  const normalizeData = async(reportType: string, rawData: any[]) => {
     switch (reportType) {
       case "Litigation":
         return rawData.map((item) => ({
@@ -393,7 +399,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           // placeholders for not in object
           billingInfo: item.BilligInfo || "", // "Billing Information"
           reviewStatusLp: "Peview Pending", // "Review Status LP"
-
+   grossExp:item.GrossExposure || "",
           inUtp: item.IsDraft ? "Draft" : "Final",
           // "In UTP"
         }));
@@ -408,7 +414,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           taxYear: item.TaxYear || "", // "Tax Year"
           DateReceived: item.DateReceived || "",
           fy: item.FinancialYear || "",
-
+  grossExp:item.GrossExposure || "",
           // exposures (only TaxExposure exists for now)
           taxExposureScn: item.TaxExposureScn || "", // "Tax exposure SCN" (placeholder)
           taxExposureOrder: item.TaxExposureOrder || "", // "Tax exposure Order" (placeholder)
@@ -791,34 +797,94 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           previousMonthAmount: item.CashFlowExposure || 0, // Exposure Amount (PKR)
         }));
       default: // UTPData
-        return rawData.map((item) => ({
-          utpId: item.UTPId, // exists (currently null in your data)
-          mlrClaimId: item.GMLRID, // mapping from GMLRID
-          pendingAuthority: item.PendingAuthority, // exists but null
-          type: item.PaymentType, // exists but null
-          grossExposureJul: item.GrossExposure, // only one field, reusing
-          grossExposureJun: item.GrossExposure,
-          UTPDate: item.UTPDate,
-          category: item.RiskCategory, // exists
-          fy: item.FinancialYear, // exists but null
-          taxYear: item.TaxYear, // exists but null
-          taxAuthority: item.TaxAuthority, // ❌ not in data (will be undefined)
-          taxType: item.TaxType, // exists
-          entity: item.Entity, // exists but null
+  const sp = spfi().using(SPFx(SpfxContext));
+    const utpIssues = await sp.web.lists
+      .getByTitle("UTP Tax Issue")
+      .items.expand("UTP")
+      .select("*,UTP/Id,UTP/Title")();
 
-          varianceLastMonth: item.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
-          grossExposureMay: item.GrossExposure,
-          grossExposureApr: item.GrossExposure,
-          arcTopTaxRisk: item.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
-          contingencyNote: item.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
-          briefDescription: item.Description, // exists but null
-          provisionGlCode: item.ProvisionGLCode, // ❌ not in data (undefined)
-          provisionGrsCode: item.GRSCode, // exists
-          paymentUnderProtest: item.Paymentunderprotest, // exists but null (note lowercase "u")
-          paymentGlCode: item.PaymentGLCode, // ❌ not in data (undefined)
-          utpPaperCategory: item.UTPPaperCategory, // exists but null
-          provisionsContingencies: item.ProvisionsContingencies, // ❌ not in data (undefined)
-        }));
+    const merged = rawData.flatMap((utp) => {
+      const mainRow = {
+        ...utp,
+         utpId: utp.UTPId, // exists (currently null in your data)
+          mlrClaimId: utp.GMLRID, // mapping from GMLRID
+          pendingAuthority: utp.PendingAuthority, // exists but null
+          type: utp.PaymentType, // exists but null
+          grossExposureJul: utp.GrossExposure, // only one field, reusing
+          grossExposureJun: utp.GrossExposure,
+          UTPDate: utp.UTPDate,
+          category: utp.RiskCategory, // exists
+          fy: utp.FinancialYear, // exists but null
+          taxYear: utp.TaxYear, // exists but null
+          taxAuthority: utp.TaxAuthority, // ❌ not in data (will be undefined)
+          taxType: utp.TaxType, // exists
+          entity: utp.Entity, // exists but null
+
+          varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
+          grossExposureMay: utp.GrossExposure,
+          grossExposureApr: utp.GrossExposure,
+          arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
+          contingencyNote: utp.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
+          briefDescription: utp.Description, // exists but null
+          provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
+          provisionGrsCode: utp.GRSCode, // exists
+          paymentUnderProtest: utp.Paymentunderprotest, // exists but null (note lowercase "u")
+          paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
+          utpPaperCategory: utp.UTPPaperCategory, // exists but null
+          provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
+      
+        utpIdDisplay: utp.Id,
+        utpIssue: "",
+      };
+
+      const relatedIssues = utpIssues.filter(
+        (issue) => issue.UTPId=== utp.Id
+      );
+
+      if (relatedIssues.length === 0) return [mainRow];
+
+      const issueRows = relatedIssues.map((issue, index) => ({
+        ...utp,
+         utpId: `${utp.UTPId}-${String.fromCharCode(97 + index)}`, // exists (currently null in your data)
+          mlrClaimId: utp.GMLRID, // mapping from GMLRID
+          pendingAuthority: utp.PendingAuthority, // exists but null
+          type: utp.PaymentType, // exists but null
+          grossExposureJul: utp.GrossExposure, // only one field, reusing
+         grossExposureJun: issue.GrossTaxExposure ?? utp.GrossExposure,
+          UTPDate: utp.UTPDate,
+          category: issue.RiskCategory ?? utp.RiskCategory,
+          fy: utp.FinancialYear, // exists but null
+          taxYear: utp.TaxYear, // exists but null
+          taxAuthority: utp.TaxAuthority, // ❌ not in data (will be undefined)
+          taxType: utp.TaxType, // exists
+          entity: utp.Entity, // exists but null
+
+          varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
+          grossExposureMay: utp.GrossExposure,
+          grossExposureApr: utp.GrossExposure,
+          arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
+         
+        contingencyNote: issue.ContingencyNote ?? utp.ContingencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
+          briefDescription: utp.Description, // exists but null
+          provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
+          provisionGrsCode: utp.GRSCode, // exists
+          paymentUnderProtest: utp.Paymentunderprotest, // exists but null (note lowercase "u")
+          paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
+          utpPaperCategory: utp.UTPPaperCategory, // exists but null
+          provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
+      
+        
+      
+      
+        utpIssue: issue.Title ?? "",
+      }));
+
+      return [mainRow, ...issueRows];
+    });
+
+    return merged;
+  
+      
     }
   };
 
@@ -831,6 +897,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
   const [data, setData] = useState<CaseItem[]>([]);
   const [filteredData, setFilteredData] = useState<CaseItem[]>([]);
+  
   const sp = spfi().using(SPFx(SpfxContext));
 
   const handleShow = (item: CaseItem) => {
@@ -863,7 +930,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
       }
       else {
-        items_updated = normalizeData(reportType, items);
+        items_updated = await  normalizeData(reportType, items);
         setFilteredData(items_updated);
       }
       setData(items);
@@ -909,7 +976,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
     fetchLOVs();
   }, []);
-  const handleFilterChange = (key: string, value: string) => {
+  const handleFilterChange = async (key: string, value: string) => {
     const updatedFilters = { ...filters, [key]: value };
     setFilters(updatedFilters);
 
@@ -983,12 +1050,12 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     });
 
     setLoading(true);
-    const dataf = normalizeData(reportType, filtered);
+    const dataf = await  normalizeData(reportType, filtered);
     setFilteredData(dataf);
     setLoading(false);
   };
 
-  const handleFilterChangeDate = (value1: string, value2: string) => {
+  const handleFilterChangeDate = async (value1: string, value2: string) => {
     const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
     setFilters(updatedFilters);
 
@@ -1067,11 +1134,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     });
 
     setLoading(true);
-    const dataf = normalizeData(reportType, filtered);
+    const dataf = await normalizeData(reportType, filtered);
     setFilteredData(dataf);
     setLoading(false);
   };
-  const handleFilterChangeDate2 = (value1: string, value2: string, data2: any) => {
+  const handleFilterChangeDate2 = async (value1: string, value2: string, data2: any) => {
     const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
     setFilters(updatedFilters);
 
@@ -1145,7 +1212,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     });
 
     setLoading(true);
-    const dataf = normalizeData(reportType, filtered);
+    const dataf = await  normalizeData(reportType, filtered);
     setFilteredData(dataf);
     setLoading(false);
   };
@@ -1314,7 +1381,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         <div className={styles.buttonGroup} ref={exportRef} style={{ position: "relative" }}>
           <button
             className={styles.clearButton}
-            onClick={() => {
+            onClick={async() => {
               const reset = {
                 dateStart: "",
                 dateEnd: "",
@@ -1328,7 +1395,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               setSelectedDate(null)
               setFilters(reset);
               setLoading(true);
-              const dataf = normalizeData(reportType, data);
+              const dataf = await  normalizeData(reportType, data);
 
               setFilteredData(dataf);
               setLoading(false);
