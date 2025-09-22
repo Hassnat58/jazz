@@ -18,7 +18,7 @@ import { ToastContainer, toast } from "react-toastify";
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
 import { DatePicker } from "@fluentui/react/lib/DatePicker";
-import styles from "./CaseForm.module.scss";
+import styles from "./Response.module.scss";
 import "react-toastify/dist/ReactToastify.css";
 import { ComboBox, IComboBoxOption } from "@fluentui/react/lib/ComboBox";
 
@@ -299,6 +299,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
   const submitForm = async (isDraft: boolean) => {
     const data = getValues();
     setIsSubmitting(true);
+
     const itemData: any = {
       IsDraft: isDraft,
       Status: isDraft ? "Draft" : "Pending",
@@ -346,29 +347,43 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
 
         itemId = addResult.ID;
       }
-      if (notiID) await markAsRead(notiID);
 
-      // 🔹 Upload new attachments with renamed names
-      for (const attachment of attachments) {
-        const finalFileName = attachment.isRenamed
-          ? attachment.newName
-          : attachment.originalName;
+      // 🔹 Mark as read (non-blocking)
+      if (notiID) markAsRead(notiID).catch(console.error);
 
-        const uploadResult = await sp.web.lists
-          .getByTitle("Core Data Repositories")
-          .rootFolder.files.addUsingPath(finalFileName, attachment.file, {
-            Overwrite: true,
-          });
+      // =====================================
+      // 1) Batch upload NEW attachments
+      // =====================================
+      if (attachments.length > 0) {
+        const [batchedSP, execute] = sp.batched();
 
-        const fileItem = await sp.web
-          .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
-          .getItem();
+        attachments.forEach((attachment) => {
+          const finalFileName = attachment.isRenamed
+            ? attachment.newName
+            : attachment.originalName;
 
-        await fileItem.update({
-          CorrespondenceOutId: itemId,
+          batchedSP.web.lists
+            .getByTitle("Core Data Repositories")
+            .rootFolder.files.addUsingPath(finalFileName, attachment.file, {
+              Overwrite: true,
+            })
+            .then(async (uploadResult: any) => {
+              const fileItem = await sp.web
+                .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+                .getItem();
+              return fileItem.update({ CorrespondenceOutId: itemId });
+            });
         });
+
+        await execute();
       }
-      if (notiID) {
+
+      // =====================================
+      // 2) Batch upload EXISTING attachments (from inbox)
+      // =====================================
+      if (notiID && existingAttachments.length > 0) {
+        const [batchedSP, execute] = sp.batched();
+
         for (const inboxFile of existingAttachments) {
           if (
             attachments.some(
@@ -378,8 +393,9 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
             console.log(
               `Skipping removed attachment: ${inboxFile.FileLeafRef}`
             );
-            continue; // skip this one
+            continue; // skip removed ones
           }
+
           try {
             const blob = await sp.web
               .getFileByServerRelativePath(inboxFile.FileRef2!)
@@ -389,23 +405,28 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
               ? inboxFile.newName
               : inboxFile.originalName;
 
-            const uploadResult: any = await sp.web.lists
+            batchedSP.web.lists
               .getByTitle("Core Data Repositories")
               .rootFolder.files.addUsingPath(finalFileName, blob, {
                 Overwrite: true,
+              })
+              .then(async (uploadResult: any) => {
+                const uploadedItem = await sp.web
+                  .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+                  .getItem();
+                return uploadedItem.update({ CorrespondenceOutId: itemId });
               });
-
-            const uploadedItem = await sp.web
-              .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
-              .getItem();
-
-            await uploadedItem.update({ CorrespondenceOutId: itemId });
           } catch (err) {
             console.error("Failed to copy inbox attachment", err);
           }
         }
+
+        await execute();
       }
 
+      // =====================================
+      // Success UX
+      // =====================================
       toast.success(
         isDraft ? "Draft saved successfully" : "Case submitted successfully",
         {
@@ -426,6 +447,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
     } catch (error) {
       console.error("Submit error", error);
       alert("Error submitting Correspondence Out");
+      setIsSubmitting(false);
     }
   };
 
@@ -466,10 +488,12 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           <Controller
             name="CaseNumber"
             control={control}
-            render={({ field }) => (
+            rules={{ required: "Case Number is required" }}
+            render={({ field, fieldState: { error } }) => (
               <ComboBox
                 label="Case Number"
                 options={caseOptions}
+                required
                 selectedKey={field.value}
                 onChange={(_, option) => field.onChange(option?.key)}
                 placeholder="Select Case Number"
@@ -500,6 +524,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                   },
                   input: { width: "100%" },
                 }}
+                errorMessage={error?.message}
               />
             )}
           />
@@ -510,19 +535,46 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
               name={field}
               control={control}
               render={({ field: f }) => (
-                <Dropdown
-                  key={f.value ?? "empty"}
-                  label={fieldMapping[field]}
-                  options={lovOptions[field] || []}
-                  selectedKey={f.value ?? undefined}
-                  onChange={(_, option) => {
-                    if (f.value === option?.key) {
-                      f.onChange(undefined);
-                    } else {
-                      f.onChange(option?.key as string);
-                    }
+                <div
+                  style={{
+                    position: "relative",
+                    display: "inline-block",
+                    width: "100%",
                   }}
-                />
+                >
+                  <Dropdown
+                    key={f.value ?? "empty"}
+                    label={fieldMapping[field]}
+                    options={lovOptions[field] || []}
+                    selectedKey={f.value ?? undefined}
+                    onChange={(_, option) => {
+                      if (f.value === option?.key) {
+                        f.onChange(undefined);
+                      } else {
+                        f.onChange(option?.key as string);
+                      }
+                    }}
+                  />
+                  {f.value && (
+                    <button
+                      type="button"
+                      onClick={() => f.onChange(undefined)}
+                      style={{
+                        position: "absolute",
+                        right: 20,
+                        top: "75%",
+                        transform: "translateY(-50%)",
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        fontSize: "16px",
+                        color: "#888",
+                      }}
+                    >
+                      ✖
+                    </button>
+                  )}
+                </div>
               )}
             />
           ))}
@@ -607,6 +659,8 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                     border: "1px solid #e5e7eb",
                     borderRadius: "4px",
                     backgroundColor: "#f9fafb",
+                    width: "fit-content", // ⬅️ added
+                    maxWidth: "100%", // ⬅️ optional safeguard
                   }}
                 >
                   <button
@@ -744,6 +798,8 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                     border: "1px solid #e5e7eb",
                     borderRadius: "4px",
                     backgroundColor: "#fff7ed",
+                    width: "fit-content", // ⬅️ added
+                    maxWidth: "100%", // ⬅️ optional safeguard
                   }}
                 >
                   <button

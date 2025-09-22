@@ -37,6 +37,20 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
               <strong>Correspondence Out:</strong>
             </td>
             <td>{data.CorrespondenceOut}</td>
+            <td>
+              <strong>Case Number:</strong>
+            </td>
+            <td>
+              {" "}
+              {(() => {
+                if (!data.CaseNumber) return "";
+                let prefix = "CN";
+                if (data.CaseNumber.TaxType === "Income Tax") prefix = "IT";
+                if (data.CaseNumber.TaxType === "Sales Tax") prefix = "ST";
+                const taxAuth = data.CaseNumber.TaxAuthority || "N/A";
+                return `${prefix}-${taxAuth}-${data.CaseNumber?.Id}`;
+              })()}
+            </td>
           </tr>
           <tr>
             <td>
@@ -53,6 +67,10 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
               <strong>Date of Filing:</strong>
             </td>
             <td>{data.Dateoffiling?.split("T")[0]}</td>
+            <td>
+              <strong>Entity</strong>
+            </td>
+            <td>{data.CaseNumber?.Entity}</td>
           </tr>
           <tr>
             <td>

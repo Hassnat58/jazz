@@ -64,10 +64,8 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
             <th>S.No</th>
             <th>Case No</th>
             <th>Authority</th>
-            <th>Jurisdiction</th>
             <th>Consultant</th>
             <th>Brief description</th>
-            <th>Complaint</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -85,10 +83,8 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
                   : item.Title}
               </td>
               <td>{item.TaxAuthority}</td>
-              <td>{item.Jurisdiction}</td>
               <td>{item.TaxConsultantAssigned}</td>
               <td>{item.BriefDescription}</td>
-              <td> {item.CaseStatus}</td>
               <td>
                 <Button
                   variant="outline-warning"

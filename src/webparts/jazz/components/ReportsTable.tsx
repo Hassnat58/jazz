@@ -347,7 +347,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     });
   };
 
-  const normalizeData = async(reportType: string, rawData: any[]) => {
+  const normalizeData = async (reportType: string, rawData: any[]) => {
     switch (reportType) {
       case "Litigation":
         return rawData.map((item) => ({
@@ -399,7 +399,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           // placeholders for not in object
           billingInfo: item.BilligInfo || "", // "Billing Information"
           reviewStatusLp: "Peview Pending", // "Review Status LP"
-   grossExp:item.GrossExposure || "",
+          grossExp: item.GrossExposure || "",
           inUtp: item.IsDraft ? "Draft" : "Final",
           // "In UTP"
         }));
@@ -414,7 +414,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           taxYear: item.TaxYear || "", // "Tax Year"
           DateReceived: item.DateReceived || "",
           fy: item.FinancialYear || "",
-  grossExp:item.GrossExposure || "",
+          grossExp: item.GrossExposure || "",
           // exposures (only TaxExposure exists for now)
           taxExposureScn: item.TaxExposureScn || "", // "Tax exposure SCN" (placeholder)
           taxExposureOrder: item.TaxExposureOrder || "", // "Tax exposure Order" (placeholder)
@@ -797,94 +797,89 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           previousMonthAmount: item.CashFlowExposure || 0, // Exposure Amount (PKR)
         }));
       default: // UTPData
-  const sp = spfi().using(SPFx(SpfxContext));
-    const utpIssues = await sp.web.lists
-      .getByTitle("UTP Tax Issue")
-      .items.expand("UTP")
-      .select("*,UTP/Id,UTP/Title")();
+        const sp = spfi().using(SPFx(SpfxContext));
+        const utpIssues = await sp.web.lists
+          .getByTitle("UTP Tax Issue")
+          .items.expand("UTP")
+          .select("*,UTP/Id,UTP/Title")();
 
-    const merged = rawData.flatMap((utp) => {
-      const mainRow = {
-        ...utp,
-         utpId: utp.UTPId, // exists (currently null in your data)
-          mlrClaimId: utp.GMLRID, // mapping from GMLRID
-          pendingAuthority: utp.PendingAuthority, // exists but null
-          type: utp.PaymentType, // exists but null
-          grossExposureJul: utp.GrossExposure, // only one field, reusing
-          grossExposureJun: utp.GrossExposure,
-          UTPDate: utp.UTPDate,
-          category: utp.RiskCategory, // exists
-          fy: utp.FinancialYear, // exists but null
-          taxYear: utp.TaxYear, // exists but null
-          taxAuthority: utp.TaxAuthority, // ❌ not in data (will be undefined)
-          taxType: utp.TaxType, // exists
-          entity: utp.Entity, // exists but null
+        const merged = rawData.flatMap((utp) => {
+          const mainRow = {
+            ...utp,
+            utpId: utp.UTPId, // exists (currently null in your data)
+            mlrClaimId: utp.GMLRID, // mapping from GMLRID
+            pendingAuthority: utp.PendingAuthority, // exists but null
+            type: utp.PaymentType, // exists but null
+            grossExposureJul: utp.GrossExposure, // only one field, reusing
+            grossExposureJun: utp.GrossExposure,
+            UTPDate: utp.UTPDate,
+            category: utp.RiskCategory, // exists
+            fy: utp.FinancialYear, // exists but null
+            taxYear: utp.TaxYear, // exists but null
+            taxAuthority: utp.TaxAuthority, // ❌ not in data (will be undefined)
+            taxType: utp.TaxType, // exists
+            entity: utp.Entity, // exists but null
 
-          varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
-          grossExposureMay: utp.GrossExposure,
-          grossExposureApr: utp.GrossExposure,
-          arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
-          contingencyNote: utp.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
-          briefDescription: utp.Description, // exists but null
-          provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
-          provisionGrsCode: utp.GRSCode, // exists
-          paymentUnderProtest: utp.Paymentunderprotest, // exists but null (note lowercase "u")
-          paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
-          utpPaperCategory: utp.UTPPaperCategory, // exists but null
-          provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
-      
-        utpIdDisplay: utp.Id,
-        utpIssue: "",
-      };
+            varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
+            grossExposureMay: utp.GrossExposure,
+            grossExposureApr: utp.GrossExposure,
+            arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
+            contingencyNote: utp.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
+            briefDescription: utp.Description, // exists but null
+            provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
+            provisionGrsCode: utp.GRSCode, // exists
+            paymentUnderProtest: utp.Paymentunderprotest, // exists but null (note lowercase "u")
+            paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
+            utpPaperCategory: utp.UTPPaperCategory, // exists but null
+            provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
 
-      const relatedIssues = utpIssues.filter(
-        (issue) => issue.UTPId=== utp.Id
-      );
+            utpIdDisplay: utp.Id,
+            utpIssue: "",
+          };
 
-      if (relatedIssues.length === 0) return [mainRow];
+          const relatedIssues = utpIssues.filter(
+            (issue) => issue.UTPId === utp.Id
+          );
 
-      const issueRows = relatedIssues.map((issue, index) => ({
-        ...utp,
-         utpId: `${utp.UTPId}-${String.fromCharCode(97 + index)}`, // exists (currently null in your data)
-          mlrClaimId: utp.GMLRID, // mapping from GMLRID
-          pendingAuthority: utp.PendingAuthority, // exists but null
-          type: utp.PaymentType, // exists but null
-          grossExposureJul: utp.GrossExposure, // only one field, reusing
-         grossExposureJun: issue.GrossTaxExposure ?? utp.GrossExposure,
-          UTPDate: utp.UTPDate,
-          category: issue.RiskCategory ?? utp.RiskCategory,
-          fy: utp.FinancialYear, // exists but null
-          taxYear: utp.TaxYear, // exists but null
-          taxAuthority: utp.TaxAuthority, // ❌ not in data (will be undefined)
-          taxType: utp.TaxType, // exists
-          entity: utp.Entity, // exists but null
+          if (relatedIssues.length === 0) return [mainRow];
 
-          varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
-          grossExposureMay: utp.GrossExposure,
-          grossExposureApr: utp.GrossExposure,
-          arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
-         
-        contingencyNote: issue.ContingencyNote ?? utp.ContingencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
-          briefDescription: utp.Description, // exists but null
-          provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
-          provisionGrsCode: utp.GRSCode, // exists
-          paymentUnderProtest: utp.Paymentunderprotest, // exists but null (note lowercase "u")
-          paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
-          utpPaperCategory: utp.UTPPaperCategory, // exists but null
-          provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
-      
-        
-      
-      
-        utpIssue: issue.Title ?? "",
-      }));
+          const issueRows = relatedIssues.map((issue, index) => ({
+            ...utp,
+            utpId: `${utp.UTPId}-${String.fromCharCode(97 + index)}`, // exists (currently null in your data)
+            mlrClaimId: utp.GMLRID, // mapping from GMLRID
+            pendingAuthority: utp.PendingAuthority, // exists but null
+            type: utp.PaymentType, // exists but null
+            grossExposureJul: utp.GrossExposure, // only one field, reusing
+            grossExposureJun: issue.GrossTaxExposure ?? utp.GrossExposure,
+            UTPDate: utp.UTPDate,
+            category: issue.RiskCategory ?? utp.RiskCategory,
+            fy: utp.FinancialYear, // exists but null
+            taxYear: utp.TaxYear, // exists but null
+            taxAuthority: utp.TaxAuthority, // ❌ not in data (will be undefined)
+            taxType: utp.TaxType, // exists
+            entity: utp.Entity, // exists but null
 
-      return [mainRow, ...issueRows];
-    });
+            varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
+            grossExposureMay: utp.GrossExposure,
+            grossExposureApr: utp.GrossExposure,
+            arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
 
-    return merged;
-  
-      
+            contingencyNote: issue.ContingencyNote ?? utp.ContingencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
+            briefDescription: utp.Description, // exists but null
+            provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
+            provisionGrsCode: utp.GRSCode, // exists
+            paymentUnderProtest: utp.Paymentunderprotest, // exists but null (note lowercase "u")
+            paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
+            utpPaperCategory: utp.UTPPaperCategory, // exists but null
+            provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
+
+            utpIssue: issue.Title ?? "",
+          }));
+
+          return [mainRow, ...issueRows];
+        });
+
+        return merged;
     }
   };
 
@@ -897,7 +892,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
   const [data, setData] = useState<CaseItem[]>([]);
   const [filteredData, setFilteredData] = useState<CaseItem[]>([]);
-  
+
   const sp = spfi().using(SPFx(SpfxContext));
 
   const handleShow = (item: CaseItem) => {
@@ -929,15 +924,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         const newEnd = endUTC.toISOString().split("T")[0]; // YYYY-MM-DD
 
         handleFilterChangeDate2(newStart, newEnd, items);
-<<<<<<< HEAD
       } else {
-        items_updated = normalizeData(reportType, items);
-=======
-
-      }
-      else {
-        items_updated = await  normalizeData(reportType, items);
->>>>>>> c4f6d2fd71f845759b19a57699ab6821ed860957
+        items_updated = await normalizeData(reportType, items);
         setFilteredData(items_updated);
       }
       setData(items);
@@ -1077,7 +1065,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     });
 
     setLoading(true);
-    const dataf = await  normalizeData(reportType, filtered);
+    const dataf = await normalizeData(reportType, filtered);
     setFilteredData(dataf);
     setLoading(false);
   };
@@ -1172,15 +1160,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     setFilteredData(dataf);
     setLoading(false);
   };
-<<<<<<< HEAD
-  const handleFilterChangeDate2 = (
+  const handleFilterChangeDate2 = async (
     value1: string,
     value2: string,
     data2: any
   ) => {
-=======
-  const handleFilterChangeDate2 = async (value1: string, value2: string, data2: any) => {
->>>>>>> c4f6d2fd71f845759b19a57699ab6821ed860957
     const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
     setFilters(updatedFilters);
 
@@ -1261,7 +1245,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     });
 
     setLoading(true);
-    const dataf = await  normalizeData(reportType, filtered);
+    const dataf = await normalizeData(reportType, filtered);
     setFilteredData(dataf);
     setLoading(false);
   };
@@ -1343,7 +1327,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           <Dropdown
             label="Tax Authority"
             placeholder="Select Tax Authority"
-            options={lovOptions.TaxAuthority || []}
+            options={lovOptions["Tax Authority"] || []}
             selectedKey={filters.taxAuthority || null}
             onChange={(_, option) =>
               handleFilterChange("taxAuthority", option?.key as string)
@@ -1403,7 +1387,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           <Dropdown
             label="Category"
             placeholder="Select Category"
-            options={lovOptions.Category || []}
+            options={lovOptions["Risk Category"] || []}
             selectedKey={filters.category || null}
             onChange={(_, option) =>
               handleFilterChange("category", option?.key as string)
@@ -1433,7 +1417,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         >
           <button
             className={styles.clearButton}
-            onClick={async() => {
+            onClick={async () => {
               const reset = {
                 dateStart: "",
                 dateEnd: "",
@@ -1447,7 +1431,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               setSelectedDate(null);
               setFilters(reset);
               setLoading(true);
-              const dataf = await  normalizeData(reportType, data);
+              const dataf = await normalizeData(reportType, data);
 
               setFilteredData(dataf);
               setLoading(false);
@@ -1456,7 +1440,6 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             Clear Filters
           </button>
           <button
-            type="button"
             className={styles.exportButton}
             onClick={() => setShowExportOptions((s) => !s)}
             aria-haspopup="menu"

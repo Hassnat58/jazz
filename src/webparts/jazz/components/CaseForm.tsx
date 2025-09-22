@@ -17,6 +17,7 @@ import "@pnp/sp/items";
 import "@pnp/sp/files";
 import "@pnp/sp/folders";
 import "@pnp/sp/attachments";
+import "@pnp/sp/batching";
 import "react-datepicker/dist/react-datepicker.css";
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
@@ -24,12 +25,12 @@ import { DatePicker, IDatePicker } from "@fluentui/react/lib/DatePicker";
 import styles from "./CaseForm.module.scss";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import {
-  PeoplePicker,
-  PrincipalType,
-} from "@pnp/spfx-controls-react/lib/PeoplePicker";
+// import {
+//   PeoplePicker,
+//   PrincipalType,
+// } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import { ComboBox, IComboBox, IComboBoxOption } from "@fluentui/react";
-
+toast.configure();
 interface CaseFormProps {
   onCancel: () => void;
   onSave: (data: any) => void;
@@ -67,7 +68,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   existing,
   setExisting,
 }) => {
-  const { control, handleSubmit, reset, getValues, setValue } = useForm();
+  const { control, handleSubmit, reset, getValues, setValue } = useForm({});
   const taxType = useWatch({ control, name: "TaxType" });
   const taxAuthority = useWatch({ control, name: "TaxAuthority" });
 
@@ -83,6 +84,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
     null
   );
   const [caseSearch, setCaseSearch] = useState("");
+  const [taxConsultantOptions, setTaxConsultantOptions] = useState<any[]>([]);
+  const [lawyerOptions, setLawyerOptions] = useState<any[]>([]);
   const [tempName, setTempName] = useState<string>("");
   // const [isFinancialOpen, setIsFinancialOpen] = React.useState(false);
   const [taxIssueEntries, setTaxIssueEntries] = useState<
@@ -129,6 +132,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     "Issued By": "IssuedBy",
     "Pending Authority": "PendingAuthority",
     "Tax Consultant Assigned": "TaxConsultantAssigned",
+    "Lawyer Assigned": "LawyerAssigned0",
     "Exposure Issues": "Exposure_x0020_Issues",
     "Financial Year": "FinancialYear",
     "Tax Year": "TaxYear",
@@ -175,9 +179,39 @@ const CaseForm: React.FC<CaseFormProps> = ({
     { type: "date", label: "Hearing Date", name: "Hearingdate" },
     { type: "date", label: "Stay Expiring On", name: "StayExpiringOn" },
     { type: "dropdown", label: "Tax Consultant Assigned" },
+    { type: "dropdown", label: "Lawyer Assigned" },
     { type: "dropdown", label: "Exposure Issues" },
     { type: "input", label: "Email – Title", name: "Email" },
   ];
+  useEffect(() => {
+    (async () => {
+      const items = await sp.web.lists
+        .getByTitle("Tax Consultant")
+        .items.select("Id", "Title", "Email")();
+
+      const options = items.map((item) => ({
+        key: item.Title,
+        text: item.Title,
+        data: { email: item.Email },
+      }));
+
+      setTaxConsultantOptions(options);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const items = await sp.web.lists
+        .getByTitle("Lawyer Assigned")
+        .items.select("Id", "Title", "Email")();
+      const options = items.map((item) => ({
+        key: item.Title,
+        text: item.Title,
+        data: { email: item.Email },
+      }));
+      setLawyerOptions(options);
+    })();
+  }, []);
 
   const getYearOptions = (): IComboBoxOption[] => {
     const currentYear = new Date().getFullYear();
@@ -378,9 +412,9 @@ const CaseForm: React.FC<CaseFormProps> = ({
       let prefix = "CN";
       if (taxType === "Income Tax") prefix = "IT";
       else if (taxType === "Sales Tax") prefix = "ST";
-      // Combine
+
       return {
-        ...opt,
+        key: opt.key, // use the original case ID
         text: `${prefix}-${authority}-${opt.key}`,
       };
     });
@@ -515,16 +549,30 @@ const CaseForm: React.FC<CaseFormProps> = ({
       multilineFields.forEach(({ name }) => {
         prefilledValues[name] = selectedCase[name] || "";
       });
-      if (selectedCase.LawyerAssigned) {
-        prefilledValues["LawyerAssigned"] = {
-          Id: selectedCase.LawyerAssigned.Id,
-          Email: selectedCase.LawyerAssigned.EMail,
-          Title: selectedCase.LawyerAssigned.Title,
-        };
+      if (selectedCase.LawyerAssigned0) {
+        prefilledValues["LawyerAssigned0"] = selectedCase.LawyerAssigned0;
+      }
+      if (selectedCase.TaxConsultantAssigned) {
+        prefilledValues["TaxConsultantAssigned"] =
+          selectedCase.TaxConsultantAssigned;
+
+        // Also set ConsultantEmail automatically
+        if (selectedCase.ConsultantEmail) {
+          prefilledValues["ConsultantEmail"] = selectedCase.ConsultantEmail;
+        }
       }
 
-      prefilledValues["CaseNumber"] = selectedCase["ID"] || "";
-      prefilledValues["ParentCaseId"] = selectedCase["ParentCaseId"] || "";
+      prefilledValues["CaseNumber"] = selectedCase["Id"] || "";
+      prefilledValues["ParentCaseId"] =
+        (
+          selectedCase.ParentCaseId || selectedCase.ParentCase?.Id
+        )?.toString() || "";
+
+      console.log("ParentCaseId:", selectedCase.ParentCaseId);
+      console.log(
+        "Available keys:",
+        caseNumberOptions.map((o) => o.key)
+      );
 
       reset(prefilledValues);
       loadExistingAttachments();
@@ -585,10 +633,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
     setIsSubmitting(true);
     const data = getValues();
 
-    // DEBUG: Check LawyerAssigned data
-    console.log("Form data LawyerAssigned:", data.LawyerAssigned);
-    console.log("Selected case LawyerAssigned:", selectedCase?.LawyerAssigned);
-
     // Clean data object to remove any ID fields
     const cleanData = { ...data };
     delete cleanData.ID;
@@ -597,10 +641,43 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     const prefix = getCaseNumberPrefix();
 
+    // Pre-calculate gross exposure before creating case
+    const grossExposures = taxIssueEntries.map(
+      (entry) => entry.grossTaxExposure || 0
+    );
+    const totalGrossExposure =
+      grossExposures.length === 1
+        ? grossExposures[0]
+        : grossExposures.reduce((sum, val) => sum + val, 0);
+
+    // 🔹 Title logic
+    let finalTitle: string;
+
+    if (existing) {
+      // Editing mode
+      if (cleanData.ParentCaseId) {
+        // Use Parent Case formatted title
+        const parentCase = casesOptions.find(
+          (opt) => opt.key.toString() === cleanData.ParentCaseId.toString()
+        );
+        finalTitle = parentCase
+          ? parentCase.text
+          : `${prefix}${nextCaseNumber}`;
+      } else {
+        // No parent → fallback to current prefix + nextId
+        finalTitle = `${prefix}${nextCaseNumber}`;
+      }
+    } else {
+      // New case
+      finalTitle = `${prefix}${nextCaseNumber}`;
+    }
+
     const itemData: any = {
-      Title: `${prefix}${nextCaseNumber}`,
+      Title: finalTitle,
       IsDraft: isDraft,
-      CaseStatus: isDraft ? "Draft" : "Active",
+      CaseStatus: isDraft ? "Draft" : "Pending",
+      ApprovalStatus: isDraft ? "" : "Pending",
+      GrossExposure: totalGrossExposure,
       ParentCaseId: existing
         ? cleanData.ParentCaseId
           ? Number(cleanData.ParentCaseId)
@@ -620,93 +697,67 @@ const CaseForm: React.FC<CaseFormProps> = ({
           : value?.text || value?.Value || value?.toString?.() || "";
     });
 
-    // inputs - ensure string values
+    // inputs
     inputFields.forEach(({ name }) => {
       itemData[name] = cleanData[name]?.toString() || "";
     });
 
-    // dates - handle null/empty values properly
+    // dates
     dateFields.forEach(({ name }) => {
-      const key = name as keyof typeof cleanData;
-      const val = cleanData[key];
+      const val = cleanData[name as keyof typeof cleanData];
       if (val instanceof Date && !isNaN(val.getTime())) {
-        itemData[key] = val.toISOString();
+        itemData[name] = val.toISOString();
       } else if (typeof val === "string" && val.trim() !== "") {
         const parsed = new Date(val);
-        itemData[key] = isNaN(parsed.getTime()) ? null : parsed.toISOString();
+        itemData[name] = isNaN(parsed.getTime()) ? null : parsed.toISOString();
       } else {
-        itemData[key] = null; // Explicitly set to null for empty dates
+        itemData[name] = null;
       }
     });
 
-    // multiline - ensure string values
+    // multiline
     multilineFields.forEach(({ name }) => {
       itemData[name] = cleanData[name]?.toString() || "";
     });
 
-    // FIXED: Handle LawyerAssignedId - Better error handling and debugging
-    if (cleanData.LawyerAssigned) {
-      console.log("Processing LawyerAssigned:", cleanData.LawyerAssigned);
-
-      if (cleanData.LawyerAssigned.Id) {
-        itemData.LawyerAssignedId = Number(cleanData.LawyerAssigned.Id);
-        console.log("Set LawyerAssignedId to:", itemData.LawyerAssignedId);
-      } else if (cleanData.LawyerAssigned.id) {
-        // Sometimes the ID might be lowercase
-        itemData.LawyerAssignedId = Number(cleanData.LawyerAssigned.id);
-        console.log(
-          "Set LawyerAssignedId to (lowercase):",
-          itemData.LawyerAssignedId
-        );
-      } else {
-        console.log(
-          "LawyerAssigned object exists but no Id found:",
-          cleanData.LawyerAssigned
-        );
-        itemData.LawyerAssignedId = null;
-      }
-    } else {
-      console.log("No LawyerAssigned data found");
-      itemData.LawyerAssignedId = null;
-    }
-
-    // Remove any possible ID fields
+    itemData["ConsultantEmail"] = cleanData["ConsultantEmail"] || "";
+    itemData["LawyerEmail"] = cleanData["LawyerEmail"] || "";
     delete itemData.ID;
     delete itemData.Id;
     delete itemData.id;
 
     try {
-      console.log("Submitting itemData:", itemData);
-
       const finalPayload = {
         ...itemData,
         LinkedNotificationIDId: notiID ? Number(notiID) : null,
       };
 
-      console.log("Final payload:", JSON.stringify(finalPayload, null, 2));
-
-      // Create the main case item
+      // Create
       const addResult = await sp.web.lists
         .getByTitle("Cases")
         .items.add(finalPayload);
 
-      if (notiID) await markAsRead(notiID);
-
       const itemId = addResult.ID;
-      console.log("New item created with ID:", itemId);
 
-      // Save tax issues
-      for (const entry of taxIssueEntries) {
-        await sp.web.lists.getByTitle("Tax Issues").items.add({
-          Title: entry.taxIssue,
-          AmountContested: entry.amountContested,
-          Rate: entry.rate,
-          GrossTaxExposure: entry.grossTaxExposure,
-          CaseId: itemId,
+      // Run markAsRead in background (non-blocking)
+      if (notiID) markAsRead(notiID).catch(console.error);
+
+      // 🔹 Batch add Tax Issues
+      if (taxIssueEntries.length > 0) {
+        const [batchedSP, execute] = sp.batched();
+        taxIssueEntries.forEach((entry) => {
+          batchedSP.web.lists.getByTitle("Tax Issues").items.add({
+            Title: entry.taxIssue,
+            AmountContested: entry.amountContested,
+            Rate: entry.rate,
+            GrossTaxExposure: entry.grossTaxExposure,
+            CaseId: itemId,
+          });
         });
+        await execute();
       }
 
-      // Upload NEW attachments
+      // 🔹 Process new attachments in parallel
       const attachmentPromises = attachments.map(async (attachment) => {
         const finalFileName = attachment.isRenamed
           ? attachment.newName
@@ -722,104 +773,42 @@ const CaseForm: React.FC<CaseFormProps> = ({
           .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
           .getItem();
 
-        await fileItem.update({
-          CaseId: itemId,
-        });
+        return fileItem.update({ CaseId: itemId });
       });
 
-      // FIXED: Process existing attachments from BOTH notifications AND cases
-      const existingAttachmentPromises = [];
-
-      if (notiID && existingAttachments.length > 0) {
-        // Handle notification attachments
-        console.log(
-          "Processing notification attachments:",
-          existingAttachments.length
-        );
-        for (const inboxFile of existingAttachments) {
+      // 🔹 Process existing attachments in parallel
+      const existingAttachmentPromises = existingAttachments.map(
+        async (file) => {
           try {
-            const promise = (async () => {
-              const blob = await sp.web
-                .getFileByServerRelativePath(inboxFile.FileRef2!)
-                .getBlob();
+            const blob = await sp.web
+              .getFileByServerRelativePath(file.FileRef2 || file.FileRef)
+              .getBlob();
 
-              const finalFileName = inboxFile.isRenamed
-                ? inboxFile.newName
-                : inboxFile.FileLeafRef;
+            const finalFileName = file.isRenamed
+              ? file.newName
+              : file.FileLeafRef;
 
-              const uploadResult: any = await sp.web.lists
-                .getByTitle("Core Data Repositories")
-                .rootFolder.files.addUsingPath(finalFileName, blob, {
-                  Overwrite: true,
-                });
+            const uploadResult: any = await sp.web.lists
+              .getByTitle("Core Data Repositories")
+              .rootFolder.files.addUsingPath(finalFileName, blob, {
+                Overwrite: true,
+              });
 
-              const uploadedItem = await sp.web
-                .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
-                .getItem();
-              await uploadedItem.update({ CaseId: itemId });
-            })();
-            existingAttachmentPromises.push(promise);
+            const uploadedItem = await sp.web
+              .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+              .getItem();
+
+            return uploadedItem.update({ CaseId: itemId });
           } catch (err) {
-            console.error("Failed to copy inbox attachment", err);
+            console.error("Failed to copy attachment:", err);
           }
         }
-      } else if (selectedCase?.ID && existingAttachments.length > 0) {
-        // Handle case attachments (copying from existing case)
-        console.log("Processing case attachments:", existingAttachments.length);
-        for (const caseFile of existingAttachments) {
-          try {
-            const promise = (async () => {
-              console.log("Copying file:", caseFile.FileLeafRef);
-
-              // Download the file from the existing case
-              const blob = await sp.web
-                .getFileByServerRelativePath(caseFile.FileRef)
-                .getBlob();
-
-              const finalFileName = caseFile.isRenamed
-                ? caseFile.newName
-                : caseFile.FileLeafRef;
-
-              // Upload to new case
-              const uploadResult: any = await sp.web.lists
-                .getByTitle("Core Data Repositories")
-                .rootFolder.files.addUsingPath(finalFileName, blob, {
-                  Overwrite: true,
-                });
-
-              const uploadedItem = await sp.web
-                .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
-                .getItem();
-              await uploadedItem.update({ CaseId: itemId });
-
-              console.log("Successfully copied file:", finalFileName);
-            })();
-            existingAttachmentPromises.push(promise);
-          } catch (err) {
-            console.error("Failed to copy case attachment:", err);
-          }
-        }
-      }
-
-      // Calculate total gross exposure and update
-      const grossExposures = taxIssueEntries.map(
-        (entry) => entry.grossTaxExposure || 0
       );
-      const totalGrossExposure =
-        grossExposures.length === 1
-          ? grossExposures[0]
-          : grossExposures.reduce((sum, val) => sum + val, 0);
 
-      await sp.web.lists.getByTitle("Cases").items.getById(itemId).update({
-        GrossExposure: totalGrossExposure,
-      });
-
-      // Wait for all attachments to be processed
+      // Wait for all attachments together
       await Promise.all([...attachmentPromises, ...existingAttachmentPromises]);
-      console.log("All attachments processed successfully");
 
-      loadCasesData;
-      setExisting(false);
+      // Success
       toast.success(
         isDraft ? "Draft saved successfully" : "Case submitted successfully",
         {
@@ -831,6 +820,10 @@ const CaseForm: React.FC<CaseFormProps> = ({
           },
         }
       );
+
+      // Refresh and reset form
+      loadCasesData();
+      setExisting(false);
       onSave(cleanData);
       reset();
       setAttachments([]);
@@ -839,9 +832,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       setNextCaseNumber(null);
     } catch (error) {
       console.error("Submission failed", error);
-      toast.error("Error submitting form", {
-        icon: "⚠️",
-      });
+      toast.error("Error submitting form", { icon: "⚠️" });
     } finally {
       setIsSubmitting(false);
     }
@@ -852,6 +843,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: "1rem",
   };
+
+  // const onError = (errors) => {
+  //   // ✅ show toast if form invalid
+  //   toast.error("Please fill all required fields before submitting.", {
+  //     position: "top-right",
+  //     autoClose: 3000,
+  //   });
+  // };
 
   const datePickerRef = React.useRef<IDatePicker>(null);
   const financialYear = useWatch({ control, name: "FinancialYear" });
@@ -870,6 +869,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   const financialComboRef = React.useRef<IComboBox>(null);
   const taxComboRef = React.useRef<IComboBox>(null);
+  const requiredFields = ["Tax Type", "Tax Authority", "Entity"];
 
   return (
     <>
@@ -878,31 +878,37 @@ const CaseForm: React.FC<CaseFormProps> = ({
         style={{ marginTop: 0 }}
       >
         <div className={styles.topbuttongroup}>
-          <button
-            className={styles.cancelbtn}
-            type="button"
-            onClick={() => {
-              setNextCaseNumber(null);
-              onCancel();
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            className={styles.draftbtn}
-            type="button"
-            onClick={() => submitForm(true)}
-            disabled={isSubmitting}
-          >
-            Save as Draft
-          </button>
-          <button
-            className={styles.savebtn}
-            type="submit"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Submitting..." : "Submit"}
-          </button>
+          <div className={styles.selectedCaseTitle}>
+            {selectedCase?.Title || ""}
+          </div>
+
+          <div className={styles.buttonGroup}>
+            <button
+              className={styles.cancelbtn}
+              type="button"
+              onClick={() => {
+                setNextCaseNumber(null);
+                onCancel();
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className={styles.draftbtn}
+              type="button"
+              onClick={() => submitForm(true)}
+              disabled={isSubmitting}
+            >
+              Save as Draft
+            </button>
+            <button
+              className={styles.savebtn}
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : "Submit"}
+            </button>
+          </div>
         </div>
 
         <div style={formStyle}>
@@ -921,28 +927,17 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 />
               ) : (
                 <Controller
-                  key="CaseNumber"
                   name="ParentCaseId"
                   control={control}
-                  render={({ field: f }) => (
+                  render={({ field: f, fieldState }) => (
                     <ComboBox
-                      label="Case Number"
+                      label="Parent Case (If any)"
                       options={caseNumberOptions}
-                      required={true}
-                      selectedKey={f.value?.toString() ?? ""}
-                      onChange={(_, option) => {
-                        // if already selected and user clicks same option again → clear
-                        if (f.value === option?.key) {
-                          f.onChange(undefined);
-                        } else {
-                          f.onChange(option?.key as string);
-                        }
-                      }}
-                      placeholder={`Type to search case number (e.g. ${getCaseNumberPrefix()}15)`}
+                      selectedKey={f.value ?? ""}
+                      onChange={(_, option) => f.onChange(option?.key ?? "")}
+                      placeholder={`Type to search case number (e.g. ${getCaseNumberPrefix()}1234)`}
                       allowFreeform
-                      onInputValueChange={(text) => {
-                        setCaseSearch(text || "");
-                      }}
+                      onInputValueChange={(text) => setCaseSearch(text || "")}
                       openOnKeyboardFocus
                       useComboBoxAsMenuWidth
                       autoComplete="on"
@@ -951,7 +946,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                         container: { width: "100%" },
                         callout: {
                           width: "100%",
-                          maxHeight: 5 * 36, // ~5 visible items
+                          maxHeight: 5 * 36,
                           overflowY: "auto",
                         },
                         optionsContainerWrapper: {
@@ -960,6 +955,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                         },
                         input: { width: "100%" },
                       }}
+                      errorMessage={fieldState?.error?.message}
                     />
                   )}
                 />
@@ -1051,14 +1047,12 @@ const CaseForm: React.FC<CaseFormProps> = ({
                         onInputValueChange={handleTaxYearInputChange}
                         useComboBoxAsMenuWidth
                         onChange={(_, option) => {
-                          // if already selected and user clicks same option again → clear
                           if (f.value === option?.key) {
                             f.onChange(undefined);
                           } else {
                             f.onChange(option?.key as string);
                           }
                         }}
-                        // onChange={(_, o) => f.onChange(o?.text)}
                         placeholder="Select Tax Year"
                         styles={{
                           root: { width: "100%" },
@@ -1079,27 +1073,118 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   />
                 );
               }
+              if (field.label === "Tax Consultant Assigned") {
+                const internalName = fieldMapping[field.label];
+                if (!internalName) return null;
+
+                return (
+                  <Controller
+                    name={internalName}
+                    control={control}
+                    render={({ field: f }) => (
+                      <Dropdown
+                        label={field.label}
+                        options={taxConsultantOptions}
+                        selectedKey={f.value ?? undefined}
+                        onChange={(_, option) => {
+                          f.onChange(option?.key as string);
+                          setValue(
+                            "ConsultantEmail",
+                            option?.data?.email || ""
+                          );
+                        }}
+                        placeholder="Select Tax Consultant"
+                      />
+                    )}
+                  />
+                );
+              }
+
+              if (field.label === "Lawyer Assigned") {
+                const internalName = fieldMapping[field.label];
+                if (!internalName) return null;
+
+                return (
+                  <Controller
+                    name={internalName}
+                    control={control}
+                    render={({ field: f }) => (
+                      <Dropdown
+                        label={field.label}
+                        options={lawyerOptions}
+                        selectedKey={f.value ?? undefined}
+                        onChange={(_, option) => {
+                          f.onChange(option?.key as string);
+                          setValue("LawyerEmail", option?.data?.email || "");
+                        }}
+                        placeholder="Select Lawyer Assigned"
+                      />
+                    )}
+                  />
+                );
+              }
 
               return (
                 <Controller
                   name={internalName}
                   control={control}
-                  render={({ field: f }) => (
-                    <Dropdown
-                      key={f.value ?? "empty"}
-                      label={field.label}
-                      options={lovOptions[field.label] || []}
-                      selectedKey={f.value ?? undefined}
-                      onChange={(_, option) => {
-                        if (f.value === option?.key) {
-                          f.onChange(undefined);
-                        } else {
-                          f.onChange(option?.key as string);
-                        }
-                      }}
-                      placeholder={`Select ${field.label}`}
-                    />
-                  )}
+                  rules={
+                    requiredFields.includes(field.label)
+                      ? { required: `${field.label} is required` }
+                      : {}
+                  }
+                  render={({ field: f, fieldState: { error } }) => {
+                    const isRequired = requiredFields.includes(field.label);
+                    const labelWithStar = isRequired
+                      ? `${field.label} *`
+                      : field.label;
+
+                    return (
+                      <div
+                        style={{
+                          position: "relative",
+                          display: "inline-block",
+                          width: "100%",
+                        }}
+                      >
+                        <Dropdown
+                          key={f.value ?? "empty"}
+                          label={labelWithStar}
+                          options={lovOptions[field.label] || []}
+                          selectedKey={f.value ?? undefined}
+                          onChange={(_, option) => {
+                            if (f.value === option?.key) {
+                              f.onChange(undefined);
+                            } else {
+                              f.onChange(option?.key as string);
+                            }
+                          }}
+                          placeholder={`Select ${field.label}`}
+                          errorMessage={error?.message}
+                        />
+
+                        {f.value && (
+                          <button
+                            type="button"
+                            onClick={() => f.onChange(undefined)}
+                            style={{
+                              position: "absolute",
+                              right: 20,
+                              top: "75%",
+                              transform: "translateY(-50%)",
+                              border: "none",
+                              background: "transparent",
+                              cursor: "pointer",
+                              fontSize: "16px",
+                              color: "#888",
+                            }}
+                          >
+                            ✖
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }}
                 />
               );
             }
@@ -1128,7 +1213,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
           })}
 
           {/* People Picker */}
-          <Controller
+          {/* <Controller
             name="LawyerAssigned"
             control={control}
             render={({ field }) => (
@@ -1161,7 +1246,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 />
               </div>
             )}
-          />
+          /> */}
 
           {/* Attachments */}
           <div style={{ gridColumn: "span 3" }}>
@@ -1219,6 +1304,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     border: "1px solid #e5e7eb",
                     borderRadius: "4px",
                     backgroundColor: "#f9fafb",
+                    width: "fit-content", // ⬅️ added
+                    maxWidth: "100%", // ⬅️ optional safeguard
                   }}
                 >
                   <button
@@ -1247,6 +1334,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                         alignItems: "center",
                         gap: 5,
                         flex: 1,
+                        width: "fix-",
                       }}
                     >
                       <input
@@ -1356,6 +1444,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     border: "1px solid #e5e7eb",
                     borderRadius: "4px",
                     backgroundColor: "#fff7ed",
+                    width: "fit-content", // ⬅️ added
+                    maxWidth: "100%", // ⬅️ optional safeguard
                   }}
                 >
                   <button
@@ -1550,9 +1640,12 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     ? parseFloat(numericValue)
                     : 0;
 
+                  // Convert rate to decimal before multiplying
+                  const rateAsDecimal = (updated[idx].rate || 0) / 100;
+
                   // Calculate Gross Exposure automatically
                   updated[idx].grossTaxExposure =
-                    updated[idx].amountContested * (updated[idx].rate || 0);
+                    updated[idx].amountContested * rateAsDecimal;
 
                   setTaxIssueEntries(updated);
                 }}
@@ -1571,13 +1664,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     : ""
                 }
                 onChange={(_, v) => {
+                  // Allow only numeric input
                   const numeric =
                     v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
                   const updated = [...taxIssueEntries];
                   updated[idx].rate = numeric ? parseFloat(numeric) : 0;
+                  const rateAsDecimal = (updated[idx].rate || 0) / 100;
                   updated[idx].grossTaxExposure =
-                    (updated[idx].amountContested || 0) *
-                    (updated[idx].rate || 0);
+                    (updated[idx].amountContested || 0) * rateAsDecimal;
                   setTaxIssueEntries(updated);
                 }}
               />

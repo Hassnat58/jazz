@@ -7,6 +7,7 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import { Card, Button, Alert } from "react-bootstrap";
 import { spfi, SPFx } from "@pnp/sp";
+import { Label } from "@fluentui/react";
 
 interface LOVFormProps {
   onCancel: () => void;
@@ -31,7 +32,11 @@ const LOVForm: React.FC<LOVFormProps> = ({
 
   const [_allItems, setAllItems] = useState<any[]>([]);
   const [lovValues, setLovValues] = useState<LOVValue[]>([]);
+  const [rowErrors, setRowErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{
     type: string;
@@ -54,13 +59,14 @@ const LOVForm: React.FC<LOVFormProps> = ({
         (i) => i.Title === editItem.Title && i.Form === editItem.Form
       );
 
-      setLovValues(
-        filtered.map((i) => ({
-          Id: i.Id,
-          Value: i.Value,
-          Status: i.Status,
-        }))
-      );
+      const mapped = filtered.map((i) => ({
+        Id: i.Id,
+        Value: i.Value,
+        Status: i.Status,
+      }));
+
+      setLovValues(mapped);
+      setRowErrors(mapped.map(() => "")); // reset errors
     } catch (err) {
       console.error(err);
       setSaveMessage({ type: "danger", text: "Error loading data" });
@@ -73,38 +79,84 @@ const LOVForm: React.FC<LOVFormProps> = ({
     loadData();
   }, []);
 
+  // 🔹 Split existing & new rows
+  const existingValues = lovValues.filter((v) => v.Id);
+  const newValues = lovValues.filter((v) => !v.Id);
+
+  const sortedExisting = [...existingValues]
+    .filter((v) => v.Value.toLowerCase().startsWith(searchTerm.toLowerCase()))
+    .sort((a, b) => a.Value.localeCompare(b.Value));
+
+  const filteredNewValues = newValues.filter((v) =>
+    v.Value.toLowerCase().startsWith(searchTerm.toLowerCase())
+  );
+  const displayLovValues = [...sortedExisting, ...filteredNewValues];
+
   const handleAddNewValue = () => {
+    const hasBlank = lovValues.some((v) => !v.Id && v.Value === "");
+    if (hasBlank) return;
+
     setLovValues([...lovValues, { Value: "", Status: "Active" }]);
+    setRowErrors([...rowErrors, ""]);
   };
 
-  // const handleDeleteValue = (index: number) => {
-  //   const newValues = [...lovValues];
-  //   newValues.splice(index, 1);
-  //   setLovValues(newValues);
-  // };
+  const validateDuplicate = (index: number, value: string) => {
+    const lowerVal = value.trim().toLowerCase();
+    const allValuesLower = lovValues.map((v) => v.Value.trim().toLowerCase());
+    const isDuplicate = allValuesLower.some(
+      (v, i) => i !== index && v === lowerVal
+    );
+    return isDuplicate ? "Duplicate value" : "";
+  };
 
   const handleValueChange = (
     index: number,
     field: "Value" | "Status",
     val: string
   ) => {
-    const newValues = [...lovValues];
-    newValues[index][field] = val;
-    setLovValues(newValues);
+    // index is based on displayLovValues; map back to lovValues
+    const currentItem = displayLovValues[index];
+    const globalIndex = lovValues.findIndex(
+      (lv) => lv.Id === currentItem.Id && lv.Value === currentItem.Value
+    );
+
+    if (globalIndex !== -1) {
+      const newValuesArr = [...lovValues];
+      newValuesArr[globalIndex][field] = val;
+      setLovValues(newValuesArr);
+
+      // validate duplicates on change for new values only
+      if (field === "Value" && !newValuesArr[globalIndex].Id) {
+        const err = validateDuplicate(globalIndex, val);
+        const newErrors = [...rowErrors];
+        newErrors[globalIndex] = err;
+        setRowErrors(newErrors);
+      }
+    }
   };
 
   const handleSave = async () => {
+    setErrorMessage(null);
+    setSaveMessage(null);
+
+    // check if any row error still exists
+    if (rowErrors.some((err) => err)) {
+      setErrorMessage("Please fix duplicate values before saving.");
+      return;
+    }
+
     try {
       setIsSaving(true);
+
       for (const item of lovValues) {
         if (item.Id) {
-          // update existing
+          // ✅ update only Status
           await sp.web.lists
             .getByTitle("LOVData1")
             .items.getById(item.Id)
-            .update({ Value: item.Value, Status: item.Status });
+            .update({ Status: item.Status });
         } else {
-          // add new
+          // ✅ add new
           await sp.web.lists.getByTitle("LOVData1").items.add({
             Title: editItem.Title,
             Form: editItem.Form,
@@ -113,13 +165,15 @@ const LOVForm: React.FC<LOVFormProps> = ({
           });
         }
       }
+
       setSaveMessage({ type: "success", text: "Values saved successfully!" });
       loadData();
-      if (onSaved) onSaved();
-      setIsSaving(false);
+      onSaved?.();
     } catch (err) {
       console.error(err);
       setSaveMessage({ type: "danger", text: "Error saving values" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -145,6 +199,24 @@ const LOVForm: React.FC<LOVFormProps> = ({
               {saveMessage.text}
             </Alert>
           )}
+          {errorMessage && (
+            <Alert
+              variant="danger"
+              onClose={() => setErrorMessage(null)}
+              dismissible
+            >
+              {errorMessage}
+            </Alert>
+          )}
+          <Label>Search Values:</Label>
+          <input
+            type="text"
+            className="form-control mb-3"
+            placeholder="Search values..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: "300px" }}
+          />
 
           <table className="table table-bordered">
             <thead>
@@ -155,19 +227,29 @@ const LOVForm: React.FC<LOVFormProps> = ({
               </tr>
             </thead>
             <tbody>
-              {lovValues.map((item, index) => (
+              {displayLovValues.map((item, index) => (
                 <tr key={index}>
                   <td>{index + 1}</td>
                   <td>
                     <input
                       type="text"
-                      className="form-control"
+                      className={`form-control ${
+                        !item.Id && rowErrors[index] ? "is-invalid" : ""
+                      }`}
                       value={item.Value}
                       onChange={(e) =>
                         handleValueChange(index, "Value", e.target.value)
                       }
+                      readOnly={!!item.Id} // old values read-only
+                      placeholder={item.Id ? "" : "Enter new value"}
                     />
+                    {!item.Id && rowErrors[index] && (
+                      <div className="text-danger small">
+                        {rowErrors[index]}
+                      </div>
+                    )}
                   </td>
+
                   <td>
                     <select
                       className="form-select"
@@ -183,15 +265,6 @@ const LOVForm: React.FC<LOVFormProps> = ({
                       ))}
                     </select>
                   </td>
-                  {/* <td>
-                    {/* <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDeleteValue(index)}
-                    >
-                      Delete
-                    </button> 
-                  </td> */}
                 </tr>
               ))}
             </tbody>
@@ -212,7 +285,7 @@ const LOVForm: React.FC<LOVFormProps> = ({
             <Button
               variant="primary"
               onClick={handleSave}
-              disabled={isSaving} // disable while saving
+              disabled={isSaving || rowErrors.some((err) => err)} // disable if any error
             >
               {isSaving ? (
                 <>

@@ -193,13 +193,16 @@ const TabbedTables: React.FC<{
           "CorrespondenceOut",
           "Filedthrough",
           "BriefDescription",
-          "CaseNumber/ID",
+          "CaseNumber/Id",
           "CaseNumber/Title",
           "Author/Title",
           "Editor/Title",
+          "CaseNumberId",
           "CaseNumber/TaxType",
-          "CaseNumber/TaxAuthority"
+          "CaseNumber/TaxAuthority",
+          "CaseNumber/Entity"
         )
+        .top(50)
         .expand("CaseNumber", "Author", "Editor")
         .orderBy("ID", false)();
       setCorrespondenceOutData(items);
@@ -225,9 +228,6 @@ const TabbedTables: React.FC<{
           "TaxType",
           "TaxAuthority",
           "Hearingdate",
-          "DateofCompliance",
-          "LawyerAssigned/Title",
-          "LawyerAssigned/Id",
           "GrossTaxDemanded",
           "CaseStatus",
           "Author/Title",
@@ -237,7 +237,6 @@ const TabbedTables: React.FC<{
           "ParentCase/TaxType",
           "ParentCase/TaxAuthority",
           "DateReceived",
-          "DateofCompliance",
           "StayExpiringOn",
           "DateofCompliance",
           "OrderSummary",
@@ -248,9 +247,15 @@ const TabbedTables: React.FC<{
           "IssuedBy",
           "DocumentReferenceNumber",
           "BriefDescription",
-          "TaxConsultant"
+          "TaxConsultantAssigned",
+          "ParentCaseId",
+          "ConsultantEmail",
+          "LawyerAssigned0",
+          "LawyerEmail",
+          "ApprovalStatus"
         )
-        .expand("Author", "Editor", "LawyerAssigned", "ParentCase")
+        .top(50)
+        .expand("Author", "Editor", "ParentCase")
         .orderBy("ID", false)();
       setCasesData(items);
       setFilteredData(items);
@@ -278,12 +283,15 @@ const TabbedTables: React.FC<{
           "Editor/Title",
           "UTPId",
           "TaxType",
-          "CaseNumber/ID",
+          "CaseNumberId",
+          "CaseNumber/Id",
+          "CaseNumber/Title",
           "CaseNumber/TaxType",
           "ERMCategory",
           "UTPCategory",
           "UTPDate"
         )
+        .top(50)
         .orderBy("ID", false)
         .expand("Author", "Editor", "CaseNumber")();
       setUtpData(items);
@@ -467,8 +475,8 @@ const TabbedTables: React.FC<{
       (casesPage - 1) * itemsPerPage,
       casesPage * itemsPerPage
     );
-    const handleFilterChange = (key: string, value: string) => {
-      const updatedFilters = { ...filters, [key]: value };
+    const handleFilterChange = (key: string, value: string | undefined) => {
+      const updatedFilters = { ...filters, [key]: value ?? "" };
       setFilters(updatedFilters);
 
       const filtered = casesData.filter((item) => {
@@ -504,85 +512,196 @@ const TabbedTables: React.FC<{
     return (
       <>
         <div className={styles.filtersRow}>
-          <Dropdown
-            label="Entity"
-            placeholder="Select Entity"
-            options={lovOptions.Entity || []}
-            selectedKey={filters.Entity || null}
-            onChange={(_, option) =>
-              handleFilterChange("Entity", option?.key as string)
-            }
-            styles={{ root: { minWidth: 160 } }}
-          />
+          {/* Entity */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Entity"
+              placeholder="Select Entity"
+              options={lovOptions.Entity || []}
+              selectedKey={filters.Entity || null}
+              onChange={(_, option) =>
+                handleFilterChange("Entity", option?.key as string)
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+            {filters.Entity && (
+              <button
+                type="button"
+                onClick={() => handleFilterChange("Entity", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
-          <Dropdown
-            label="Tax Type"
-            placeholder="Select Tax Type"
-            options={lovOptions["Tax Type"] || []}
-            selectedKey={filters.taxType || null}
-            onChange={(_, option) =>
-              handleFilterChange("taxType", option?.key as string)
-            }
-            styles={{ root: { minWidth: 160 } }}
-          />
-          <Dropdown
-            label="Tax Authority"
-            placeholder="Select Tax Authority"
-            options={lovOptions["Tax Authority"] || []}
-            selectedKey={filters.taxAuthority || null}
-            onChange={(_, option) =>
-              handleFilterChange("taxAuthority", option?.key as string)
-            }
-            styles={{ root: { minWidth: 160 } }}
-          />
+          {/* Tax Type */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Tax Type"
+              placeholder="Select Tax Type"
+              options={lovOptions["Tax Type"] || []}
+              selectedKey={filters.taxType || null}
+              onChange={(_, option) =>
+                handleFilterChange("taxType", option?.key as string)
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+            {filters.taxType && (
+              <button
+                type="button"
+                onClick={() => handleFilterChange("taxType", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
-          <Dropdown
-            label="Tax Year"
-            placeholder="Select Tax Year"
-            options={getTaxYearOptions()}
-            selectedKey={filters.taxYear || null}
-            onChange={(_, option) =>
-              handleFilterChange("taxYear", option?.key as string)
-            }
-            styles={{
-              root: { width: "160px" },
-              dropdown: { width: "100%" },
-              callout: {
-                width: "100%",
-                maxHeight: 5 * 36,
-                overflowY: "auto",
-              },
-              dropdownItems: {
-                maxHeight: 5 * 36,
-                overflowY: "auto",
-              },
-              title: { width: "160px" },
-            }}
-          />
+          {/* Tax Authority */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Tax Authority"
+              placeholder="Select Tax Authority"
+              options={lovOptions["Tax Authority"] || []}
+              selectedKey={filters.taxAuthority || null}
+              onChange={(_, option) =>
+                handleFilterChange("taxAuthority", option?.key as string)
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+            {filters.taxAuthority && (
+              <button
+                type="button"
+                onClick={() => handleFilterChange("taxAuthority", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
-          <Dropdown
-            label="Financial Year"
-            placeholder="Select Financial Year"
-            options={getFinancialYearOptions()}
-            selectedKey={filters.financialYear || null}
-            onChange={(_, option) =>
-              handleFilterChange("financialYear", option?.key as string)
-            }
-            styles={{
-              root: { width: "160px" },
-              dropdown: { width: "100%" },
-              callout: {
-                width: "100%",
-                maxHeight: 5 * 36,
-                overflowY: "auto",
-              },
-              dropdownItems: {
-                maxHeight: 5 * 36,
-                overflowY: "auto",
-              },
-              title: { width: "160px" },
-            }}
-          />
+          {/* Tax Year */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Tax Year"
+              placeholder="Select Tax Year"
+              options={getTaxYearOptions()}
+              selectedKey={filters.taxYear || null}
+              onChange={(_, option) =>
+                handleFilterChange("taxYear", option?.key as string)
+              }
+              styles={{
+                root: { width: "160px" },
+                dropdown: { width: "100%" },
+                callout: {
+                  width: "100%",
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                dropdownItems: {
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                title: { width: "160px" },
+              }}
+            />
+            {filters.taxYear && (
+              <button
+                type="button"
+                onClick={() => handleFilterChange("taxYear", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
+
+          {/* Financial Year */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Financial Year"
+              placeholder="Select Financial Year"
+              options={getFinancialYearOptions()}
+              selectedKey={filters.financialYear || null}
+              onChange={(_, option) =>
+                handleFilterChange("financialYear", option?.key as string)
+              }
+              styles={{
+                root: { width: "160px" },
+                dropdown: { width: "100%" },
+                callout: {
+                  width: "100%",
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                dropdownItems: {
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                title: { width: "160px" },
+              }}
+            />
+            {filters.financialYear && (
+              <button
+                type="button"
+                onClick={() => handleFilterChange("financialYear", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
           <button
             type="button"
@@ -612,6 +731,7 @@ const TabbedTables: React.FC<{
               <th>Financial Year</th>
               <th>Date of Compliance</th>
               <th>Lawyer Assigned</th>
+              <th>Approval Status</th>
               <th>Case Status</th>
               <th>Actions</th>
             </tr>
@@ -632,7 +752,8 @@ const TabbedTables: React.FC<{
                 <td>{item.DateReceived?.split("T")[0]}</td>
                 <td>{item.FinancialYear}</td>
                 <td>{item.DateofCompliance?.split("T")[0]}</td>
-                <td>{item.LawyerAssigned?.Title}</td>
+                <td>{item.LawyerAssigned0}</td>
+                <td>{item.ApprovalStatus}</td>
                 <td>
                   {item.CaseStatus && (
                     <div
@@ -715,7 +836,10 @@ const TabbedTables: React.FC<{
       return `${prefix}${taxAuth ? "-" + taxAuth : ""}${id ? "-" + id : ""}`;
     };
 
-    const handleCorrespondenceFilterChange = (key: string, value: string) => {
+    const handleCorrespondenceFilterChange = (
+      key: string,
+      value: string | undefined
+    ) => {
       const updatedFilters = { ...correspondenceFilters, [key]: value };
       setCorrespondenceFilters(updatedFilters);
 
@@ -782,35 +906,81 @@ const TabbedTables: React.FC<{
             }}
           />
 
-          {/* Tax Type */}
-          <ComboBox
-            label="Tax Type"
-            placeholder="Select Tax Type"
-            options={lovOptions["Tax Type"] || []}
-            selectedKey={correspondenceFilters.taxType || ""}
-            onChange={(_, option) => {
-              handleCorrespondenceFilterChange(
-                "taxType",
-                option?.key as string
-              );
-            }}
-            styles={{ root: { minWidth: 200 } }}
-          />
+          {/* Tax Type (ComboBox with clear button) */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <ComboBox
+              label="Tax Type"
+              placeholder="Select Tax Type"
+              options={lovOptions["Tax Type"] || []}
+              selectedKey={correspondenceFilters.taxType || ""}
+              onChange={(_, option) =>
+                handleCorrespondenceFilterChange(
+                  "taxType",
+                  option?.key as string
+                )
+              }
+              styles={{ root: { minWidth: 200 } }}
+            />
+            {correspondenceFilters.taxType && (
+              <button
+                type="button"
+                onClick={() =>
+                  handleCorrespondenceFilterChange("taxType", undefined)
+                }
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
-          {/* Tax Authority */}
-          <Dropdown
-            label="Tax Authority"
-            placeholder="Select Tax Authority"
-            options={lovOptions["Tax Authority"] || []}
-            selectedKey={correspondenceFilters.taxAuthority || null}
-            onChange={(_, option) =>
-              handleCorrespondenceFilterChange(
-                "taxAuthority",
-                option?.key as string
-              )
-            }
-            styles={{ root: { minWidth: 160 } }}
-          />
+          {/* Tax Authority (Dropdown with clear button) */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Tax Authority"
+              placeholder="Select Tax Authority"
+              options={lovOptions["Tax Authority"] || []}
+              selectedKey={correspondenceFilters.taxAuthority || null}
+              onChange={(_, option) =>
+                handleCorrespondenceFilterChange(
+                  "taxAuthority",
+                  option?.key as string
+                )
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+            {correspondenceFilters.taxAuthority && (
+              <button
+                type="button"
+                onClick={() =>
+                  handleCorrespondenceFilterChange("taxAuthority", undefined)
+                }
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
           <button
             type="button"
@@ -852,7 +1022,7 @@ const TabbedTables: React.FC<{
                     if (item.CaseNumber.TaxType === "Income Tax") prefix = "IT";
                     if (item.CaseNumber.TaxType === "Sales Tax") prefix = "ST";
                     const taxAuth = item.CaseNumber.TaxAuthority || "N/A";
-                    return `${prefix}-${taxAuth}-${item.CaseNumber?.ID}`;
+                    return `${prefix}-${taxAuth}-${item.CaseNumber?.Id}`;
                   })()}
                 </td>
 
@@ -909,7 +1079,7 @@ const TabbedTables: React.FC<{
       utpPage * itemsPerPage
     );
 
-    const handleUtpFilterChange = (key: string, value: string) => {
+    const handleUtpFilterChange = (key: string, value: string | undefined) => {
       const updatedFilters = { ...utpFilters, [key]: value };
       setUtpFilters(updatedFilters);
 
@@ -935,96 +1105,231 @@ const TabbedTables: React.FC<{
     return (
       <>
         <div className={styles.filtersRow}>
-          <Dropdown
-            label="Entity"
-            placeholder="Select Entity"
-            options={lovOptions.Entity || []}
-            selectedKey={utpFilters.entity || null}
-            onChange={(_, option) =>
-              handleUtpFilterChange("entity", option?.key as string)
-            }
-            styles={{ root: { minWidth: 160 } }}
-          />
+          {/* Entity */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Entity"
+              placeholder="Select Entity"
+              options={lovOptions.Entity || []}
+              selectedKey={utpFilters.entity || null}
+              onChange={(_, option) =>
+                handleUtpFilterChange("entity", option?.key as string)
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+            {utpFilters.entity && (
+              <button
+                type="button"
+                onClick={() => handleUtpFilterChange("entity", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
-          <Dropdown
-            label="Tax Type"
-            placeholder="Select Tax Type"
-            options={lovOptions["Tax Type"] || []}
-            selectedKey={utpFilters.taxType || null}
-            onChange={(_, option) =>
-              handleUtpFilterChange("taxType", option?.key as string)
-            }
-            styles={{ root: { minWidth: 160 } }}
-          />
-          <Dropdown
-            label="Tax Authority"
-            placeholder="Select Tax Authority"
-            options={lovOptions["Tax Authority"] || []}
-            selectedKey={utpFilters.taxAuthority || null}
-            onChange={(_, option) =>
-              handleUtpFilterChange("taxAuthority", option?.key as string)
-            }
-            styles={{ root: { minWidth: 160 } }}
-          />
+          {/* Tax Type */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Tax Type"
+              placeholder="Select Tax Type"
+              options={lovOptions["Tax Type"] || []}
+              selectedKey={utpFilters.taxType || null}
+              onChange={(_, option) =>
+                handleUtpFilterChange("taxType", option?.key as string)
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+            {utpFilters.taxType && (
+              <button
+                type="button"
+                onClick={() => handleUtpFilterChange("taxType", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
-          <Dropdown
-            label="Tax Year"
-            placeholder="Select Tax Year"
-            options={getTaxYearOptions()}
-            selectedKey={utpFilters.taxYear || null}
-            onChange={(_, option) =>
-              handleUtpFilterChange("taxYear", option?.key as string)
-            }
-            styles={{
-              root: { width: "160px" },
-              dropdown: { width: "100%" },
-              callout: {
-                width: "100%",
-                maxHeight: 5 * 36,
-                overflowY: "auto",
-              },
-              dropdownItems: {
-                maxHeight: 5 * 36,
-                overflowY: "auto",
-              },
-              title: { width: "160px" },
-            }}
-          />
+          {/* Tax Authority */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Tax Authority"
+              placeholder="Select Tax Authority"
+              options={lovOptions["Tax Authority"] || []}
+              selectedKey={utpFilters.taxAuthority || null}
+              onChange={(_, option) =>
+                handleUtpFilterChange("taxAuthority", option?.key as string)
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+            {utpFilters.taxAuthority && (
+              <button
+                type="button"
+                onClick={() => handleUtpFilterChange("taxAuthority", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
-          <Dropdown
-            label="Financial Year"
-            placeholder="Select Financial Year"
-            options={getFinancialYearOptions()}
-            selectedKey={utpFilters.financialYear || null}
-            onChange={(_, option) =>
-              handleUtpFilterChange("financialYear", option?.key as string)
-            }
-            styles={{
-              root: { width: "160px" },
-              dropdown: { width: "100%" },
-              callout: {
-                width: "100%",
-                maxHeight: 5 * 36,
-                overflowY: "auto",
-              },
-              dropdownItems: {
-                maxHeight: 5 * 36,
-                overflowY: "auto",
-              },
-              title: { width: "160px" },
-            }}
-          />
+          {/* Tax Year */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Tax Year"
+              placeholder="Select Tax Year"
+              options={getTaxYearOptions()}
+              selectedKey={utpFilters.taxYear || null}
+              onChange={(_, option) =>
+                handleUtpFilterChange("taxYear", option?.key as string)
+              }
+              styles={{
+                root: { width: "160px" },
+                dropdown: { width: "100%" },
+                callout: {
+                  width: "100%",
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                dropdownItems: {
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                title: { width: "160px" },
+              }}
+            />
+            {utpFilters.taxYear && (
+              <button
+                type="button"
+                onClick={() => handleUtpFilterChange("taxYear", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
-          <Dropdown
-            label="Category"
-            placeholder="Select Category"
-            options={lovOptions["Risk Category"] || []}
-            selectedKey={utpFilters.category || null}
-            onChange={(_, option) =>
-              handleUtpFilterChange("category", option?.key as string)
-            }
-            styles={{ root: { minWidth: 160 } }}
-          />
+          {/* Financial Year */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Financial Year"
+              placeholder="Select Financial Year"
+              options={getFinancialYearOptions()}
+              selectedKey={utpFilters.financialYear || null}
+              onChange={(_, option) =>
+                handleUtpFilterChange("financialYear", option?.key as string)
+              }
+              styles={{
+                root: { width: "160px" },
+                dropdown: { width: "100%" },
+                callout: {
+                  width: "100%",
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                dropdownItems: {
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                title: { width: "160px" },
+              }}
+            />
+            {utpFilters.financialYear && (
+              <button
+                type="button"
+                onClick={() =>
+                  handleUtpFilterChange("financialYear", undefined)
+                }
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
+
+          {/* Category */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Dropdown
+              label="Category"
+              placeholder="Select Category"
+              options={lovOptions["Risk Category"] || []}
+              selectedKey={utpFilters.category || null}
+              onChange={(_, option) =>
+                handleUtpFilterChange("category", option?.key as string)
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+            {utpFilters.category && (
+              <button
+                type="button"
+                onClick={() => handleUtpFilterChange("category", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
 
           <button
             type="button"
@@ -1175,7 +1480,7 @@ const TabbedTables: React.FC<{
             onCancel={handleCancel}
             onSave={handleSave}
             selectedCase={selectedCase}
-            loadUtpData={loadUTPData()}
+            loadUtpData={loadUTPData}
           />
         );
       }

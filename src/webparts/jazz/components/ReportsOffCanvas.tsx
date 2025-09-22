@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
 import { Offcanvas, Button } from "react-bootstrap";
 import styles from "./Reports.module.scss";
@@ -175,8 +176,6 @@ const ReportsOffCanvas: React.FC<Props> = ({ show, handleClose, caseData }) => {
                 <strong>Tax exposure Stage:</strong>
               </td>
               <td>Assessment</td>
-              <td></td>
-              <td></td>
             </tr>
           </tbody>
         </table>

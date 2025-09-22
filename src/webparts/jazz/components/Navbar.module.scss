@@ -1,6 +1,7 @@
 .navbar {
   background-color: #991c21;
   display: flex;
+  justify-content: space-between;
   align-items: center;
   padding: 10px 20px;
   color: white;
@@ -114,4 +115,20 @@
   object-fit: cover;
   cursor: pointer;
   margin-left: 10px;
+}
+.lmsHeading {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 10px;
+  color: #facc15;
+  margin-right: 30px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+}
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }

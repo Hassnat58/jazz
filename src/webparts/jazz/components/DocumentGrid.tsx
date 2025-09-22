@@ -76,7 +76,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
     try {
       const caseItems = await sp.web.lists
         .getByTitle("Cases")
-        .items.select("Id", "Title")();
+        .items.select("Id", "Title", "Taxtype", "TaxAuthority")();
 
       const utpItems = await sp.web.lists
         .getByTitle("UTPData")
@@ -119,7 +119,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
       filtered = filtered.filter(
         (d) =>
           d.Case?.Id === filters.caseId ||
-          `CN--00${d.Case?.Id}` === String(filters.caseId)
+          `CN-${d.Case?.Id}` === String(filters.caseId)
       );
     }
 
@@ -135,8 +135,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
       filtered = filtered.filter(
         (d) =>
           d.CorrespondenceOut?.Id === filters.correspondenceId ||
-          `CO--00${d.CorrespondenceOut?.Id}` ===
-            String(filters.correspondenceId)
+          `CO-${d.CorrespondenceOut?.Id}` === String(filters.correspondenceId)
       );
     }
 

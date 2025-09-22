@@ -20,7 +20,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
 import { DatePicker, IDatePicker } from "@fluentui/react/lib/DatePicker";
-import styles from "./CaseForm.module.scss";
+import styles from "./Response.module.scss";
 import "react-toastify/dist/ReactToastify.css";
 import {
   ComboBox,
@@ -208,12 +208,13 @@ const UTPForm: React.FC<UTPFormProps> = ({
       if (!selectedCaseItem) return;
 
       const taxAuth = selectedCaseItem.TaxAuthority || "N/A";
+      const taxtype = selectedCaseItem.TaxType === "Income Tax" ? "IT" : "ST";
 
       // ✅ call the safe function
       const nextId = await getNextUTPIdNumber(sp);
 
       // ✅ set form field to full preview
-      setValue("UTPId", `UTP-${taxAuth}-${nextId}`);
+      setValue("UTPId", `UTP-${taxtype}-${taxAuth}-${nextId}`);
     };
 
     fetchNextIdAndSetUTPId();
@@ -285,7 +286,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
   useEffect(() => {
     const prefillForm = async () => {
-      if (!selectedCase) return;
+      if (!selectedCase || caseOptions.length === 0) return;
 
       const prefilled: any = {};
       ["UTPCategory", "TaxType", "PaymentType", "ERMCategory"].forEach(
@@ -300,19 +301,23 @@ const UTPForm: React.FC<UTPFormProps> = ({
             ? new Date(selectedCase[name])
             : null)
       );
-      ["ContingencyNoteExists"].forEach((name) => {
-        prefilled[name] =
-          selectedCase[name] === true
-            ? true
-            : selectedCase[name] === false
-            ? false
-            : null;
-      });
+      // ["ContingencyNoteExists"].forEach((name) => {
+      //   prefilled[name] =
+      //     selectedCase[name] === true
+      //       ? true
+      //       : selectedCase[name] === false
+      //       ? false
+      //       : null;
+      // });
 
-      prefilled.CaseNumber =
-        selectedCase?.CaseNumber?.Id || selectedCase?.CaseNumberId || null;
+      prefilled.CaseNumber = selectedCase?.CaseNumberId
+        ? Number(selectedCase.CaseNumberId)
+        : selectedCase?.CaseNumber?.Id
+        ? Number(selectedCase.CaseNumber.Id)
+        : null;
       prefilled.UTPId = selectedCase?.UTPId || null;
       prefilled.GMLRID = selectedCase?.GMLRID || null;
+      prefilled.Amount = selectedCase?.Amount || null;
 
       // prefilled.PLExposure =
       //   selectedCase.PLExposure !== undefined &&
@@ -326,6 +331,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
       //     ? Number(selectedCase.EBITDAExposure)
 
       prefilled.ContigencyNote = selectedCase.ContigencyNote || "";
+      console.log("Prefilled CaseNumber:", prefilled.CaseNumber);
+      console.log("Available CaseOptions:", caseOptions);
 
       reset(prefilled);
       const files = await sp.web.lists
@@ -370,48 +377,68 @@ const UTPForm: React.FC<UTPFormProps> = ({
     };
 
     prefillForm();
-  }, [selectedCase, reset]);
+  }, [selectedCase, caseOptions]);
 
   const submitForm = async (isDraft: boolean) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+
     const data = getValues();
+
+    // helper to normalize number values
+    const toNumberOrNull = (val: any): number | null => {
+      if (
+        val === null ||
+        val === undefined ||
+        val === "" ||
+        isNaN(Number(val))
+      ) {
+        return null; // SharePoint will accept null
+      }
+      return Number(val);
+    };
+
     const itemData: any = {
       IsDraft: isDraft,
-      Status: isDraft ? "Draft" : "Open",
+      Status: isDraft ? "Draft" : "Pending",
       CaseNumberId: data.CaseNumber || null,
     };
 
-    // Dropdowns
-    ["UTPCategory", "TaxType", "PaymentType", "ERMCategory"].forEach(
+    // Dropdowns (single line text fields in your case)
+    ["UTPCategory", "TaxType", "PaymentType", "ERMCategory", "GRSCode"].forEach(
       (key) => (itemData[key] = data[key] || "")
     );
 
-    // Text fields
-    ["GRSCode", "ERMUniqueNumbering"].forEach(
+    // Text
+    ["ERMUniqueNumbering", "Amount"].forEach(
       (name) => (itemData[name] = data[name] || "")
     );
 
+    if (data.TaxType === "Income Tax") {
+      itemData.EBITDAExposure = true; // Yes
+    } else if (data.TaxType === "Sales Tax") {
+      itemData.EBITDAExposure = false; // No
+    } else {
+      itemData.EBITDAExposure = null; // leave empty if other tax type
+    }
+
     // Date
-    itemData.UTPDate = data.UTPDate ? data.UTPDate.toISOString() : null;
+    if (data.UTPDate) {
+      const dateVal =
+        data.UTPDate instanceof Date ? data.UTPDate : new Date(data.UTPDate); // normalize
 
-    // Numbers
-    // itemData.PLExposure =
-    //   data.PLExposure !== undefined && data.PLExposure !== ""
-    //     ? Number(data.PLExposure)
-    //     : null;
+      itemData.UTPDate = dateVal.toISOString();
+    } else {
+      itemData.UTPDate = null;
+    }
 
-    // itemData.EBITDAExposure = ...
-
-    // Notes
-    // itemData.ContigencyNote = data.ContigencyNote || "";
     itemData.GMLRID = data.GMLRID || "";
 
     try {
       let itemId: number;
 
       if (isDraft && selectedCase?.ID && selectedCase?.Status === "Draft") {
-        // 🔹 Update existing Draft
+        // 🔹 Update existing draft
         await sp.web.lists
           .getByTitle("UTPData")
           .items.getById(selectedCase.ID)
@@ -419,87 +446,96 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
         itemId = selectedCase.ID;
       } else {
-        // 🔹 Always create new item (Submit OR new Draft)
         const result = await sp.web.lists
           .getByTitle("UTPData")
           .items.add(itemData);
-
         itemId = result.ID;
-
-        // Update UTPId with generated ID
         const selectedCaseItem = allCases.find((c) => c.Id === data.CaseNumber);
         const taxAuth = selectedCaseItem?.TaxAuthority || "N/A";
-        await sp.web.lists
-          .getByTitle("UTPData")
-          .items.getById(itemId)
-          .update({
-            UTPId: `UTP-${taxAuth}-${itemId}`,
-          });
-        setValue("UTPId", `UTP-${taxAuth}-${itemId}`);
+        const taxtype =
+          selectedCaseItem?.TaxType === "Income Tax"
+            ? "IT"
+            : selectedCaseItem?.TaxType === "Sales Tax"
+            ? "ST"
+            : "";
+        const generatedUTPId = `UTP-${taxtype}-${taxAuth}-${itemId}`;
+
+        await sp.web.lists.getByTitle("UTPData").items.getById(itemId).update({
+          UTPId: generatedUTPId,
+        });
+
+        setValue("UTPId", generatedUTPId);
       }
 
-      // 🔹 Upload Attachments
+      // 🔹 Batch: attachments + tax issues
+      const [batchedSP, execute] = sp.batched();
+
+      // Upload new attachments
       for (const attachment of attachments) {
         const finalFileName = attachment.isRenamed
           ? attachment.newName
           : attachment.originalName;
 
-        const uploadResult = await sp.web.lists
+        batchedSP.web.lists
           .getByTitle("Core Data Repositories")
           .rootFolder.files.addUsingPath(finalFileName, attachment.file, {
             Overwrite: true,
+          })
+          .then(async (uploadResult) => {
+            const fileItem = await batchedSP.web
+              .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+              .getItem();
+            await fileItem.update({ UTPId: itemId });
           });
-
-        const fileItem = await sp.web
-          .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
-          .getItem();
-
-        await fileItem.update({
-          UTPId: itemId,
-        });
       }
 
-      // 🔹 Save Tax Issues
-      for (const entry of taxIssueEntries) {
+      // Tax Issues
+      taxIssueEntries.forEach((entry) => {
+        const amountContested = toNumberOrNull(entry.amountContested);
+        const rate = toNumberOrNull(entry.rate);
+        const grossTaxExposure = toNumberOrNull(entry.grossTaxExposure);
+
         if (entry.id && isDraft && selectedCase?.Status === "Draft") {
-          // update existing tax issue
-          await sp.web.lists
+          batchedSP.web.lists
             .getByTitle("UTP Tax Issue")
             .items.getById(entry.id)
             .update({
               Title: entry.taxIssue,
               RiskCategory: entry.RiskCategory,
               ContigencyNote: entry.contigencynote,
-              AmountContested: entry.amountContested,
-              Rate: entry.rate,
-              GrossTaxExposure: entry.grossTaxExposure,
+              AmountContested: amountContested,
+              Rate: rate,
+              GrossTaxExposure: grossTaxExposure,
             });
         } else {
-          // create new tax issue
-          await sp.web.lists.getByTitle("UTP Tax Issue").items.add({
+          batchedSP.web.lists.getByTitle("UTP Tax Issue").items.add({
             Title: entry.taxIssue,
             RiskCategory: entry.RiskCategory,
-            AmountContested: entry.amountContested,
-            Rate: entry.rate,
-            GrossTaxExposure: entry.grossTaxExposure,
+            AmountContested: amountContested,
+            Rate: rate,
+            GrossTaxExposure: grossTaxExposure,
             UTPId: itemId,
           });
         }
-      }
+      });
 
+      // Execute batch once
+      await execute();
+
+      // 🔹 Calculate Gross Exposure after batch
       const grossExposures = taxIssueEntries.map(
-        (entry) => entry.grossTaxExposure || 0
+        (entry) => toNumberOrNull(entry.grossTaxExposure) ?? 0
       );
-      const totalGrossExposure =
-        grossExposures.length === 1
-          ? grossExposures[0]
-          : grossExposures.reduce((sum, val) => sum + val, 0);
+      const totalGrossExposure = grossExposures.reduce(
+        (sum, val) => sum + val,
+        0
+      );
 
       await sp.web.lists.getByTitle("UTPData").items.getById(itemId).update({
         GrossExposure: totalGrossExposure,
       });
 
-      // 🔹 Success message
+      // Success
       toast.success(
         isDraft ? "Draft saved successfully" : "Case submitted successfully",
         {
@@ -513,20 +549,18 @@ const UTPForm: React.FC<UTPFormProps> = ({
       );
 
       onSave(data);
-      loadUtpData;
       reset();
       setAttachments([]);
       setExistingAttachments([]);
       setIsSubmitting(false);
     } catch (error) {
       console.error("Submit error", error);
-      toast.error("Error submitting form", {
-        icon: "⚠️",
-      });
+      toast.error("Error submitting form", { icon: "⚠️" });
+      setIsSubmitting(false);
     }
   };
 
-  // const riskCategory = watch("RiskCategory");
+  const PaymentType = watch("PaymentType");
 
   useEffect(() => {
     const loadDefaults = async () => {
@@ -541,7 +575,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
         reset({
           UTPId: `UTP-${nextId}`,
-          GMLRID: "",
+          UTPDate: new Date(),
         });
       }
     };
@@ -589,29 +623,69 @@ const UTPForm: React.FC<UTPFormProps> = ({
           <Controller
             name="TaxType"
             control={control}
-            render={({ field: f }) => (
-              <div>
+            rules={{ required: "Tax Type is required" }}
+            render={({ field: f, fieldState: { error } }) => (
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  width: "100%",
+                }}
+              >
                 <Dropdown
                   key={f.value ?? "empty"}
                   options={lovOptions["Tax Type"] || []}
                   selectedKey={f.value}
                   label="Tax Type"
-                  onChange={(_, o) => f.onChange(o?.key)}
+                  onChange={(_, option) => {
+                    if (f.value === option?.key) {
+                      f.onChange(undefined); // deselect when clicking same value
+                    } else {
+                      f.onChange(option?.key as string);
+                    }
+                  }}
                   placeholder="Select"
                   required
+                  styles={{
+                    dropdown: { width: "100%" },
+                  }}
+                  errorMessage={error?.message}
                 />
+
+                {/* Cross Button */}
+                {f.value && (
+                  <button
+                    type="button"
+                    onClick={() => f.onChange(undefined)}
+                    style={{
+                      position: "absolute",
+                      right: 20,
+                      top: "75%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#888",
+                    }}
+                  >
+                    ✖
+                  </button>
+                )}
               </div>
             )}
           />
+
           <Controller
             name="CaseNumber"
             control={control}
-            render={({ field }) => (
+            rules={{ required: "Case Number is required" }}
+            render={({ field, fieldState: { error } }) => (
               <ComboBox
                 label="Case Number"
                 options={caseOptions}
                 required
-                selectedKey={field.value}
+                selectedKey={field.value ? Number(field.value) : undefined}
                 onChange={(_, option) => field.onChange(option?.key)}
                 placeholder="Select Case Number"
                 allowFreeform
@@ -676,6 +750,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                   },
                   input: { width: "100%" },
                 }}
+                errorMessage={error?.message}
               />
             )}
           />
@@ -690,12 +765,12 @@ const UTPForm: React.FC<UTPFormProps> = ({
           <Controller
             name="GMLRID"
             control={control}
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <TextField
                 label="GMLR ID"
                 placeholder="Enter Value"
                 {...field}
-                required
+                errorMessage={fieldState.error?.message}
               />
             )}
           />
@@ -705,63 +780,149 @@ const UTPForm: React.FC<UTPFormProps> = ({
             name="GRSCode"
             control={control}
             render={({ field: f }) => (
-              <Dropdown
-                key={f.value ?? "empty"}
-                label="GRS Code"
-                options={lovOptions["GRS Code"] || []}
-                selectedKey={f.value ?? undefined}
-                onChange={(_, option) => {
-                  if (f.value === option?.key) {
-                    f.onChange(undefined);
-                  } else {
-                    f.onChange(option?.key as string);
-                  }
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  width: "100%",
                 }}
-                placeholder="Select"
-              />
+              >
+                <Dropdown
+                  key={f.value ?? "empty"}
+                  label="GRS Code"
+                  options={lovOptions["GRS Code"] || []}
+                  selectedKey={f.value ?? undefined}
+                  onChange={(_, option) => {
+                    if (f.value === option?.key) {
+                      f.onChange(undefined);
+                    } else {
+                      f.onChange(option?.key as string);
+                    }
+                  }}
+                  placeholder="Select"
+                />
+                {f.value && (
+                  <button
+                    type="button"
+                    onClick={() => f.onChange(undefined)}
+                    style={{
+                      position: "absolute",
+                      right: 20,
+                      top: "75%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#888",
+                    }}
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
             )}
           />
+
           <Controller
             name="UTPCategory"
             control={control}
-            render={({ field }) => (
-              <Dropdown
-                key={field.value ?? "empty"}
-                label="UTP Category"
-                options={lovOptions["UTP Category"] || []}
-                selectedKey={field.value ?? undefined}
-                onChange={(_, option) => {
-                  if (field.value === option?.key) {
-                    field.onChange(undefined);
-                  } else {
-                    field.onChange(option?.key as string);
-                  }
+            rules={{ required: "UTP Category is required" }}
+            render={({ field, fieldState: { error } }) => (
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  width: "100%",
                 }}
-                placeholder="Select"
-                required
-              />
+              >
+                <Dropdown
+                  key={field.value ?? "empty"}
+                  label="UTP Category"
+                  options={lovOptions["UTP Category"] || []}
+                  selectedKey={field.value ?? undefined}
+                  onChange={(_, option) => {
+                    if (field.value === option?.key) {
+                      field.onChange(undefined);
+                    } else {
+                      field.onChange(option?.key as string);
+                    }
+                  }}
+                  placeholder="Select"
+                  required
+                  errorMessage={error?.message}
+                />
+                {field.value && (
+                  <button
+                    type="button"
+                    onClick={() => field.onChange(undefined)}
+                    style={{
+                      position: "absolute",
+                      right: 20,
+                      top: "75%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#888",
+                    }}
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
             )}
           />
 
           <Controller
             name="ERMCategory"
             control={control}
-            render={({ field }) => (
-              <Dropdown
-                key={field.value ?? "empty"}
-                label="ERM Category"
-                options={lovOptions["ERM Category"] || []}
-                selectedKey={field.value ?? undefined}
-                onChange={(_, option) => {
-                  if (field.value === option?.key) {
-                    field.onChange(undefined);
-                  } else {
-                    field.onChange(option?.key as string);
-                  }
+            rules={{ required: "ERM Category is required" }}
+            render={({ field, fieldState: { error } }) => (
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  width: "100%",
                 }}
-                placeholder="Select"
-                required
-              />
+              >
+                <Dropdown
+                  key={field.value ?? "empty"}
+                  label="ERM Category"
+                  options={lovOptions["ERM Category"] || []}
+                  selectedKey={field.value ?? undefined}
+                  onChange={(_, option) => {
+                    if (field.value === option?.key) {
+                      field.onChange(undefined);
+                    } else {
+                      field.onChange(option?.key as string);
+                    }
+                  }}
+                  placeholder="Select"
+                  required
+                  errorMessage={error?.message}
+                />
+                {field.value && (
+                  <button
+                    type="button"
+                    onClick={() => field.onChange(undefined)}
+                    style={{
+                      position: "absolute",
+                      right: 20,
+                      top: "75%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#888",
+                    }}
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
             )}
           />
           {/* <Controller
@@ -874,31 +1035,78 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 label="ERM Unique Numbering"
                 placeholder="Enter Number"
                 {...field}
-                required
               />
             )}
           />
           <Controller
             name="PaymentType"
             control={control}
-            render={({ field }) => (
-              <Dropdown
-                key={field.value ?? "empty"}
-                label="Payment Type"
-                options={lovOptions["Payment Type"] || []}
-                selectedKey={field.value ?? undefined}
-                onChange={(_, option) => {
-                  if (field.value === option?.key) {
-                    field.onChange(undefined);
-                  } else {
-                    field.onChange(option?.key as string);
-                  }
+            rules={{ required: "Payment Type is required" }}
+            render={({ field, fieldState }) => (
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  width: "100%",
                 }}
-                placeholder="Select"
-                required
-              />
+              >
+                <Dropdown
+                  key={field.value ?? "empty"}
+                  label="Payment Type"
+                  options={lovOptions["Payment Type"] || []}
+                  selectedKey={field.value ?? undefined}
+                  onChange={(_, option) => {
+                    if (field.value === option?.key) {
+                      field.onChange(undefined);
+                    } else {
+                      field.onChange(option?.key as string);
+                    }
+                  }}
+                  placeholder="Select"
+                  required
+                  errorMessage={fieldState.error?.message}
+                />
+                {field.value && (
+                  <button
+                    type="button"
+                    onClick={() => field.onChange(undefined)}
+                    style={{
+                      position: "absolute",
+                      right: 20,
+                      top: "75%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#888",
+                    }}
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
             )}
           />
+          {PaymentType?.toLowerCase() ===
+            "payment under protest".toLowerCase() && (
+            <Controller
+              name="Amount"
+              control={control}
+              rules={{
+                required:
+                  "Amount is required when Payment Type is Payment Under Protest",
+              }}
+              render={({ field, fieldState }) => (
+                <TextField
+                  label="Amount"
+                  placeholder="Enter Amount"
+                  {...field}
+                  errorMessage={fieldState.error?.message}
+                />
+              )}
+            />
+          )}
 
           {/* Row 6 - Attachments */}
           <div style={{ gridColumn: "span 3" }}>
@@ -957,6 +1165,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     borderRadius: "4px",
                     backgroundColor: "#f9fafb",
                     width: "fit-content",
+                    maxWidth: "100%",
                   }}
                 >
                   <button
@@ -1095,6 +1304,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     border: "1px solid #e5e7eb",
                     borderRadius: "4px",
                     backgroundColor: "#fff7ed",
+                    width: "fit-content",
+                    maxWidth: "100%",
                   }}
                 >
                   <button
@@ -1229,7 +1440,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 <DatePicker
                   label="UTP Date"
                   value={field.value}
-                  isRequired={true}
                   onSelectDate={(date) => {
                     if (date) {
                       field.onChange(date);
@@ -1304,6 +1514,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
               <Dropdown
                 label="Risk Category"
                 selectedKey={entry.RiskCategory}
+                placeholder="Select Risk Category"
+                required
                 options={[
                   { key: "Probable", text: "Probable" },
                   { key: "Possible", text: "Possible" },
@@ -1340,6 +1552,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 label="Amount Contested"
                 placeholder="Enter Amount"
                 type="text"
+                required
                 styles={{ root: { flex: 1 } }}
                 value={
                   entry.amountContested !== undefined &&
@@ -1351,16 +1564,20 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     : ""
                 }
                 onChange={(_, v) => {
-                  const numeric =
+                  const numericValue =
                     v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
                   const updated = [...taxIssueEntries];
-                  updated[idx].amountContested = numeric
-                    ? parseFloat(numeric)
+                  updated[idx].amountContested = numericValue
+                    ? parseFloat(numericValue)
                     : 0;
-                  // recalc Gross Exposure
+
+                  // Convert rate to decimal before multiplying
+                  const rateAsDecimal = (updated[idx].rate || 0) / 100;
+
+                  // Calculate Gross Exposure automatically
                   updated[idx].grossTaxExposure =
-                    (updated[idx].amountContested || 0) *
-                    (updated[idx].rate || 0);
+                    updated[idx].amountContested * rateAsDecimal;
+
                   setTaxIssueEntries(updated);
                 }}
               />
@@ -1370,6 +1587,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 label="Rate"
                 placeholder="Enter Rate"
                 type="text"
+                required
                 suffix="%"
                 styles={{ root: { flex: 1 } }}
                 value={
@@ -1378,28 +1596,37 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     : ""
                 }
                 onChange={(_, v) => {
-                  // only numeric input
+                  // Allow only numeric input
                   const numeric =
                     v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
                   const updated = [...taxIssueEntries];
+
+                  // Save as percentage value
                   updated[idx].rate = numeric ? parseFloat(numeric) : 0;
 
-                  // recalc Gross Exposure
+                  // ✅ Calculate grossTaxExposure using % (divide by 100)
+                  const rateAsDecimal = (updated[idx].rate || 0) / 100;
                   updated[idx].grossTaxExposure =
-                    (updated[idx].amountContested || 0) *
-                    (updated[idx].rate || 0);
+                    (updated[idx].amountContested || 0) * rateAsDecimal;
+
                   setTaxIssueEntries(updated);
                 }}
               />
 
               {/* Gross Tax Exposure */}
+              {/* Gross Tax Exposure */}
               <TextField
                 label="Gross Tax Exposure"
                 readOnly
-                value={entry.grossTaxExposure.toLocaleString("en-US", {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 2,
-                })}
+                value={
+                  entry.grossTaxExposure !== undefined &&
+                  entry.grossTaxExposure !== null
+                    ? new Intl.NumberFormat("en-US", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2,
+                      }).format(entry.grossTaxExposure)
+                    : ""
+                }
               />
 
               {/* Remove Button */}

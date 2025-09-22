@@ -1,27 +1,15 @@
 .topbuttongroup {
   display: flex;
-  justify-content: space-between; /* Title left, buttons right */
+  justify-content: flex-end;
   align-items: center;
+  gap: 10px;
   padding: 16px;
   position: sticky;
   top: 0;
   background-color: #fff;
   z-index: 10;
 }
-.selectedCaseTitle {
-  font-size: 14px;
-  font-weight: 600;
-  color: #444;
-  min-height: 20px;
-  flex: 1;
-}
 
-.buttonGroup {
-  display: flex;
-  gap: 12px;
-}
-
-/* Cancel Button */
 .cancelbtn {
   background-color: #aaa;
   color: #fff;
@@ -32,10 +20,9 @@
   cursor: pointer;
 }
 .cancelbtn:hover {
-  background-color: #8a191e; /* Darker shade on hover */
+  background-color: #8a191e;
 }
 
-/* Draft Button */
 .draftbtn {
   background-color: #fff;
   color: #000;
@@ -46,10 +33,9 @@
   cursor: pointer;
 }
 .draftbtn:hover {
-  background-color: #8a191e; /* Darker shade on hover */
+  background-color: #8a191e;
 }
 
-/* Save Case Button */
 .savebtn {
   background-color: #fbbc05;
   color: #000;

@@ -4,7 +4,7 @@
 import * as React from "react";
 import styles from "./Navbar.module.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearch, faCog, faUser } from "@fortawesome/free-solid-svg-icons";
+import { faCog, faUser } from "@fortawesome/free-solid-svg-icons";
 import logo from "../assets/jazz-logo.png";
 import { spfi, SPFx } from "@pnp/sp";
 
@@ -52,18 +52,14 @@ const Navbar: React.FC<{
 
   return (
     <div className={styles.navbar}>
-      {/* Jazz logo */}
-      <img src={logo} alt="Jazz Logo" className={styles.logo} />
-
-      {/* Search box */}
-      <div className={styles.searchBar}>
-        <FontAwesomeIcon icon={faSearch} className={styles.searchIcon} />
-        <input type="text" placeholder="Search" />
+      {/* Left section: logo + heading */}
+      <div className={styles.leftSection}>
+        <img src={logo} alt="Jazz Logo" className={styles.logo} />
+        <h1 className={styles.lmsHeading}>LMS</h1>
       </div>
 
       {/* Right-side icons */}
       <div className={styles.navIcons}>
-        {/* ✅ Show user photo instead of icon */}
         {userPhoto ? (
           <img src={userPhoto} alt="User" className={styles.userPhoto} />
         ) : (
@@ -72,7 +68,11 @@ const Navbar: React.FC<{
 
         {isAdmin && (
           <div className={styles.dropdown}>
-            <button className={styles.adminBtn} onClick={toggleDropdown}>
+            <button
+              type="button"
+              className={styles.adminBtn}
+              onClick={toggleDropdown}
+            >
               ADMIN ▾
             </button>
 

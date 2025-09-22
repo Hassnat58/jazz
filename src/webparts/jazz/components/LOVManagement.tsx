@@ -32,9 +32,9 @@ const LOVManagement: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           "Parent/Value"
         )
         .expand("Parent")
-        .orderBy("ID", false)();
+        .orderBy("ID", false)(); // we still fetch ordered by ID
 
-      // distinct titles logic stays the same
+      // ✅ distinct titles logic stays exactly the same
       const seenTitles = new Set();
       const distinctItems = items.filter((item) => {
         if (seenTitles.has(item.Title)) return false;
@@ -42,11 +42,16 @@ const LOVManagement: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         return true;
       });
 
-      setLOVData(distinctItems);
+      // ✅ now sort alphabetically by Title (or Value if you prefer)
+      const sortedDistinctItems = [...distinctItems].sort(
+        (a, b) => a.Title.localeCompare(b.Title) // sort by Title
+      );
 
-      // get unique Forms
+      setLOVData(sortedDistinctItems);
+
+      // ✅ forms still derived from distinctItems
       const forms = Array.from(
-        new Set(distinctItems.map((i) => i.Form).filter(Boolean))
+        new Set(sortedDistinctItems.map((i) => i.Form).filter(Boolean))
       );
       setFormOptions(forms);
     } catch (err) {
