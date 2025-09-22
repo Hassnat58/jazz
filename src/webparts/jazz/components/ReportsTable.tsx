@@ -207,6 +207,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   const [filters, setFilters] = useState({
     dateStart: "",
     dateEnd: "",
+     dateRangeStart: "",
+    dateRangeEnd: "",
     category: "",
     financialYear: "",
     taxYear: "",
@@ -222,7 +224,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   useEffect(() => {
     showExportOptionsRef.current = showExportOptions;
   }, [showExportOptions]);
-
+ const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([
+    filters.dateRangeStart ? new Date(filters.dateRangeStart) : null,
+    filters.dateRangeEnd ? new Date(filters.dateRangeEnd) : null,
+  ]);
+  const [startDate, endDate] = dateRange;
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       // only do anything if menu is open
@@ -879,7 +885,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         utpIssue: issue.Title ?? "",
       }));
 
-      return [mainRow, ...issueRows];
+      // return [mainRow, ...issueRows];
+      return [...issueRows];
+
     });
 
     return merged;
@@ -929,15 +937,10 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         const newEnd = endUTC.toISOString().split("T")[0]; // YYYY-MM-DD
 
         handleFilterChangeDate2(newStart, newEnd, items);
-<<<<<<< HEAD
-      } else {
-        items_updated = normalizeData(reportType, items);
-=======
 
       }
       else {
         items_updated = await  normalizeData(reportType, items);
->>>>>>> c4f6d2fd71f845759b19a57699ab6821ed860957
         setFilteredData(items_updated);
       }
       setData(items);
@@ -952,6 +955,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     const reset = {
       dateStart: "",
       dateEnd: "",
+       dateRangeStart: "",
+      dateRangeEnd: "",
       category: "",
       financialYear: "",
       taxYear: "",
@@ -960,6 +965,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
       entity: "",
     };
     setSelectedDate(null);
+       setDateRange([null, null]);
     setFilters(reset);
     fetchData();
   }, [reportType]);
@@ -997,12 +1003,12 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     const filtered = data.filter((item) => {
       let dateMatch = true;
 
-      if (updatedFilters.dateStart || updatedFilters.dateEnd) {
-        const start = updatedFilters.dateStart
-          ? normalizeDate(new Date(updatedFilters.dateStart))
+      if (updatedFilters.dateRangeStart || updatedFilters.dateRangeEnd) {
+        const start = updatedFilters.dateRangeStart
+          ? normalizeDate(new Date(updatedFilters.dateRangeStart))
           : null;
-        const end = updatedFilters.dateEnd
-          ? normalizeDate(new Date(updatedFilters.dateEnd))
+        const end = updatedFilters.dateRangeEnd
+          ? normalizeDate(new Date(updatedFilters.dateRangeEnd))
           : null;
 
         let itemDate: Date | null = null;
@@ -1172,15 +1178,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     setFilteredData(dataf);
     setLoading(false);
   };
-<<<<<<< HEAD
-  const handleFilterChangeDate2 = (
-    value1: string,
-    value2: string,
-    data2: any
-  ) => {
-=======
   const handleFilterChangeDate2 = async (value1: string, value2: string, data2: any) => {
->>>>>>> c4f6d2fd71f845759b19a57699ab6821ed860957
     const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
     setFilters(updatedFilters);
 
@@ -1292,13 +1290,63 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     onChange={(e) => handleFilterChange("dateEnd", e.target.value)}
     className={styles.filterInput}
   /> */}
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel}>Date Range</label>
+        <div className={styles.filterField}>  <label className={styles.filterLabel}>Date Range</label>
+          <DatePicker
+            selectsRange
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(update: [Date | null, Date | null]) => {
+              setDateRange(update);
+
+              const newStart = update[0]
+                ? update[0].toISOString().split("T")[0]
+                : "";
+              const newEnd = update[1]
+                ? update[1].toISOString().split("T")[0]
+                : "";
+
+              // Update state
+              setFilters((prev) => ({
+                ...prev,
+                dateRangeStart: newStart,
+                dateRangeEnd: newEnd,
+                dateStart: "",
+                dateEnd: "",
+              }));
+setSelectedDate(null);
+              // Only apply filters that actually exist
+              if (update[0]) handleFilterChange("dateRangeStart", newStart);
+              if (update[1]) handleFilterChange("dateRangeEnd", newEnd);
+
+              // If both are cleared
+              if (!update[0] && !update[1]) {
+                handleFilterChange("dateRangeStart", "");
+                handleFilterChange("dateRangeEnd", "");
+          }
+            }}
+            // isClearable
+            placeholderText="Select date range"
+            className={styles.datePickerInput} // ✅ custom height class
+            calendarClassName={styles.customCalendar}
+            dayClassName={(date) =>
+              startDate && endDate && date >= startDate && date <= endDate
+                ? `${styles.customDay} ${styles.inRange}`
+                : styles.customDay
+            }
+            isClearable={false}
+
+            
+          /></div>
+         
+          <div className={styles.filterField}><label className={styles.filterLabel}> Month and Year</label>
           <DatePicker
             selected={selectedDate}
             onChange={(date: Date | null) => {
               setSelectedDate(date);
               if (date) {
+                 const updatedFilters = { ...filters, dateRangeStart: "", dateRangeEnd: "" };
+    setFilters(updatedFilters);
+         setDateRange([null, null]);
                 const startUTC = new Date(
                   Date.UTC(date.getFullYear(), date.getMonth(), 1)
                 );
@@ -1307,6 +1355,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 );
                 const newStart = startUTC.toISOString().split("T")[0];
                 const newEnd = endUTC.toISOString().split("T")[0];
+                
                 handleFilterChangeDate(newStart, newEnd);
               } else {
                 handleFilterChangeDate("", "");
@@ -1317,6 +1366,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             className={styles.datePickerInput}
             placeholderText="Select month and year"
           />
+      
         </div>
         <Dropdown
           label="Entity"
@@ -1437,6 +1487,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               const reset = {
                 dateStart: "",
                 dateEnd: "",
+                 dateRangeStart: "",
+    dateRangeEnd: "",
                 category: "",
                 financialYear: "",
                 taxYear: "",
@@ -1444,7 +1496,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 taxAuthority: "",
                 entity: "",
               };
-              setSelectedDate(null);
+                 setDateRange([null, null]);
+    setSelectedDate(null)
               setFilters(reset);
               setLoading(true);
               const dataf = await  normalizeData(reportType, data);
@@ -1499,6 +1552,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               const reset = {
                 dateStart: "",
                 dateEnd: "",
+                 dateRangeStart: "",
+    dateRangeEnd: "",
                 category: "",
                 financialYear: "",
                 taxYear: "",
@@ -1506,7 +1561,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 taxAuthority: "",
                 entity: "",
               };
-              setSelectedDate(null);
+                 setDateRange([null, null]);
+    setSelectedDate(null)
               setFilters(reset);
               fetchData();
               // setFilteredData(dummyData);
