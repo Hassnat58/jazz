@@ -1,16 +1,9 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
-import { Offcanvas, Button, Form, Row, Col } from "react-bootstrap";
-import jazzLogo from "../assets/jazz-logo.png";
-import styles from "../components/ManagerDetailsDrawer.module.scss";
+import { Offcanvas, Button, Form } from "react-bootstrap";
 import { spfi, SPFx } from "@pnp/sp";
-import "@pnp/sp/webs";
-import "@pnp/sp/lists";
-import "@pnp/sp/items";
-import "@pnp/sp/files";
-import "@pnp/sp/folders";
-import "@pnp/sp/attachments";
+import styles from "../components/ManagerDetailsDrawer.module.scss";
+import ViewCaseOffcanvas from "./ViewCaseForm";
+import ViewUTPForm from "./ViewUTPForm";
 
 interface Props {
   show: boolean;
@@ -19,6 +12,7 @@ interface Props {
   SpfxContext: any;
   loadCasesData: any;
 }
+
 const ManagerDetailsDrawer: React.FC<Props> = ({
   show,
   onHide,
@@ -26,38 +20,47 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
   SpfxContext,
   loadCasesData,
 }) => {
-  const [decision, setDecision] = React.useState<"Approve" | "Reject">(
-    "Approve"
+  const [decision, setDecision] = React.useState<"Approved" | "Rejected">(
+    "Approved"
   );
   const [comments, setComments] = React.useState("");
   const sp = spfi().using(SPFx(SpfxContext));
 
   if (!caseData) return null;
+
   const handleSubmit = async () => {
-    if (decision === "Reject" && comments.trim() === "") {
+    if (decision === "Rejected" && comments.trim() === "") {
       alert("Please provide comments for rejection.");
       return;
     }
 
     try {
+      // pick list name dynamically
+      const listName = caseData.type === "utp" ? "UTPData" : "Cases";
+
       await sp.web.lists
-        .getByTitle("Cases")
-        .items.getById(caseData.ID)
+        .getByTitle(listName)
+        .items.getById(caseData.id)
         .update({
-          CaseStatus: decision,
-          Comments: comments || "",
-        });
+          ApprovalStatus: decision,
+          [caseData.type === "utp" ? "Status" : "CaseStatus"] : decision ,
+    [caseData.type === "utp" ? "Description" : "Comments"]: comments,    });
 
       loadCasesData();
       onHide();
+      setComments("");
+      setDecision("Approved");
       alert(
-        `Case ${decision === "Approve" ? "approved" : "rejected"} successfully.`
+        `${caseData.type === "utp" ? "UTP" : "Case"} ${
+          decision === "Approved" ? "approved" : "rejected"
+        } successfully.`
       );
     } catch (error) {
       console.error("Update failed", error);
-      alert("Error updating the case.");
+      alert("Error updating the record.");
     }
   };
+
   return (
     <Offcanvas
       className={styles.viewCaseContainer}
@@ -65,97 +68,58 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
       onHide={onHide}
       placement="end"
       backdrop={true}
-      style={{ width: "800px" }}
+      style={{ width: "900px" }}
     >
       <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 className="m-0">CN-00{caseData.ID}</h6>
-        <div className="d-flex gap-2">
-          <Button variant="warning" size="sm">
-            📄 Download PDF
-          </Button>
-          <Button variant="light" size="sm" onClick={onHide}>
-            Close
-          </Button>
-        </div>
+        <h6 className="m-0">{caseData.caseNo}</h6>
+        <Button variant="light" size="sm" onClick={onHide}>
+          Close
+        </Button>
       </div>
 
       <Offcanvas.Body className="pt-3">
-        <div className={styles.header}>
-          <img src={jazzLogo} alt="Jazz Logo" className={styles.logo} />
-          <h6 className="mt-2 fw-bold">Managers Details</h6>
-        </div>
+        
 
-        <Row className={`mt-4 mb- ${styles.custombg}`}>
-          <Col>
-            <span className="text-seconday">Authority</span>
-            <div>
-              <strong>{caseData.TaxAuthority}</strong>
-            </div>
-          </Col>
-          <Col>
-            <span className="text-seconday">Last Updated</span>
-            <div>
-              <strong>
-                {new Date(caseData.DateofCompliance)
-                  .toLocaleDateString("en-US")
-                  .replace(/\//g, "-")}
-              </strong>
-            </div>
-          </Col>
-          <Col>
-            <span className="text-seconday">Owner</span>
-            <div>
-              <b>{caseData.TaxConsultantAssigned}</b>
-            </div>
-          </Col>
-        </Row>
+    
 
-        <table className="table table-bordered small">
-          <tbody>
-            <tr>
-              <td className="text-#6C757D">
-                <strong>Tax Type:</strong>
-              </td>
-              <td>{caseData.TaxType}</td>
-              <td>
-                <strong>Consultant:</strong>
-              </td>
-              <td>{caseData.TaxConsultantAssigned}</td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Brief Description:</strong>
-              </td>
-              <td colSpan={3}>{caseData.BriefDescription}</td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Complaint:</strong>
-              </td>
-              <td colSpan={3}>{caseData.CaseStatus}</td>
-            </tr>
-          </tbody>
-        </table>
+        {/* ✅ Render respective detailed drawer inside Manager */}
+        {caseData.type === "utp" ? (
+          <ViewUTPForm
+            show={true}
+            onClose={() => {}}
+            utpData={caseData.raw}
+            attachments={caseData.raw.Attachments}
+          />
+        ) : (
+          <ViewCaseOffcanvas
+            show={true}
+            onClose={() => {}}
+            caseData={caseData.raw}
+            attachments={caseData.raw.Attachments}
+          />
+        )}
 
+        {/* ✅ Keep Approve/Reject section same */}
+        <hr />
+        <h6 className="fw-bold mt-3">Manager Decision</h6>
         <Form.Group>
           <div className="d-flex gap-3">
             <Form.Check
               label="Approve"
               name="decision"
               type="radio"
-              checked={decision === "Approve"}
-              onChange={() => setDecision("Approve")}
+              checked={decision === "Approved"}
+              onChange={() => setDecision("Approved")}
             />
             <Form.Check
               label="Reject"
               name="decision"
               type="radio"
-              checked={decision === "Reject"}
-              onChange={() => setDecision("Reject")}
+              checked={decision === "Rejected"}
+              onChange={() => setDecision("Rejected")}
             />
           </div>
         </Form.Group>
-
         <Form.Group className="mt-3">
           <Form.Label className="text-danger fw-semibold">* </Form.Label>
           Comments
@@ -168,12 +132,11 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
             onChange={(e) => setComments(e.target.value)}
           />
         </Form.Group>
-
         <div className="mt-4 d-flex justify-content-end gap-2">
           <Button variant="secondary" onClick={onHide}>
             Cancel
           </Button>
-          <Button variant="warning" onClick={() => handleSubmit()}>
+          <Button variant="warning" onClick={handleSubmit}>
             Submit
           </Button>
         </div>

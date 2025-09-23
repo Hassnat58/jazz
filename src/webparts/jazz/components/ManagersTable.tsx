@@ -16,27 +16,73 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const sp = spfi().using(SPFx(SpfxContext));
 
   const loadCasesData = async () => {
-    try {
-      const items = await sp.web.lists
-        .getByTitle("Cases")
-        .items.select(
-          "*",
-          "ID",
-          "Title",
-          "CorrespondenceType",
-          "DateReceived",
-          "FinancialYear",
-          "DateofCompliance",
-          "LawyerAssigned/Title",
-          "GrossTaxDemanded",
-          "CaseStatus",
-          "Author/Title",
-          "Editor/Title"
-        )
-        .expand("Author", "Editor", "LawyerAssigned")
-        .orderBy("ID", false)();
-      setCasesData(items);
-      console.log("Cases data:", items);
+  try {
+    // 1. Fetch Cases
+    const items = await sp.web.lists
+      .getByTitle("Cases")
+      .items.select(
+        "*",
+        "Author/Id", "Author/Title",
+        "Editor/Id", "Editor/Title",
+        "LawyerAssigned/Id", "LawyerAssigned/Title"
+      )
+      .expand("Author", "Editor", "LawyerAssigned")
+      .orderBy("ID", false)();
+
+    // 2. Fetch UTPData (only CaseNumberId, no need for deep lookup here)
+    const items2 = await sp.web.lists
+      .getByTitle("UTPData")
+      .items.select(
+        "*",
+        "Author/Id", "Author/Title",
+        "Editor/Id", "Editor/Title",
+        "CaseNumberId" // just bring the lookup ID
+      )
+      .expand("Author", "Editor")
+      .orderBy("ID", false)();
+
+    // 3. Normalize Cases
+    const normalizedCases = items.map((item: any) => ({
+      id: item.ID,
+      caseNo: item.ParentCaseId
+        ? item.TaxType === "Income Tax"
+          ? `IT-0${item.ParentCaseId}`
+          : item.TaxType === "Sales Tax"
+          ? `ST-0${item.ParentCaseId}`
+          : `CN-0${item.ParentCaseId}`
+        : item.Title,
+      authority: item.TaxAuthority,
+      jurisdiction: item.Jurisdiction,
+      consultant: item.TaxConsultantAssigned,
+      description: item.BriefDescription,
+      approvalStatus: item.ApprovalStatus ,
+      TaxType: item.TaxType,
+      type: "case",
+      raw: item,
+    }));
+
+    // 4. Normalize UTP and merge with Cases (using CaseNumberId)
+    const normalizedUTP = items2.map((item: any) => {
+      const relatedCase = items.find((c: any) => c.ID === item.CaseNumberId);
+
+      return {
+        id: item.ID,
+        caseNo: item.UTPId || item.Title,
+        authority: relatedCase?.TaxAuthority || "-",
+        jurisdiction: relatedCase?.Jurisdiction || "-",
+        TaxType: relatedCase?.TaxType || "-",
+        consultant: relatedCase?.TaxConsultantAssigned || "-",
+        description: relatedCase?.BriefDescription || item.Description || "-",
+        approvalStatus: item.ApprovalStatus|| "Pending",
+        type: "utp",
+        raw: { ...item, relatedCase },
+      };
+    });
+
+    // 5. Combine
+    setCasesData([...normalizedCases, ...normalizedUTP]);
+    console.log("Cases data sample:", items[0], items2[0]);
+
     } catch (err) {
       console.error("Error fetching data from Cases list:", err);
     }
@@ -61,35 +107,32 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>S.No</th>
+            {/* <th>S.No</th> */}
             <th>Case No</th>
             <th>Authority</th>
+            <th>Jurisdiction</th>
             <th>Consultant</th>
             <th>Brief description</th>
+            <th>Approval Status</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {paginatedData.map((item, index) => (
             <tr key={item.ID}>
-              <td>{index + 1}</td>
-              <td>
-                {item.ParentCaseId
-                  ? item.TaxType === "Income Tax"
-                    ? `IT-0${item.ParentCaseId}`
-                    : item.TaxType === "Sales Tax"
-                    ? `ST-0${item.ParentCaseId}`
-                    : `CN-0${item.ParentCaseId}`
-                  : item.Title}
-              </td>
-              <td>{item.TaxAuthority}</td>
-              <td>{item.TaxConsultantAssigned}</td>
-              <td>{item.BriefDescription}</td>
+            {/* <td>{index + 1}</td> */}
+      <td>{item.caseNo}</td>
+      <td>{item.authority}</td>
+      <td>{item.jurisdiction}</td>
+      <td>{item.consultant}</td>
+      <td>{item.description}</td>
+      <td>{item.approvalStatus}</td>
               <td>
                 <Button
                   variant="outline-warning"
                   size="sm"
-                  onClick={() => handleView(item)}
+                    onClick={() => handleView(item)} // pass original for drawer
+    
                 >
                   👁
                 </Button>
