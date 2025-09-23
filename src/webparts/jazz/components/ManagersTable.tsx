@@ -57,6 +57,7 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       description: item.BriefDescription,
       approvalStatus: item.ApprovalStatus ,
       TaxType: item.TaxType,
+       created: new Date(item.Created), 
       type: "case",
       raw: item,
     }));
@@ -75,13 +76,16 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         description: relatedCase?.BriefDescription || item.Description || "-",
         approvalStatus: item.ApprovalStatus|| "Pending",
         type: "utp",
+         created: new Date(item.Created), 
         raw: { ...item, relatedCase },
       };
     });
 
-    // 5. Combine
-    setCasesData([...normalizedCases, ...normalizedUTP]);
-    console.log("Cases data sample:", items[0], items2[0]);
+  const combined = [...normalizedCases, ...normalizedUTP].sort(
+      (a, b) => b.created.getTime() - a.created.getTime()
+    );
+
+    setCasesData(combined);
 
     } catch (err) {
       console.error("Error fetching data from Cases list:", err);
