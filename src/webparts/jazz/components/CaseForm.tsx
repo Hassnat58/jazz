@@ -187,13 +187,15 @@ const CaseForm: React.FC<CaseFormProps> = ({
     (async () => {
       const items = await sp.web.lists
         .getByTitle("Tax Consultant")
-        .items.select("Id", "Title", "Email")();
+        .items.select("Id", "Title", "Email", "Status")();
 
-      const options = items.map((item) => ({
-        key: item.Title,
-        text: item.Title,
-        data: { email: item.Email },
-      }));
+      const options = items
+        .filter((item) => item.Status === "Active")
+        .map((item) => ({
+          key: item.Title,
+          text: item.Title,
+          data: { email: item.Email },
+        }));
 
       setTaxConsultantOptions(options);
     })();
@@ -203,12 +205,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
     (async () => {
       const items = await sp.web.lists
         .getByTitle("Lawyer Assigned")
-        .items.select("Id", "Title", "Email")();
-      const options = items.map((item) => ({
-        key: item.Title,
-        text: item.Title,
-        data: { email: item.Email },
-      }));
+        .items.select("Id", "Title", "Email", "Status")();
+      const options = items
+        .filter((item) => item.Status === "Active")
+        .map((item) => ({
+          key: item.Title,
+          text: item.Title,
+          data: { email: item.Email },
+        }));
       setLawyerOptions(options);
     })();
   }, []);
@@ -339,16 +343,28 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     sp.web.lists
       .getByTitle("Cases")
-      .items.select("ID", "Title", "TaxType", "CaseStatus", "TaxAuthority")()
+      .items.select(
+        "ID",
+        "Title",
+        "TaxType",
+        "CaseStatus",
+        "TaxAuthority",
+        "ApprovalStatus"
+      )()
       .then((items) => {
-        const options: IComboBoxOption[] = items.map((item) => ({
-          key: item.ID.toString(),
-          text: item.Title,
-          data: {
-            taxType: item.TaxType,
-            taxAuthority: item.TaxAuthority,
-          },
-        }));
+        const options: IComboBoxOption[] = items
+          .filter(
+            (item) =>
+              item.CaseStatus === "Active" && item.ApprovalStatus === "Approved"
+          )
+          .map((item) => ({
+            key: item.ID.toString(),
+            text: item.Title,
+            data: {
+              taxType: item.TaxType,
+              taxAuthority: item.TaxAuthority,
+            },
+          }));
         setCasesOptions(options);
       });
   }, []);
@@ -931,7 +947,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   control={control}
                   render={({ field: f, fieldState }) => (
                     <ComboBox
-                      label="Parent Case (If any)"
+                      label="Link Case (If any)"
                       options={caseNumberOptions}
                       selectedKey={f.value ?? ""}
                       onChange={(_, option) => f.onChange(option?.key ?? "")}

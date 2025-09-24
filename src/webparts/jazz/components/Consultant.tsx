@@ -9,29 +9,27 @@ import { Card, Button, Alert } from "react-bootstrap";
 import { spfi, SPFx } from "@pnp/sp";
 import { Label } from "@fluentui/react";
 
-interface LOVFormProps {
+interface ConsultantProps {
   onCancel: () => void;
   onSaved?: () => void;
   SpfxContext: any;
-  editItem: any; // selected item
 }
 
-interface LOVValue {
+interface Consultant {
   Id?: number;
-  Value: string;
+  Title: string;
+  Email: string;
   Status: string;
 }
 
-const LOVForm: React.FC<LOVFormProps> = ({
+const Consultant: React.FC<ConsultantProps> = ({
   onCancel,
   onSaved,
   SpfxContext,
-  editItem,
 }) => {
   const sp = spfi().using(SPFx(SpfxContext));
 
-  const [_allItems, setAllItems] = useState<any[]>([]);
-  const [lovValues, setLovValues] = useState<LOVValue[]>([]);
+  const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [rowErrors, setRowErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,28 +43,23 @@ const LOVForm: React.FC<LOVFormProps> = ({
 
   const statusOptions = ["Active", "Inactive"];
 
-  // Load all items
+  // 🔹 Load Tax Consultant list data
   const loadData = async () => {
     try {
       setIsLoading(true);
       const items = await sp.web.lists
-        .getByTitle("LOVData1")
-        .items.select("Id", "Title", "Form", "Value", "Status")();
-      setAllItems(items);
+        .getByTitle("Tax Consultant")
+        .items.select("Id", "Title", "Email", "Status")();
 
-      // Load all values with same Title & Form
-      const filtered = items.filter(
-        (i) => i.Title === editItem.Title && i.Form === editItem.Form
-      );
-
-      const mapped = filtered.map((i) => ({
+      const mapped = items.map((i) => ({
         Id: i.Id,
-        Value: i.Value,
+        Title: i.Title,
+        Email: i.Email,
         Status: i.Status,
       }));
 
-      setLovValues(mapped);
-      setRowErrors(mapped.map(() => "")); // reset errors
+      setConsultants(mapped);
+      setRowErrors(mapped.map(() => ""));
     } catch (err) {
       console.error(err);
       setSaveMessage({ type: "danger", text: "Error loading data" });
@@ -79,55 +72,72 @@ const LOVForm: React.FC<LOVFormProps> = ({
     loadData();
   }, []);
 
-  // 🔹 Split existing & new rows
-  const existingValues = lovValues.filter((v) => v.Id);
-  const newValues = lovValues.filter((v) => !v.Id);
+  const existingValues = consultants.filter((c) => c.Id);
+  const newValues = consultants.filter((c) => !c.Id);
 
-  const sortedExisting = [...existingValues]
-    .filter((v) => v.Value.toLowerCase().startsWith(searchTerm.toLowerCase()))
-    .sort((a, b) => a.Value.localeCompare(b.Value));
-
-  const filteredNewValues = newValues.filter((v) =>
-    v.Value.toLowerCase().startsWith(searchTerm.toLowerCase())
+  const filteredExisting = existingValues.filter(
+    (c) =>
+      c.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.Email.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  const displayLovValues = [...sortedExisting, ...filteredNewValues];
 
-  const handleAddNewValue = () => {
-    const hasBlank = lovValues.some((v) => !v.Id && v.Value === "");
+  const filteredNewValues = newValues.filter(
+    (c) =>
+      c.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.Email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const displayConsultants = [...filteredExisting, ...filteredNewValues];
+
+  // 🔹 Add new row
+  const handleAddNewConsultant = () => {
+    const hasBlank = consultants.some(
+      (c) => !c.Id && (c.Title === "" || c.Email === "")
+    );
     if (hasBlank) return;
 
-    setLovValues([...lovValues, { Value: "", Status: "Active" }]);
+    setConsultants([
+      ...consultants,
+      { Title: "", Email: "", Status: "Active" },
+    ]);
     setRowErrors([...rowErrors, ""]);
   };
 
-  const validateDuplicate = (index: number, value: string) => {
+  // 🔹 Validate duplicate (Title + Email)
+  const validateDuplicate = (
+    field: "Title" | "Email",
+    index: number,
+    value: string
+  ) => {
     const lowerVal = value.trim().toLowerCase();
-    const allValuesLower = lovValues.map((v) => v.Value.trim().toLowerCase());
+    const allValuesLower = consultants.map((c) =>
+      (field === "Title" ? c.Title : c.Email).trim().toLowerCase()
+    );
     const isDuplicate = allValuesLower.some(
       (v, i) => i !== index && v === lowerVal
     );
-    return isDuplicate ? "Duplicate value" : "";
+
+    return isDuplicate ? `${field} already exists` : "";
   };
 
-  const handleValueChange = (
+  const handleChange = (
     index: number,
-    field: "Value" | "Status",
+    field: keyof Consultant,
     val: string
   ) => {
-    // index is based on displayLovValues; map back to lovValues
-    const currentItem = displayLovValues[index];
-    const globalIndex = lovValues.findIndex(
-      (lv) => lv.Id === currentItem.Id && lv.Value === currentItem.Value
+    const currentItem = displayConsultants[index];
+    const globalIndex = consultants.findIndex(
+      (c) => c.Id === currentItem.Id && c.Email === currentItem.Email
     );
 
     if (globalIndex !== -1) {
-      const newValuesArr = [...lovValues];
-      newValuesArr[globalIndex][field] = val;
-      setLovValues(newValuesArr);
+      const newArr = [...consultants];
+      (newArr[globalIndex] as any)[field] = val;
+      setConsultants(newArr);
 
-      // validate duplicates on change for new values only
-      if (field === "Value" && !newValuesArr[globalIndex].Id) {
-        const err = validateDuplicate(globalIndex, val);
+      // 🔹 Validate duplicates only for new items
+      if (!newArr[globalIndex].Id && (field === "Title" || field === "Email")) {
+        const err = validateDuplicate(field, globalIndex, val);
         const newErrors = [...rowErrors];
         newErrors[globalIndex] = err;
         setRowErrors(newErrors);
@@ -147,30 +157,31 @@ const LOVForm: React.FC<LOVFormProps> = ({
     try {
       setIsSaving(true);
 
-      for (const item of lovValues) {
+      for (const item of consultants) {
         if (item.Id) {
-          // ✅ update only Status
+          // ✅ Update only status
           await sp.web.lists
-            .getByTitle("LOVData1")
+            .getByTitle("Tax Consultant")
             .items.getById(item.Id)
             .update({ Status: item.Status });
         } else {
-          // ✅ add new
-          await sp.web.lists.getByTitle("LOVData1").items.add({
-            Title: editItem.Title,
-            Form: editItem.Form,
-            Value: item.Value,
+          // ✅ Add new consultant
+          if (!item.Title || !item.Email) continue;
+
+          await sp.web.lists.getByTitle("Tax Consultant").items.add({
+            Title: item.Title,
+            Email: item.Email,
             Status: item.Status,
           });
         }
       }
 
-      setSaveMessage({ type: "success", text: "Values saved successfully!" });
+      setSaveMessage({ type: "success", text: "Saved successfully!" });
       loadData();
       onSaved?.();
     } catch (err) {
       console.error(err);
-      setSaveMessage({ type: "danger", text: "Error saving values" });
+      setSaveMessage({ type: "danger", text: "Error saving data" });
     } finally {
       setIsSaving(false);
     }
@@ -182,11 +193,7 @@ const LOVForm: React.FC<LOVFormProps> = ({
     <div className="p-3">
       <Card>
         <Card.Header>
-          <h5>Edit LOV Values</h5>
-          <div>
-            <strong>Title:</strong> {editItem.Title} | <strong>Form:</strong>{" "}
-            {editItem.Form}
-          </div>
+          <h5>Manage Tax Consultants</h5>
         </Card.Header>
         <Card.Body>
           {saveMessage && (
@@ -207,11 +214,12 @@ const LOVForm: React.FC<LOVFormProps> = ({
               {errorMessage}
             </Alert>
           )}
-          <Label>Search Values:</Label>
+
+          <Label>Search:</Label>
           <input
             type="text"
             className="form-control mb-3"
-            placeholder="Search values..."
+            placeholder="Search by name or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ width: "300px" }}
@@ -221,45 +229,76 @@ const LOVForm: React.FC<LOVFormProps> = ({
             <thead>
               <tr>
                 <th>#</th>
-                <th>Value</th>
+                <th>Consultant Name</th>
+                <th>Email</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {displayLovValues.map((item, index) => (
+              {displayConsultants.map((item, index) => (
                 <tr key={index}>
                   <td>{index + 1}</td>
                   <td>
                     <input
                       type="text"
                       className={`form-control ${
-                        !item.Id && rowErrors[index] ? "is-invalid" : ""
+                        !item.Id &&
+                        rowErrors[index] &&
+                        rowErrors[index].includes("Title")
+                          ? "is-invalid"
+                          : ""
                       }`}
-                      value={item.Value}
+                      value={item.Title}
                       onChange={(e) =>
-                        handleValueChange(index, "Value", e.target.value)
+                        handleChange(index, "Title", e.target.value)
                       }
-                      readOnly={!!item.Id} // old values read-only
-                      placeholder={item.Id ? "" : "Enter new value"}
+                      readOnly={!!item.Id}
+                      placeholder="Enter consultant name"
                     />
-                    {!item.Id && rowErrors[index] && (
-                      <div className="text-danger small">
-                        {rowErrors[index]}
-                      </div>
-                    )}
+                    {!item.Id &&
+                      rowErrors[index] &&
+                      rowErrors[index].includes("Title") && (
+                        <div className="text-danger small">
+                          {rowErrors[index]}
+                        </div>
+                      )}
                   </td>
-
+                  <td>
+                    <input
+                      type="email"
+                      className={`form-control ${
+                        !item.Id &&
+                        rowErrors[index] &&
+                        rowErrors[index].includes("Email")
+                          ? "is-invalid"
+                          : ""
+                      }`}
+                      value={item.Email}
+                      onChange={(e) =>
+                        handleChange(index, "Email", e.target.value)
+                      }
+                      readOnly={!!item.Id}
+                      placeholder="Enter consultant email"
+                    />
+                    {!item.Id &&
+                      rowErrors[index] &&
+                      rowErrors[index].includes("Email") && (
+                        <div className="text-danger small">
+                          {rowErrors[index]}
+                        </div>
+                      )}
+                  </td>
                   <td>
                     <select
                       className="form-select"
                       value={item.Status}
                       onChange={(e) =>
-                        handleValueChange(index, "Status", e.target.value)
+                        handleChange(index, "Status", e.target.value)
                       }
                     >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
+                      {statusOptions.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
                         </option>
                       ))}
                     </select>
@@ -271,20 +310,20 @@ const LOVForm: React.FC<LOVFormProps> = ({
 
           <Button
             variant="outline-primary"
-            onClick={handleAddNewValue}
+            onClick={handleAddNewConsultant}
             className="mb-3"
           >
-            Add New Value
+            Add New Consultant
           </Button>
 
           <div className="d-flex justify-content-end">
-            <Button variant="secondary" onClick={onCancel} className="me-2">
+            {/* <Button variant="secondary" onClick={onCancel} className="me-2">
               Cancel
-            </Button>
+            </Button> */}
             <Button
               variant="primary"
               onClick={handleSave}
-              disabled={isSaving || rowErrors.some((err) => err)} // disable if any error
+              disabled={isSaving || rowErrors.some((err) => err)}
             >
               {isSaving ? (
                 <>
@@ -296,7 +335,7 @@ const LOVForm: React.FC<LOVFormProps> = ({
                   Saving...
                 </>
               ) : (
-                "Save Values"
+                "Save"
               )}
             </Button>
           </div>
@@ -306,4 +345,4 @@ const LOVForm: React.FC<LOVFormProps> = ({
   );
 };
 
-export default LOVForm;
+export default Consultant;

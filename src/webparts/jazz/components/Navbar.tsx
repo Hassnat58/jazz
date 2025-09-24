@@ -11,8 +11,16 @@ import { spfi, SPFx } from "@pnp/sp";
 const Navbar: React.FC<{
   onLOVManagementClick: () => void;
   onManageRoleClick: () => void;
+  onConsultantManagementClick: () => void;
+  onLawyerManagementClick: () => void;
   SpfxContext?: any;
-}> = ({ onLOVManagementClick, onManageRoleClick, SpfxContext }) => {
+}> = ({
+  onLOVManagementClick,
+  onManageRoleClick,
+  onConsultantManagementClick,
+  onLawyerManagementClick,
+  SpfxContext,
+}) => {
   const [showDropdown, setShowDropdown] = React.useState(false);
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [userPhoto, setUserPhoto] = React.useState<string | null>(null);
@@ -28,8 +36,6 @@ const Navbar: React.FC<{
         // ✅ Get user photo URL
         const photoUrl = `${SpfxContext.pageContext.web.absoluteUrl}/_layouts/15/userphoto.aspx?accountname=${currentUser.Email}&size=M`;
         setUserPhoto(photoUrl);
-
-        // ✅ Check admin role
         const roles = await sp.web.lists
           .getByTitle("Role")
           .items.filter(`Person/Id eq ${currentUser.Id}`)
@@ -104,6 +110,32 @@ const Navbar: React.FC<{
                   />
                   Manage Roles
                 </div>
+                <div
+                  className={styles["dropdown-item"]}
+                  onClick={() => {
+                    onConsultantManagementClick();
+                    setShowDropdown(false);
+                  }}
+                >
+                  <FontAwesomeIcon
+                    icon={faCog}
+                    className={styles["dropdown-icon"]}
+                  />
+                  Consultant Management
+                </div>
+                <div
+                  className={styles["dropdown-item"]}
+                  onClick={() => {
+                    onLawyerManagementClick();
+                    setShowDropdown(false);
+                  }}
+                >
+                  <FontAwesomeIcon
+                    icon={faCog}
+                    className={styles["dropdown-icon"]}
+                  />
+                  Lawyer Management
+                </div>
               </div>
             )}
           </div>
@@ -113,4 +145,4 @@ const Navbar: React.FC<{
   );
 };
 
-export default Navbar;
+export default React.memo(Navbar);

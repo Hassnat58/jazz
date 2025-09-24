@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-empty-function */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import * as React from "react";
 import { Offcanvas, Button, Form } from "react-bootstrap";
 import { spfi, SPFx } from "@pnp/sp";
@@ -35,21 +38,24 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
     }
 
     try {
-      // pick list name dynamically
       const listName = caseData.type === "utp" ? "UTPData" : "Cases";
+
+      const statusValue = decision === "Approved" ? "Active" : "Inactive";
 
       await sp.web.lists
         .getByTitle(listName)
         .items.getById(caseData.id)
         .update({
           ApprovalStatus: decision,
-          [caseData.type === "utp" ? "Status" : "CaseStatus"] : decision ,
-    [caseData.type === "utp" ? "Description" : "Comments"]: comments,    });
+          [caseData.type === "utp" ? "Status" : "CaseStatus"]: statusValue,
+          [caseData.type === "utp" ? "Description" : "Comments"]: comments,
+        });
 
       loadCasesData();
       onHide();
       setComments("");
       setDecision("Approved");
+
       alert(
         `${caseData.type === "utp" ? "UTP" : "Case"} ${
           decision === "Approved" ? "approved" : "rejected"
@@ -78,10 +84,6 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
       </div>
 
       <Offcanvas.Body className="pt-3">
-        
-
-    
-
         {/* ✅ Render respective detailed drawer inside Manager */}
         {caseData.type === "utp" ? (
           <ViewUTPForm

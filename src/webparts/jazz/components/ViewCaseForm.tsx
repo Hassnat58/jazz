@@ -80,16 +80,6 @@ const ViewCaseOffcanvas: React.FC<{
           </tr>
           <tr>
             <td>
-              <strong>Jurisdiction:</strong>
-            </td>
-            <td>{data.Jurisdiction}</td>
-            <td>
-              <strong>Concerning Law:</strong>
-            </td>
-            <td>{data.ConcerningLaw}</td>
-          </tr>
-          <tr>
-            <td>
               <strong>Correspondence Type:</strong>
             </td>
             <td>{data.CorrespondenceType}</td>
@@ -105,12 +95,6 @@ const ViewCaseOffcanvas: React.FC<{
               <strong>Issued By:</strong>
             </td>
             <td>{data.IssuedBy}</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Case Brief Description:</strong>
-            </td>
-            <td colSpan={3}>{data.CaseBriefDescription}</td>
           </tr>
           <tr>
             <td>
@@ -136,11 +120,11 @@ const ViewCaseOffcanvas: React.FC<{
             <td>
               <strong>Lawyer Assigned:</strong>
             </td>
-            <td>{data.LawyerAssigned?.Title}</td>
+            <td>{data.LawyerAssigned0}</td>
             <td>
-              <strong>Gross Tax Demanded:</strong>
+              <strong>GrossExposure :</strong>
             </td>
-            <td>{data.GrossTaxDemanded}</td>
+            <td>{data.GrossExposure}</td>
           </tr>
           <tr>
             <td>
@@ -148,9 +132,9 @@ const ViewCaseOffcanvas: React.FC<{
             </td>
             <td>{data.Hearingdate?.split("T")[0]}</td>
             <td>
-              <strong>Next Forum/Pending Authority:</strong>
+              <strong>Pending Authority:</strong>
             </td>
-            <td>{data.NextForum_x002f_PendingAuthority}</td>
+            <td>{data.PendingAuthority}</td>
           </tr>
           <tr>
             <td>
@@ -158,9 +142,9 @@ const ViewCaseOffcanvas: React.FC<{
             </td>
             <td>{data.Email}</td>
             <td>
-              <strong>Tax exposure Stage:</strong>
+              <strong>Tax exposure:</strong>
             </td>
-            <td>{data.TaxexposureStage}</td>
+            <td>{data.TaxExposure}</td>
           </tr>
         </tbody>
       </table>

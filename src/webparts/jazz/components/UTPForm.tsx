@@ -104,8 +104,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
             "Title",
             "TaxType",
             "CaseStatus",
-            "TaxAuthority"
-          )(), // 🔹 include CaseStatus
+            "TaxAuthority",
+            "ApprovalStatus"
+          )
+          .top(5000)(),
         sp.web.lists
           .getByTitle("LOVData1")
           .items.select("Id", "Title", "Value", "Status")(),
@@ -125,16 +127,33 @@ const UTPForm: React.FC<UTPFormProps> = ({
   }, []);
 
   useEffect(() => {
-    const activeCases = allCases.filter(
-      (item) => item.CaseStatus === "Active" || item.CaseStatus === "Approved"
-    );
+    const activeCases = allCases.filter((item) => {
+      if (!item.TaxType) return false;
+
+      // Handle null/undefined values safely
+      const caseStatus = (item.CaseStatus || "").toLowerCase().trim();
+      const approvalStatus = (item.ApprovalStatus || "").toLowerCase().trim();
+
+      console.log(`Case ${item.Id}:`, {
+        caseStatus,
+        approvalStatus,
+        isActive: caseStatus === "active",
+        isApproved: approvalStatus === "approved", // CHANGED: Only explicitly approved
+      });
+
+      const isActive = caseStatus === "active";
+      const isApproved = approvalStatus === "approved"; // CHANGED: Remove empty string allowance
+
+      return isActive && isApproved;
+    });
+
+    console.log("Filtered active cases:", activeCases); // Debug log
 
     if (selectedTaxType) {
       const filtered = activeCases.filter(
         (item) => item.TaxType === selectedTaxType
       );
 
-      // prefix based on tax type
       const prefix = selectedTaxType === "Income Tax" ? "IT" : "ST";
 
       setCaseOptions(
@@ -169,7 +188,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
     while (retries > 0) {
       try {
-        // 🔹 only pull ID field of last item
         const items = await sp.web.lists
           .getByTitle("UTPData")
           .items.select("ID")
@@ -177,10 +195,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
           .top(1)();
 
         const lastId = items.length > 0 ? items[0].ID : 0;
-        cachedNextId = lastId + 1; // ✅ cache it
+        cachedNextId = lastId + 1;
         return cachedNextId ?? 1;
       } catch (err: any) {
-        // if throttled
         if (
           err.status === 429 || // too many requests
           err.status === 503 // service unavailable
@@ -404,7 +421,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
       CaseNumberId: data.CaseNumber || null,
     };
 
-    // Dropdowns (single line text fields in your case)
     ["UTPCategory", "TaxType", "PaymentType", "ERMCategory", "GRSCode"].forEach(
       (key) => (itemData[key] = data[key] || "")
     );
@@ -693,11 +709,22 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 useComboBoxAsMenuWidth
                 onInputValueChange={(newValue) => {
                   if (!newValue) {
-                    const activeCases = allCases.filter(
-                      (item) =>
-                        item.CaseStatus === "Active" ||
-                        item.CaseStatus === "Approved"
-                    );
+                    // When input is cleared, reset to the original filtered list
+                    const activeCases = allCases.filter((item) => {
+                      if (!item.TaxType) return false;
+
+                      const caseStatus = (item.CaseStatus || "")
+                        .toLowerCase()
+                        .trim();
+                      const approvalStatus = (item.ApprovalStatus || "")
+                        .toLowerCase()
+                        .trim();
+
+                      const isActive = caseStatus === "active";
+                      const isApproved = approvalStatus === "approved"; // CHANGED: Only explicitly approved
+
+                      return isActive && isApproved;
+                    });
 
                     if (selectedTaxType) {
                       const filtered = activeCases.filter(
@@ -720,16 +747,17 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       setCaseOptions(
                         activeCases.map((item) => {
                           const taxAuth = item.TaxAuthority || "N/A";
+                          const taxtype =
+                            item.TaxType === "Income Tax" ? "IT" : "ST";
                           return {
                             key: item.Id,
-                            text: `CN-${taxAuth}-${item.Id}`,
+                            text: `${taxtype}-${taxAuth}-${item.Id}`,
                             data: item,
                           };
                         })
                       );
                     }
                   } else {
-                    // Filter case options based on input text
                     const filtered = caseOptions.filter((opt) =>
                       opt.text.toLowerCase().includes(newValue.toLowerCase())
                     );

@@ -105,7 +105,6 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
     }
   };
 
-  // ✅ run filters whenever user changes input
   useEffect(() => {
     let filtered = [...documentFiles];
 
@@ -127,7 +126,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
       filtered = filtered.filter(
         (d) =>
           d.UTP?.Id === filters.utpId ||
-          `UT--00${d.UTP?.Id}` === String(filters.utpId)
+          `UTP-${d.UTP?.Id}` === String(filters.utpId)
       );
     }
 
@@ -175,15 +174,14 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
           placeholder="Select Case"
           options={cases.map((c) => ({
             key: c.Id,
-            text: `CN--00${c.Id}`, // Show formatted text
+            text: `CN-${c.Id}`,
           }))}
           selectedKey={filters.caseId || null}
-          allowFreeform // ✅ allow typing free text
+          allowFreeform
           autoComplete="on"
           onChange={(_, option, __, value) =>
             setFilters((f) => ({
               ...f,
-              // if user typed manually, use the typed value instead of key
               caseId: option ? Number(option.key) : Number(value) || 0,
             }))
           }
@@ -194,7 +192,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
           placeholder="Select UTP"
           options={utps.map((u) => ({
             key: u.Id,
-            text: `UT--00${u.Id}`,
+            text: `UTP-${u.Id}`,
           }))}
           selectedKey={filters.utpId || null}
           allowFreeform
@@ -212,7 +210,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
           placeholder="Select Correspondence"
           options={correspondenceOuts.map((co) => ({
             key: co.Id,
-            text: `CO--00${co.Id}`,
+            text: `CO-${co.Id}`,
           }))}
           selectedKey={filters.correspondenceId || null}
           allowFreeform

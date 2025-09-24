@@ -41,6 +41,10 @@ const ViewUTPForm: React.FC<{
               <strong>GMLR ID:</strong>
             </td>
             <td>{data.GMLRID}</td>
+            <td>
+              <strong>Tax type</strong>
+            </td>
+            <td>{data.TaxType}</td>
           </tr>
           <tr>
             <td>
@@ -51,18 +55,18 @@ const ViewUTPForm: React.FC<{
               <strong>UTP Category:</strong>
             </td>
             <td>{data.UTPCategory}</td>
-          </tr>
-          <tr>
             <td>
               <strong>Gross Exposure:</strong>
             </td>
             <td>{data.GrossExposure}</td>
+          </tr>
+          <tr>
             <td>
               <strong>P&L Exposure:</strong>
             </td>
             <td>{data.PLExposure}</td>
           </tr>
-          <tr>
+          {/* <tr>
             <td>
               <strong>Contingency Note Exists:</strong>
             </td>
@@ -73,12 +77,18 @@ const ViewUTPForm: React.FC<{
               <strong>Risk Category:</strong>
             </td>
             <td>{data.RiskCategory}</td>
-          </tr>
+          </tr> */}
           <tr>
             <td>
-              <strong>Tax type</strong>
+              <strong>CaseNumber</strong>
             </td>
-            <td>{data.TaxType}</td>
+            <td>{data.CaseNumber?.Title}</td>
+            <td>
+              <strong>EBITDA Exposure Exist</strong>
+            </td>
+            <td>
+              {data.EBITDAExposureExist ? <span>Yes</span> : <span>No</span>}
+            </td>
             <td>
               <strong>ERM Unique Numbering:</strong>
             </td>

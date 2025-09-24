@@ -36,7 +36,7 @@ interface NotificationsProps {
   setNotiID: any;
   setSelectedCase: any;
   setExisting: any;
-  activeFormOut:any
+  activeFormOut: any;
 }
 
 const Notifications: React.FC<NotificationsProps> = ({
@@ -243,11 +243,7 @@ const Notifications: React.FC<NotificationsProps> = ({
         className={styles.detailsOffcanvas}
       >
         <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
-          <h6 className="m-0">FY 2023-24</h6>
           <div className="d-flex gap-2">
-            <Button variant="warning" size="sm">
-              📄 Download PDF
-            </Button>
             <Button variant="light" size="sm" onClick={() => setShow(false)}>
               Close
             </Button>
@@ -342,8 +338,7 @@ const Notifications: React.FC<NotificationsProps> = ({
                           <span>{fileName}</span>
                           {/* <span>{fileSize}</span> */}
                           <button
-                    className="btn btn-outline-secondary btn-sm"
-
+                            className="btn btn-outline-secondary btn-sm"
                             onClick={() =>
                               handleDownload(file.ServerRelativeUrl, fileName)
                             }
@@ -384,9 +379,10 @@ const Notifications: React.FC<NotificationsProps> = ({
                     newAdd();
                   }}
                 >
-                 Add to Existing Litigation
-                </Button><br/>
-                  <Button
+                  Add to Existing Litigation
+                </Button>
+                <br />
+                <Button
                   variant="warning"
                   className="mt-3 me-3"
                   disabled={selectedNotification.status === "read"}

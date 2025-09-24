@@ -169,26 +169,51 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
     const fetchCases = async () => {
       const items = await sp.web.lists
         .getByTitle("Cases")
-        .items.select("Id", "Title", "TaxType", "CaseStatus", "TaxAuthority")();
+        .items.select(
+          "Id",
+          "Title",
+          "TaxType",
+          "CaseStatus",
+          "TaxAuthority",
+          "ApprovalStatus"
+        )
+        .top(5000)();
+      console.log(
+        "All TaxType values:",
+        items.map((item) => ({
+          id: item.Id,
+          taxType: item.TaxType,
+          caseStatus: item.CaseStatus,
+          approvalStatus: item.ApprovalStatus,
+        }))
+      );
 
       const options = items
-        .filter(
-          (item) =>
-            item.Title &&
-            item.Title.trim() !== "" &&
-            (item.CaseStatus === "Approved" || item.CaseStatus === "Active")
-        )
-        .map((item) => {
-          const caseText = getFormattedCaseNumber(item);
-          return {
-            key: item.Id,
-            text: caseText,
-            data: item,
-          };
-        });
+        .filter((item) => {
+          if (!item.Title || !item.Title.trim()) return false;
+
+          const approval = (item.ApprovalStatus || "").toLowerCase().trim();
+          const caseStatus = (item.CaseStatus || "").toLowerCase().trim();
+          const taxType = (item.TaxType || "").toLowerCase().trim();
+
+          console.log(`Case ${item.Id}:`, { taxType, caseStatus, approval }); // Debug log
+
+          const isApproved = approval === "approved";
+          const isActive = caseStatus === "active";
+          const isTaxType = taxType === "income tax" || taxType === "sales tax";
+
+          return isApproved && isActive && isTaxType;
+        })
+        .map((item) => ({
+          key: item.Id,
+          text: getFormattedCaseNumber(item),
+          data: item,
+        }));
+
+      console.log("Filtered cases:", options); // Debug filtered results
 
       setAllCases(options);
-      setCaseOptions(options); // initially all
+      setCaseOptions(options);
     };
 
     const fetchLOVs = async () => {

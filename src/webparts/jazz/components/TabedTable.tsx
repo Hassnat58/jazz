@@ -1,3 +1,4 @@
+/* eslint-disable no-debugger */
 /* eslint-disable dot-notation */
 /* eslint-disable eqeqeq */
 /* eslint-disable @typescript-eslint/no-use-before-define */
@@ -29,6 +30,8 @@ import { ComboBox } from "@fluentui/react";
 import PowerBIDashboard from "./PowerBIDashboard";
 import ManageRole from "./ManageRole";
 import RoleForm from "./RoleForm";
+import Consultant from "./Consultant";
+import Lawyer from "./Lawyer";
 
 const tabs = [
   "Dashboard",
@@ -56,12 +59,20 @@ const TabbedTables: React.FC<{
   SpfxContext: any;
   showManageRole: any;
   setShowManageRole: React.Dispatch<React.SetStateAction<boolean>>;
+  showConsultantManagement: boolean;
+  setShowConsultantManagement: React.Dispatch<React.SetStateAction<boolean>>;
+  showLawyerManagement: boolean;
+  setShowLawyerManagement: React.Dispatch<React.SetStateAction<boolean>>;
 }> = ({
   SpfxContext,
   showLOVManagement,
   setShowLOVManagement,
   showManageRole,
   setShowManageRole,
+  showConsultantManagement,
+  setShowConsultantManagement,
+  showLawyerManagement,
+  setShowLawyerManagement,
 }) => {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -103,7 +114,7 @@ const TabbedTables: React.FC<{
   });
   const [filteredUtpData, setFilteredUtpData] = useState<any[]>([]);
   const [activeFormType, setActiveFormType] = useState<
-    "case" | "correspondenceOut" | "UTP" | "LOV" | "Role" | null
+    "case" | "correspondenceOut" | "UTP" | "Role" | null
   >(null);
   // const [showLOVManagement, setShowLOVManagement] = useState(false);
   const [casesPage, setCasesPage] = useState(1);
@@ -276,6 +287,8 @@ const TabbedTables: React.FC<{
           "GRSCode",
           "ERMUniqueNumbering",
           "GrossExposure",
+          "PLExposure",
+          "EBITDAExposureExists",
           "CashFlowExposure",
           "PaymentType/Title",
           "Status",
@@ -289,7 +302,8 @@ const TabbedTables: React.FC<{
           "CaseNumber/TaxType",
           "ERMCategory",
           "UTPCategory",
-          "UTPDate"
+          "UTPDate",
+          "Modified"
         )
         .top(50)
         .orderBy("ID", false)
@@ -330,9 +344,12 @@ const TabbedTables: React.FC<{
 
   const handleCancel = () => {
     setExisting(false);
-
     setIsAddingNew(false);
     setSelectedCase(null);
+    setShowConsultantManagement(false);
+    setShowLOVManagement(false);
+    setShowManageRole(false);
+    setShowLawyerManagement(false);
   };
 
   const handleSave = (formData: any) => {
@@ -345,12 +362,18 @@ const TabbedTables: React.FC<{
     else if (activeFormType === "correspondenceOut")
       loadCorrespondenceOutData();
     if (activeFormType === "UTP") loadUTPData();
-    if (activeFormType === "LOV") {
-      setShowLOVManagement(true);
-    }
-    if (activeFormType === "Role") {
-      setShowManageRole(true);
-    }
+    // if (activeFormType === "LOV") {
+    //   setShowLOVManagement(true);
+    // }
+    // if (activeFormType === "Role") {
+    //   setShowManageRole(true);
+    // }
+    // if (activeFormType === "Consultant") {
+    //   setShowConsultantManagement(true);
+    // }
+    // if (activeFormType === "Lawyer") {
+    //   setShowLawyerManagement(true);
+    // }
   };
 
   const handleShow = async (item: any) => {
@@ -426,17 +449,30 @@ const TabbedTables: React.FC<{
 
     fetchLOVs();
   }, []);
-  React.useEffect(() => {
-    if (showLOVManagement) {
-      setShowManageRole(false);
-    }
-  }, [showLOVManagement]);
 
-  React.useEffect(() => {
-    if (showManageRole) {
-      setShowLOVManagement(false);
-    }
-  }, [showManageRole]);
+  // React.useEffect(() => {
+  //   if (showLOVManagement) {
+  //     setShowManageRole(false);
+  //   }
+  // }, [showLOVManagement]);
+
+  // React.useEffect(() => {
+  //   if (showManageRole) {
+  //     setShowLOVManagement(false);
+  //   }
+  // }, [showManageRole]);
+
+  // React.useEffect(() => {
+  //   if (showConsultantManagement) {
+  //     setShowConsultantManagement(false);
+  //   }
+  // }, [showConsultantManagement]);
+
+  // React.useEffect(() => {
+  //   if (showLawyerManagement) {
+  //     setShowLawyerManagement(false);
+  //   }
+  // }, [showLawyerManagement]);
 
   useEffect(() => {
     setIsAddingNew(false);
@@ -905,8 +941,6 @@ const TabbedTables: React.FC<{
               input: { width: "100%" },
             }}
           />
-
-          {/* Tax Type (ComboBox with clear button) */}
           <div style={{ position: "relative", display: "inline-block" }}>
             <ComboBox
               label="Tax Type"
@@ -1430,16 +1464,13 @@ const TabbedTables: React.FC<{
     );
   };
   const renderTabContent = () => {
+    if (showLawyerManagement) {
+      return <Lawyer SpfxContext={SpfxContext} onCancel={handleCancel} />;
+    }
+    if (showConsultantManagement) {
+      return <Consultant SpfxContext={SpfxContext} onCancel={handleCancel} />;
+    }
     if (showLOVManagement) {
-      // if (isAddingNew && activeFormType === "LOV") {
-      //   return (
-      //     <LOVForm
-      //       SpfxContext={SpfxContext}
-      //       onCancel={handleCancel}
-      //       // mode="add"
-      //     />
-      //   );
-      // }
       return <LOVManagement SpfxContext={SpfxContext} />;
     }
     if (showManageRole) {
@@ -1533,7 +1564,11 @@ const TabbedTables: React.FC<{
             type="button"
             key={tab}
             className={`${styles.tab} ${
-              !showLOVManagement && !showManageRole && activeTab === tab
+              !showLOVManagement &&
+              !showManageRole &&
+              !showConsultantManagement &&
+              !showLawyerManagement &&
+              activeTab === tab
                 ? styles.activeTab
                 : ""
             }`}
@@ -1545,7 +1580,8 @@ const TabbedTables: React.FC<{
               setNotiID(null);
               setShowLOVManagement(false);
               setShowManageRole(false);
-              setShowLOVManagement(false);
+              setShowConsultantManagement(false);
+              setShowLawyerManagement(false);
               setUtpFilters({
                 entity: "",
                 taxType: "",
@@ -1580,10 +1616,17 @@ const TabbedTables: React.FC<{
               ? "LOV Management"
               : showManageRole
               ? "Manage Role"
+              : showConsultantManagement
+              ? ""
+              : showLawyerManagement
+              ? ""
               : activeTab}
           </h3>
           {(userRole.includes("admin") ||
             userRole.includes("tax litigation team")) &&
+            !showLOVManagement &&
+            !showConsultantManagement &&
+            !showLawyerManagement &&
             (activeTab === "Litigation" ||
               activeTab === "Response" ||
               activeTab === "UTP Dashboard" ||
@@ -1594,7 +1637,6 @@ const TabbedTables: React.FC<{
                 className={styles.addBtn}
                 onClick={() => {
                   setNotiID(null);
-
                   if (showManageRole) {
                     setActiveFormType("Role");
                   } else if (activeTab === "Litigation") {
@@ -1618,37 +1660,45 @@ const TabbedTables: React.FC<{
               ? "LOV Management"
               : showManageRole
               ? "Manage Role"
+              : showConsultantManagement
+              ? "Consultant Management"
+              : showLawyerManagement
+              ? "Lawyer Management"
               : activeTab}
           </h6>
           {/* Report Type Tabs */}
-          {activeTab == "Reports" && !showLOVManagement && !showManageRole && (
-            <div className={styles.reportTabs}>
-              {(
-                [
-                  { key: "UTP", text: "UTP Report" },
-                  { key: "Litigation", text: "Litigation Report" },
-                  { key: "ActiveCases", text: "Active Cases Weekly" },
-                  { key: "Provisions1", text: "Provisions Report - 1" },
-                  { key: "Provisions2", text: "Provisions Report - 2" },
-                  { key: "Provisions3", text: "Provisions Report - 3" },
+          {activeTab == "Reports" &&
+            !showLOVManagement &&
+            !showManageRole &&
+            !showConsultantManagement &&
+            !showLawyerManagement && (
+              <div className={styles.reportTabs}>
+                {(
+                  [
+                    { key: "UTP", text: "UTP Report" },
+                    { key: "Litigation", text: "Litigation Report" },
+                    { key: "ActiveCases", text: "Active Cases Weekly" },
+                    { key: "Provisions1", text: "Provisions Report - 1" },
+                    { key: "Provisions2", text: "Provisions Report - 2" },
+                    { key: "Provisions3", text: "Provisions Report - 3" },
 
-                  { key: "Contingencies", text: "Contingencies Breakup" },
-                  // { key: "ERM", text: "ERM Foreign Currency" },
-                ] as { key: ReportType; text: string }[]
-              ).map((tab) => (
-                <button
-                  type="button"
-                  key={tab.key}
-                  className={`${styles.tabButton} ${
-                    reportType == tab.key ? styles.activeTab2 : ""
-                  }`}
-                  onClick={() => setReportType(tab.key)}
-                >
-                  {tab.text}
-                </button>
-              ))}
-            </div>
-          )}
+                    { key: "Contingencies", text: "Contingencies Breakup" },
+                    // { key: "ERM", text: "ERM Foreign Currency" },
+                  ] as { key: ReportType; text: string }[]
+                ).map((tab) => (
+                  <button
+                    type="button"
+                    key={tab.key}
+                    className={`${styles.tabButton} ${
+                      reportType == tab.key ? styles.activeTab2 : ""
+                    }`}
+                    onClick={() => setReportType(tab.key)}
+                  >
+                    {tab.text}
+                  </button>
+                ))}
+              </div>
+            )}
         </div>
       </div>
 
@@ -1697,4 +1747,4 @@ const TabbedTables: React.FC<{
   );
 };
 
-export default TabbedTables;
+export default React.memo(TabbedTables);

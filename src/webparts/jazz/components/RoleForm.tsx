@@ -91,7 +91,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
         // 🔹 Add new record
         await sp.web.lists.getByTitle("Role").items.add({
           Role: data.Role,
-          PersonId: user.Id, // correct numeric ID
+          PersonId: user.Id,
         });
         alert("Role assigned successfully!");
       }
@@ -113,7 +113,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
           Cancel
         </button>
         <button type="submit" className={styles.savebtn}>
-          {editItem ? "Update" : "Submit"} {/* Change button text */}
+          {editItem ? "Update" : "Submit"}
         </button>
       </div>
 

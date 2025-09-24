@@ -41,7 +41,6 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
               <strong>Case Number:</strong>
             </td>
             <td>
-              {" "}
               {(() => {
                 if (!data.CaseNumber) return "";
                 let prefix = "CN";

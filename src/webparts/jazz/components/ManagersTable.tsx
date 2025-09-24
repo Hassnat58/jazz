@@ -16,81 +16,85 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
   const sp = spfi().using(SPFx(SpfxContext));
 
   const loadCasesData = async () => {
-  try {
-    // 1. Fetch Cases
-    const items = await sp.web.lists
-      .getByTitle("Cases")
-      .items.select(
-        "*",
-        "Author/Id", "Author/Title",
-        "Editor/Id", "Editor/Title",
-        "LawyerAssigned/Id", "LawyerAssigned/Title"
-      )
-      .expand("Author", "Editor", "LawyerAssigned")
-      .orderBy("ID", false)();
-
-    // 2. Fetch UTPData (only CaseNumberId, no need for deep lookup here)
-    const items2 = await sp.web.lists
-      .getByTitle("UTPData")
-      .items.select(
-        "*",
-        "Author/Id", "Author/Title",
-        "Editor/Id", "Editor/Title",
-        "CaseNumberId" // just bring the lookup ID
-      )
-      .expand("Author", "Editor")
-      .orderBy("ID", false)();
-
-    // 3. Normalize Cases
-    const normalizedCases = items.map((item: any) => ({
-      id: item.ID,
-      caseNo: item.ParentCaseId
-        ? item.TaxType === "Income Tax"
-          ? `IT-0${item.ParentCaseId}`
-          : item.TaxType === "Sales Tax"
-          ? `ST-0${item.ParentCaseId}`
-          : `CN-0${item.ParentCaseId}`
-        : item.Title,
-      authority: item.TaxAuthority,
-      jurisdiction: item.Jurisdiction,
-      consultant: item.TaxConsultantAssigned,
-      description: item.BriefDescription,
-      approvalStatus: item.ApprovalStatus ,
-      TaxType: item.TaxType,
-       created: new Date(item.Created), 
-      type: "case",
-      raw: item,
-    }));
-
-    // 4. Normalize UTP and merge with Cases (using CaseNumberId)
-    const normalizedUTP = items2.map((item: any) => {
-      const relatedCase = items.find((c: any) => c.ID === item.CaseNumberId);
-
-      return {
+    try {
+      const items = await sp.web.lists
+        .getByTitle("Cases")
+        .items.select(
+          "*",
+          "Author/Id",
+          "Author/Title",
+          "Editor/Id",
+          "Editor/Title",
+          "LawyerAssigned/Id",
+          "LawyerAssigned/Title"
+        )
+        .expand("Author", "Editor", "LawyerAssigned")
+        .filter("CaseStatus eq 'Pending' and ApprovalStatus eq 'Pending'")
+        .orderBy("ID", false)();
+      const items2 = await sp.web.lists
+        .getByTitle("UTPData")
+        .items.select(
+          "*",
+          "Author/Id",
+          "Author/Title",
+          "Editor/Id",
+          "Editor/Title",
+          "CaseNumberId"
+        )
+        .expand("Author", "Editor")
+        .filter("Status eq 'Pending' and ApprovalStatus eq 'Pending'")
+        .orderBy("ID", false)();
+      const normalizedCases = items.map((item: any) => ({
         id: item.ID,
-        caseNo: item.UTPId || item.Title,
-        authority: relatedCase?.TaxAuthority || "-",
-        jurisdiction: relatedCase?.Jurisdiction || "-",
-        TaxType: relatedCase?.TaxType || "-",
-        consultant: relatedCase?.TaxConsultantAssigned || "-",
-        description: relatedCase?.BriefDescription || item.Description || "-",
-        approvalStatus: item.ApprovalStatus|| "Pending",
-        type: "utp",
-         created: new Date(item.Created), 
-        raw: { ...item, relatedCase },
-      };
-    });
+        caseNo: item.ParentCaseId
+          ? item.TaxType === "Income Tax"
+            ? `IT-0${item.ParentCaseId}`
+            : item.TaxType === "Sales Tax"
+            ? `ST-0${item.ParentCaseId}`
+            : `CN-0${item.ParentCaseId}`
+          : item.Title,
+        authority: item.TaxAuthority,
+        jurisdiction: item.Jurisdiction,
+        consultant: item.TaxConsultantAssigned,
+        description: item.BriefDescription,
+        approvalStatus: item.ApprovalStatus,
+        TaxType: item.TaxType,
+        created: new Date(item.Created),
+        type: "case",
+        raw: item,
+      }));
 
-  const combined = [...normalizedCases, ...normalizedUTP].sort(
-      (a, b) => b.created.getTime() - a.created.getTime()
-    );
+      // 4. Normalize UTPData
+      const normalizedUTP = items2.map((item: any) => {
+        // fetch related case to show info
+        const relatedCase = items.find((c: any) => c.ID === item.CaseNumberId);
 
-    setCasesData(combined);
+        return {
+          id: item.ID,
+          caseNo: item.UTPId || item.Title,
+          authority: relatedCase?.TaxAuthority || "-",
+          jurisdiction: relatedCase?.Jurisdiction || "-",
+          TaxType: relatedCase?.TaxType || "-",
+          consultant: relatedCase?.TaxConsultantAssigned || "-",
+          description: relatedCase?.BriefDescription || item.Description || "-",
+          approvalStatus: item.ApprovalStatus || "Pending",
+          type: "utp",
+          created: new Date(item.Created),
+          raw: { ...item, relatedCase },
+        };
+      });
 
+      // 5. Merge both
+      const combined = [...normalizedCases, ...normalizedUTP].sort(
+        (a, b) => b.created.getTime() - a.created.getTime()
+      );
+
+      setCasesData(combined);
     } catch (err) {
-      console.error("Error fetching data from Cases list:", err);
+      console.error("Error fetching data:", err);
     }
   };
+
   const handleView = (item: any) => {
     setSelectedCase(item);
     setShowDrawer(true);
@@ -114,7 +118,6 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
             {/* <th>S.No</th> */}
             <th>Case No</th>
             <th>Authority</th>
-            <th>Jurisdiction</th>
             <th>Consultant</th>
             <th>Brief description</th>
             <th>Approval Status</th>
@@ -124,19 +127,17 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         <tbody>
           {paginatedData.map((item, index) => (
             <tr key={item.ID}>
-            {/* <td>{index + 1}</td> */}
-      <td>{item.caseNo}</td>
-      <td>{item.authority}</td>
-      <td>{item.jurisdiction}</td>
-      <td>{item.consultant}</td>
-      <td>{item.description}</td>
-      <td>{item.approvalStatus}</td>
+              {/* <td>{index + 1}</td> */}
+              <td>{item.caseNo}</td>
+              <td>{item.authority}</td>
+              <td>{item.consultant}</td>
+              <td>{item.description}</td>
+              <td>{item.approvalStatus}</td>
               <td>
                 <Button
                   variant="outline-warning"
                   size="sm"
-                    onClick={() => handleView(item)} // pass original for drawer
-    
+                  onClick={() => handleView(item)} // pass original for drawer
                 >
                   👁
                 </Button>

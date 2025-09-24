@@ -26,9 +26,6 @@ const ReportsOffCanvas: React.FC<Props> = ({ show, handleClose, caseData }) => {
           <span className={styles.statusActive}>Active</span>
         </div>
         <div className="d-flex gap-2">
-          <Button variant="warning" size="sm">
-            📄 Download PDF
-          </Button>
           <Button variant="light" size="sm" onClick={handleClose}>
             Close
           </Button>
