@@ -355,60 +355,74 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
   const normalizeData = async (reportType: string, rawData: any[]) => {
     switch (reportType) {
-      case "Litigation":
-        return rawData.map((item) => ({
-          type: item.TaxType || "", // "Type" → In/Out
-          caseNo: item.Title || item.Id || "", // "Case Number"
-          issue: item.IssuedBy || "", // "Issue"
-          taxAuthority: item.TaxAuthority || "", // "Authority"
-          entity: item.Entity || "", // "Entity"
-          taxYear: item.TaxYear || "", // "Tax Year"
-          DateReceived: item.DateReceived || "",
-          fy: item.FinancialYear || "",
+   case "Litigation":
+  const sp1 = spfi().using(SPFx(SpfxContext));
 
-          // exposures (only TaxExposure exists for now)
-          taxExposureScn: item.TaxExposure || "", // "Tax exposure SCN" (placeholder)
-          taxExposureOrder: item.TaxExposureOrder || "", // "Tax exposure Order" (placeholder)
-          taxExposure: item.TaxExposure || "", // "Tax Exposure"
+  const utpIssues1 = await sp1.web.lists
+    .getByTitle("UTPData")
+    .items.expand("CaseNumber") // lookup field
+    .select("Id,UTPId,CaseNumber/Id")(); 
 
-          // tax period dates (placeholders)
-          taxPeriodStart: item.TaxPeriodStartDate
-            ? new Date(item.TaxPeriodStartDate).toLocaleDateString()
-            : "",
-          taxPeriodEnd: item.TaxPeriodEndDate
-            ? new Date(item.TaxPeriodEndDate).toLocaleDateString()
-            : "",
+  // Map Litigation.Id → UTP row
+  const utpMap = new Map(
+    utpIssues1.map((u) => [u.CaseNumber?.Id, u])
+  );
 
-          // dates
-          dateOfReceipt: item.DateReceived
-            ? new Date(item.DateReceived).toLocaleDateString()
-            : "", // "Date of Receipt"
-          complianceDate: item.DateofCompliance
-            ? new Date(item.DateofCompliance).toLocaleDateString()
-            : "", // "Compliance Date"
-          DateofCompliance: item.DateofCompliance
-            ? new Date(item.DateofCompliance).toLocaleDateString()
-            : "",
-          stayExpiringOn: item.StayExpiringOn
-            ? new Date(item.StayExpiringOn).toLocaleDateString()
-            : "", // "Stay Expiring On"
+  const litigationData = rawData.map((item) => {
+    const utp = utpMap.get(item.ID); // match Litigation.Id
 
-          // other fields
-          stayObtainedFrom: item.StayObtainedFrom || "", // "Stay obtained From"
-          pendingAuthorityLevel: item.PendingAuthority || "",
-          status: item.CaseStatus || "", // "Status"
-          scnOrderSummary: item.OrderSummary || "", // "SCN/Order Summary"
-          consultant: item.TaxConsultantAssigned || "", // "Consultant"
-          emailTitle: item.Email || "", // "Email Title"
-          hcDocumentNumber: item.DocumentReferenceNumber || "", // "HC Document Number"
+    return {
+      type: item.TaxType || "",
+      caseNo: item.Title || item.Id || "",
+      issue: item.IssuedBy || "",
+      taxAuthority: item.TaxAuthority || "",
+      entity: item.Entity || "",
+      taxYear: item.TaxYear || "",
+      DateReceived: item.DateReceived || "",
+      fy: item.FinancialYear || "",
 
-          // placeholders for not in object
-          billingInfo: item.BilligInfo || "", // "Billing Information"
-          reviewStatusLp: "Peview Pending", // "Review Status LP"
-          grossExp: item.GrossExposure || "",
-          inUtp: item.IsDraft ? "Draft" : "Final",
-          // "In UTP"
-        }));
+      taxExposureScn: item.TaxExposure || "",
+      taxExposureOrder: item.TaxExposureOrder || "",
+      taxExposure: item.TaxExposure || "",
+
+      taxPeriodStart: item.TaxPeriodStartDate
+        ? new Date(item.TaxPeriodStartDate).toISOString().split("T")[0]
+        : "",
+      taxPeriodEnd: item.TaxPeriodEndDate
+        ? new Date(item.TaxPeriodEndDate).toISOString().split("T")[0]
+        : "",
+
+      dateOfReceipt: item.DateReceived
+        ? new Date(item.DateReceived).toISOString().split("T")[0]
+        : "",
+      complianceDate: item.DateofCompliance
+        ? new Date(item.DateofCompliance).toISOString().split("T")[0]
+        : "",
+      DateofCompliance: item.DateofCompliance
+        ? new Date(item.DateofCompliance).toISOString().split("T")[0]
+        : "",
+      stayExpiringOn: item.StayExpiringOn
+        ? new Date(item.StayExpiringOn).toISOString().split("T")[0]
+        : "",
+
+      stayObtainedFrom: item.StayObtainedFrom || "",
+      pendingAuthorityLevel: item.PendingAuthority || "",
+      status: item.CaseStatus || "",
+      scnOrderSummary: item.OrderSummary || "",
+      consultant: item.TaxConsultantAssigned || "",
+      emailTitle: item.Email || "",
+      hcDocumentNumber: item.DocumentReferenceNumber || "",
+
+      billingInfo: item.BilligInfo || "",
+      reviewStatusLp: "Peview Pending",
+      grossExp: item.GrossExposure || "",
+
+      // ✅ now links UTPId if exists
+      inUtp: utp?.UTPId || "",
+    };
+  });
+
+  return litigationData;
 
       case "ActiveCases":
         return rawData.map((item) => ({
@@ -428,24 +442,24 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
           // tax period dates (placeholders)
           taxPeriodStart: item.TaxPeriodStartDate
-            ? new Date(item.TaxPeriodStartDate).toLocaleDateString()
+            ? new Date(item.TaxPeriodStartDate).toISOString().split("T")[0]
             : "",
           taxPeriodEnd: item.TaxPeriodEndDate
-            ? new Date(item.TaxPeriodEndDate).toLocaleDateString()
+            ? new Date(item.TaxPeriodEndDate).toISOString().split("T")[0]
             : "",
 
           // dates
           dateReceived: item.DateReceived
-            ? new Date(item.DateReceived).toLocaleDateString()
+            ? new Date(item.DateReceived).toISOString().split("T")[0]
             : "", // "Date of Receipt"
          complianceDate: item.DateofCompliance
-            ? new Date(item.DateofCompliance).toLocaleDateString()
-            : "", // "Compliance Date"
+  ? new Date(item.DateofCompliance).toISOString().split("T")[0] // → "2025-09-25"
+  : "", // "Compliance Date"
           DateofCompliance: item.DateofCompliance
-            ? new Date(item.DateofCompliance).toLocaleDateString()
-            : "",
+  ? new Date(item.DateofCompliance).toISOString().split("T")[0] // → "2025-09-25"
+  : "",
           stayExpiringOn: item.StayExpiringOn
-            ? new Date(item.StayExpiringOn).toLocaleDateString()
+            ? new Date(item.StayExpiringOn).toISOString().split("T")[0]
             : "", // "Stay Expiring On"
 
           // other fields
@@ -877,7 +891,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             grossExposureJul: utp.GrossExposure, // only one field, reusing
             grossExposureJun: issue.GrossTaxExposure ?? utp.GrossExposure,
             UTPDate: utp.UTPDate,
-           category: utp.RiskCategory, // exists
+           category: issue.RiskCategory, // exists
             fy: utp?.CaseNumber?.FinancialYear, // exists but null
             taxYear: utp?.CaseNumber?.TaxYear, // exists but null
             taxAuthority: utp?.CaseNumber?.TaxAuthority,// ❌ not in data (will be undefined)
@@ -889,7 +903,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             grossExposureApr: utp.GrossExposure,
             arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
 
-            contingencyNote: issue.ContingencyNote ?? utp.ContingencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
+            contingencyNote: issue.ContigencyNote , // exists but null (be careful: property is "ContigencyNote" with missing 'n')
             briefDescription: utp.Description, // exists but null
             provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
             provisionGrsCode: utp.GRSCode, // exists
@@ -1207,6 +1221,8 @@ console.log(startStr, endStr, itemDateStr, "updatedFilters234");
   data2: any
 ) => {
   const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
+  console.log(value1, value2, data2, "data2");
+  
   setFilters(updatedFilters);
 
   const filtered = data2.filter((item: any) => {
