@@ -22,7 +22,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
 import { DatePicker, IDatePicker } from "@fluentui/react/lib/DatePicker";
-import { IconButton } from "@fluentui/react/lib/Button";
+// import { IconButton } from "@fluentui/react/lib/Button";
 import styles from "./CaseForm.module.scss";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -1203,7 +1203,10 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   control={control}
                   render={({ field: f }) => {
                     return (
-                      <div className="date-picker-wrapper">
+                      <div
+                        className="date-picker-wrapper"
+                        style={{ position: "relative" }}
+                      >
                         <DatePicker
                           label={field.label}
                           value={f.value}
@@ -1212,14 +1215,26 @@ const CaseForm: React.FC<CaseFormProps> = ({
                           onSelectDate={(date) => f.onChange(date)}
                           allowTextInput
                         />
+
                         {f.value && (
-                          <IconButton
-                            className="date-clear-btn"
-                            iconProps={{ iconName: "Cancel" }}
-                            title="Clear date"
-                            ariaLabel="Clear date"
-                            onClick={() => f.onChange(null)}
-                          />
+                          <button
+                            type="button"
+                            onClick={() => f.onChange(undefined)}
+                            style={{
+                              position: "absolute",
+                              right: "35px", // adjust so it sits inside the input
+                              top: "70%",
+                              transform: "translateY(-50%)",
+                              border: "none",
+                              background: "transparent",
+                              cursor: "pointer",
+                              fontSize: "16px",
+                              color: "#888",
+                              lineHeight: 1,
+                            }}
+                          >
+                            ✖
+                          </button>
                         )}
                       </div>
                     );
