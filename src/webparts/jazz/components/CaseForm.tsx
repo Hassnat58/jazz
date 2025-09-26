@@ -22,9 +22,11 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown";
 import { TextField } from "@fluentui/react/lib/TextField";
 import { DatePicker, IDatePicker } from "@fluentui/react/lib/DatePicker";
+import { IconButton } from "@fluentui/react/lib/Button";
 import styles from "./CaseForm.module.scss";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import "./DatePickerWithClear.css";
 // import {
 //   PeoplePicker,
 //   PrincipalType,
@@ -584,12 +586,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
           selectedCase.ParentCaseId || selectedCase.ParentCase?.Id
         )?.toString() || "";
 
-      console.log("ParentCaseId:", selectedCase.ParentCaseId);
-      console.log(
-        "Available keys:",
-        caseNumberOptions.map((o) => o.key)
-      );
-
       reset(prefilledValues);
       loadExistingAttachments();
     }
@@ -672,7 +668,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     if (existing) {
       // Editing mode
       if (cleanData.ParentCaseId) {
-        // Use Parent Case formatted title
+        // Use Parent Case formatted title (linked case)
         const parentCase = casesOptions.find(
           (opt) => opt.key.toString() === cleanData.ParentCaseId.toString()
         );
@@ -680,8 +676,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
           ? parentCase.text
           : `${prefix}${nextCaseNumber}`;
       } else {
-        // No parent → fallback to current prefix + nextId
-        finalTitle = `${prefix}${nextCaseNumber}`;
+        // No parent selected → use the current (selected) case ID
+        // If selectedCase.ID exists use it; otherwise fall back to nextCaseNumber
+        const currentId =
+          selectedCase &&
+          (selectedCase.ID || selectedCase.Id || selectedCase.id)
+            ? (selectedCase.ID || selectedCase.Id || selectedCase.id).toString()
+            : nextCaseNumber?.toString() || "0";
+        finalTitle = `${prefix}${currentId}`;
       }
     } else {
       // New case
@@ -837,8 +839,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
         }
       );
 
-      // Refresh and reset form
-      loadCasesData();
+      loadCasesData;
       setExisting(false);
       onSave(cleanData);
       reset();
@@ -860,17 +861,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
     gap: "1rem",
   };
 
-  // const onError = (errors) => {
-  //   // ✅ show toast if form invalid
-  //   toast.error("Please fill all required fields before submitting.", {
-  //     position: "top-right",
-  //     autoClose: 3000,
-  //   });
-  // };
-
   const datePickerRef = React.useRef<IDatePicker>(null);
   const financialYear = useWatch({ control, name: "FinancialYear" });
-  // const { setValue } = useFormContext();
 
   useEffect(() => {
     if (financialYear && taxType === "Income Tax") {
@@ -996,8 +988,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
             if (field.type === "dropdown") {
               const internalName = fieldMapping[field.label];
-
-              // ✅ If it's the "Financial Year" field → show years dropdown
               if (field.label === "Financial Year") {
                 return (
                   <Controller
@@ -1213,13 +1203,25 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   control={control}
                   render={({ field: f }) => {
                     return (
-                      <DatePicker
-                        label={field.label}
-                        value={f.value}
-                        placeholder="Select a date"
-                        componentRef={datePickerRef}
-                        onSelectDate={(date) => f.onChange(date)}
-                      />
+                      <div className="date-picker-wrapper">
+                        <DatePicker
+                          label={field.label}
+                          value={f.value}
+                          placeholder="Select a date"
+                          componentRef={datePickerRef}
+                          onSelectDate={(date) => f.onChange(date)}
+                          allowTextInput
+                        />
+                        {f.value && (
+                          <IconButton
+                            className="date-clear-btn"
+                            iconProps={{ iconName: "Cancel" }}
+                            title="Clear date"
+                            ariaLabel="Clear date"
+                            onClick={() => f.onChange(null)}
+                          />
+                        )}
+                      </div>
                     );
                   }}
                 />
@@ -1228,44 +1230,26 @@ const CaseForm: React.FC<CaseFormProps> = ({
             return null;
           })}
 
-          {/* People Picker */}
-          {/* <Controller
-            name="LawyerAssigned"
-            control={control}
-            render={({ field }) => (
-              <div style={{ gridColumn: "span 1" }}>
-                <PeoplePicker
-                  context={SpfxContext}
-                  titleText="Lawyer Assigned"
-                  personSelectionLimit={1}
-                  ensureUser={true}
-                  principalTypes={[PrincipalType.User]}
-                  resolveDelay={500}
-                  defaultSelectedUsers={
-                    selectedCase?.LawyerAssigned &&
-                    selectedCase.LawyerAssigned.Title
-                      ? [selectedCase.LawyerAssigned.Title]
-                      : []
-                  }
-                  onChange={(items: any[]) => {
-                    const selectedUser = items[0];
-                    if (selectedUser) {
-                      field.onChange({
-                        Id: selectedUser.id,
-                        Email: selectedUser.secondaryText,
-                        Title: selectedUser.text,
-                      });
-                    } else {
-                      field.onChange(null);
-                    }
-                  }}
+          {/* Multiline fields */}
+          {multilineFields.map(({ label, name }) => (
+            <Controller
+              key={name}
+              name={name}
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  label={label}
+                  {...field}
+                  multiline
+                  placeholder={label}
+                  rows={4}
+                  styles={{ root: { gridColumn: "span 3" } }}
                 />
-              </div>
-            )}
-          /> */}
-
+              )}
+            />
+          ))}
           {/* Attachments */}
-          <div style={{ gridColumn: "span 3" }}>
+          <div style={{ gridColumn: "span 1" }}>
             <label style={{ fontWeight: 600 }}> Attachments</label>
 
             {/* Upload Box */}
@@ -1585,25 +1569,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
               ))}
             </div>
           </div>
-
-          {/* Multiline fields */}
-          {multilineFields.map(({ label, name }) => (
-            <Controller
-              key={name}
-              name={name}
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  label={label}
-                  {...field}
-                  multiline
-                  placeholder={label}
-                  rows={4}
-                  styles={{ root: { gridColumn: "span 3" } }}
-                />
-              )}
-            />
-          ))}
         </div>
 
         {/* Tax Issues */}

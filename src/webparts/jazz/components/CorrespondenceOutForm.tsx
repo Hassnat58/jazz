@@ -178,15 +178,6 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           "ApprovalStatus"
         )
         .top(5000)();
-      console.log(
-        "All TaxType values:",
-        items.map((item) => ({
-          id: item.Id,
-          taxType: item.TaxType,
-          caseStatus: item.CaseStatus,
-          approvalStatus: item.ApprovalStatus,
-        }))
-      );
 
       const options = items
         .filter((item) => {
@@ -195,8 +186,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           const approval = (item.ApprovalStatus || "").toLowerCase().trim();
           const caseStatus = (item.CaseStatus || "").toLowerCase().trim();
           const taxType = (item.TaxType || "").toLowerCase().trim();
-
-          console.log(`Case ${item.Id}:`, { taxType, caseStatus, approval }); // Debug log
+          // Debug log
 
           const isApproved = approval === "approved";
           const isActive = caseStatus === "active";
@@ -209,8 +199,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           text: getFormattedCaseNumber(item),
           data: item,
         }));
-
-      console.log("Filtered cases:", options); // Debug filtered results
+      // Debug filtered results
 
       setAllCases(options);
       setCaseOptions(options);
@@ -275,6 +264,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
       });
       prefilled["CaseNumber"] =
         selectedCase?.CaseNumber?.Id || selectedCase?.CaseNumberId || null;
+
       reset(prefilled);
       loadExistingAttachments();
     }
@@ -327,7 +317,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
 
     const itemData: any = {
       IsDraft: isDraft,
-      Status: isDraft ? "Draft" : "Pending",
+      Status: isDraft ? "Draft" : "Sended",
       CorrespondenceOut: data.CorrespondenceOut || "",
       CaseNumberId: data.CaseNumber || null,
     };
@@ -415,9 +405,6 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
               (att) => att.originalName === inboxFile.FileLeafRef
             )
           ) {
-            console.log(
-              `Skipping removed attachment: ${inboxFile.FileLeafRef}`
-            );
             continue; // skip removed ones
           }
 
@@ -619,17 +606,45 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
               name={name}
               control={control}
               render={({ field }) => (
-                <DatePicker
-                  label={label}
-                  value={field.value}
-                  onSelectDate={field.onChange}
-                  placeholder="Select a date"
-                />
+                <div
+                  style={{
+                    position: "relative",
+                    display: "inline-block",
+                    width: "100%",
+                  }}
+                >
+                  <DatePicker
+                    label={label}
+                    value={field.value}
+                    onSelectDate={field.onChange}
+                    placeholder="Select a date"
+                    styles={{ root: { width: "100%" } }}
+                  />
+                  {field.value && (
+                    <button
+                      type="button"
+                      onClick={() => field.onChange(undefined)}
+                      style={{
+                        position: "absolute",
+                        right: 25,
+                        top: "70%",
+                        transform: "translateY(-50%)",
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        fontSize: "16px",
+                        color: "#888",
+                      }}
+                    >
+                      ✖
+                    </button>
+                  )}
+                </div>
               )}
             />
           ))}
 
-          <div style={{ gridColumn: "span 3" }}>
+          <div style={{ gridColumn: "span 1" }}>
             <label style={{ fontWeight: 600 }}> Attachments</label>
 
             {/* Upload Box */}
@@ -955,7 +970,13 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
               name={name}
               control={control}
               render={({ field }) => (
-                <TextField label={label} {...field} multiline rows={3} />
+                <TextField
+                  label={label}
+                  {...field}
+                  multiline
+                  rows={3}
+                  styles={{ root: { gridColumn: "span 3" } }}
+                />
               )}
             />
           ))}

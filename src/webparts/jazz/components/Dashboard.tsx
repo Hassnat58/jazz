@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
-import Navbar from "./Navbar";
+// import Navbar from "./Navbar";
 import TabbedTables from "./TabedTable";
 import { useState } from "react";
 
@@ -23,13 +23,13 @@ function Dashboard(props: any) {
 
   return (
     <div>
-      <Navbar
+      {/* <Navbar
         onLOVManagementClick={() => openManagementScreen("LOV")}
         onManageRoleClick={() => openManagementScreen("Role")}
         onConsultantManagementClick={() => openManagementScreen("Consultant")}
         onLawyerManagementClick={() => openManagementScreen("Lawyer")}
         SpfxContext={props.SpfxContext}
-      />
+      /> */}
 
       <TabbedTables
         SpfxContext={props.SpfxContext}
@@ -41,6 +41,10 @@ function Dashboard(props: any) {
         setShowManageRole={setShowManageRole}
         showLawyerManagement={showLawyerManagement}
         setShowLawyerManagement={setShowLawyerManagement}
+        onLOVManagementClick={() => openManagementScreen("LOV")}
+        onManageRoleClick={() => openManagementScreen("Role")}
+        onConsultantManagementClick={() => openManagementScreen("Consultant")}
+        onLawyerManagementClick={() => openManagementScreen("Lawyer")}
       />
     </div>
   );

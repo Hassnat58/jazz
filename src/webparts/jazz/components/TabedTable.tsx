@@ -32,6 +32,9 @@ import ManageRole from "./ManageRole";
 import RoleForm from "./RoleForm";
 import Consultant from "./Consultant";
 import Lawyer from "./Lawyer";
+import logo from "../assets/jazz-logo.png";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCog, faUser } from "@fortawesome/free-solid-svg-icons";
 
 const tabs = [
   "Dashboard",
@@ -63,6 +66,10 @@ const TabbedTables: React.FC<{
   setShowConsultantManagement: React.Dispatch<React.SetStateAction<boolean>>;
   showLawyerManagement: boolean;
   setShowLawyerManagement: React.Dispatch<React.SetStateAction<boolean>>;
+  onLOVManagementClick: () => void;
+  onManageRoleClick: () => void;
+  onConsultantManagementClick: () => void;
+  onLawyerManagementClick: () => void;
 }> = ({
   SpfxContext,
   showLOVManagement,
@@ -73,6 +80,10 @@ const TabbedTables: React.FC<{
   setShowConsultantManagement,
   showLawyerManagement,
   setShowLawyerManagement,
+  onLOVManagementClick,
+  onManageRoleClick,
+  onConsultantManagementClick,
+  onLawyerManagementClick,
 }) => {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -85,6 +96,9 @@ const TabbedTables: React.FC<{
   const [correspondenceOutData, setCorrespondenceOutData] = useState<any[]>([]);
   const [utpData, setUtpData] = useState<any[]>([]);
   const [reportType, setReportType] = useState<ReportType>("UTP");
+  const [showDropdown, setShowDropdown] = React.useState(false);
+  const [isAdmin, setIsAdmin] = React.useState(false);
+  const [userPhoto, setUserPhoto] = React.useState<string | null>(null);
   const [filters, setFilters] = useState({
     Entity: "",
     category: "",
@@ -126,6 +140,37 @@ const TabbedTables: React.FC<{
 
   const sp = spfi().using(SPFx(SpfxContext));
 
+  React.useEffect(() => {
+    const loadUserInfo = async () => {
+      try {
+        const sp = spfi().using(SPFx(SpfxContext));
+
+        // Get current user
+        const currentUser = await sp.web.currentUser();
+
+        // ✅ Get user photo URL
+        const photoUrl = `${SpfxContext.pageContext.web.absoluteUrl}/_layouts/15/userphoto.aspx?accountname=${currentUser.Email}&size=M`;
+        setUserPhoto(photoUrl);
+        const roles = await sp.web.lists
+          .getByTitle("Role")
+          .items.filter(`Person/Id eq ${currentUser.Id}`)
+          .select("Role", "Person/Id")
+          .expand("Person")();
+
+        const hasAdminRole = roles.some((r: any) => r.Role === "Admin");
+        setIsAdmin(hasAdminRole);
+      } catch (err) {
+        console.error("Error loading user info:", err);
+      }
+    };
+
+    loadUserInfo();
+  }, [SpfxContext]);
+
+  const toggleDropdown = () => {
+    setShowDropdown(!showDropdown);
+  };
+
   useEffect(() => {
     if (activeTab === "Litigation") {
       loadCasesData();
@@ -142,7 +187,6 @@ const TabbedTables: React.FC<{
         // Get current user
         const user = await sp.web.currentUser();
         setCurrentUser(user); // store full object
-        console.log("Current User:", user);
 
         // Get role entry for this user
         const items = await sp.web.lists
@@ -154,7 +198,6 @@ const TabbedTables: React.FC<{
         if (items.length > 0) {
           const roles = items.map((i) => i.Role?.toLowerCase());
           setUserRole(roles);
-          console.log("User Roles:", roles);
         } else {
           console.log("No roles found for user");
         }
@@ -218,7 +261,6 @@ const TabbedTables: React.FC<{
         .orderBy("ID", false)();
       setCorrespondenceOutData(items);
       setFilteredCorrespondenceOutData(items);
-      console.log("Correspondence Out data:", items);
     } catch (err) {
       console.error("Error fetching data from Correspondence Out list:", err);
     }
@@ -270,7 +312,6 @@ const TabbedTables: React.FC<{
         .orderBy("ID", false)();
       setCasesData(items);
       setFilteredData(items);
-      console.log("Cases data:", items);
     } catch (err) {
       console.error("Error fetching data from Cases list:", err);
     }
@@ -303,7 +344,8 @@ const TabbedTables: React.FC<{
           "ERMCategory",
           "UTPCategory",
           "UTPDate",
-          "Modified"
+          "Modified",
+          "Amount"
         )
         .top(50)
         .orderBy("ID", false)
@@ -334,8 +376,6 @@ const TabbedTables: React.FC<{
         .items.filter(filter)
         .select("File/Name", "File/ServerRelativeUrl", "ID")
         .expand("File")();
-
-      console.log("Fetched attachments:", files);
       setAttachments(files);
     } catch (error) {
       console.error("Error fetching attachments:", error);
@@ -354,8 +394,6 @@ const TabbedTables: React.FC<{
 
   const handleSave = (formData: any) => {
     setExisting(false);
-
-    console.log("Form Submitted:", formData);
     setIsAddingNew(false);
     setSelectedCase(null);
     if (activeFormType === "case") loadCasesData();
@@ -768,7 +806,6 @@ const TabbedTables: React.FC<{
               <th>Date of Compliance</th>
               <th>Lawyer Assigned</th>
               <th>Approval Status</th>
-              <th>Case Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -789,19 +826,20 @@ const TabbedTables: React.FC<{
                 <td>{item.FinancialYear}</td>
                 <td>{item.DateofCompliance?.split("T")[0]}</td>
                 <td>{item.LawyerAssigned0}</td>
-                <td>{item.ApprovalStatus}</td>
                 <td>
-                  {item.CaseStatus && (
+                  {item.ApprovalStatus && (
                     <div
                       style={{
                         backgroundColor:
-                          item.CaseStatus === "Active" ? "#5ebd74" : "#20a5bb",
+                          item.ApprovalStatus === "Approved"
+                            ? "#5ebd74"
+                            : "#20a5bb",
                         color: "white",
                         padding: "4px 8px",
                         borderRadius: "4px",
                       }}
                     >
-                      {item.CaseStatus}
+                      {item.ApprovalStatus}
                     </div>
                   )}
                 </td>
@@ -1042,7 +1080,6 @@ const TabbedTables: React.FC<{
               <th>Field Through</th>
               <th>Field At</th>
               <th>Date Of Filling</th>
-              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -1065,7 +1102,6 @@ const TabbedTables: React.FC<{
                 <td>{item.Filedthrough}</td>
                 <td>{item.FiledAt}</td>
                 <td>{item.Dateoffiling?.split("T")[0]}</td>
-                <td>{item.Status}</td>
                 <td>
                   <Button
                     variant="outline-warning"
@@ -1558,7 +1594,15 @@ const TabbedTables: React.FC<{
 
   return (
     <>
+      {/* <div className={styles.leftSection}>
+        <img src={logo} alt="Jazz Logo" className={styles.logo} />
+        <h1 className={styles.lmsHeading}>LMS</h1>
+      </div> */}
       <div className={styles.tabs}>
+        <div className={styles.leftSection}>
+          <img src={logo} alt="Jazz Logo" className={styles.logo} />
+          <h1 className={styles.lmsHeading}>LMS</h1>
+        </div>
         {visibleTabs.map((tab) => (
           <button
             type="button"
@@ -1608,6 +1652,82 @@ const TabbedTables: React.FC<{
             {tab}
           </button>
         ))}
+        <div className={styles.navIcons}>
+          {userPhoto ? (
+            <img src={userPhoto} alt="User" className={styles.userPhoto} />
+          ) : (
+            <FontAwesomeIcon icon={faUser} className={styles.icon} />
+          )}
+
+          {isAdmin && (
+            <div className={styles.dropdown}>
+              <button
+                type="button"
+                className={styles.adminBtn}
+                onClick={toggleDropdown}
+              >
+                ADMIN ▾
+              </button>
+
+              {showDropdown && (
+                <div className={styles["dropdown-menu"]}>
+                  <div
+                    className={styles["dropdown-item"]}
+                    onClick={() => {
+                      onLOVManagementClick();
+                      setShowDropdown(false);
+                    }}
+                  >
+                    <FontAwesomeIcon
+                      icon={faCog}
+                      className={styles["dropdown-icon"]}
+                    />
+                    LOV Management
+                  </div>
+                  <div
+                    className={styles["dropdown-item"]}
+                    onClick={() => {
+                      onManageRoleClick();
+                      setShowDropdown(false);
+                    }}
+                  >
+                    <FontAwesomeIcon
+                      icon={faUser}
+                      className={styles["dropdown-icon"]}
+                    />
+                    Manage Roles
+                  </div>
+                  <div
+                    className={styles["dropdown-item"]}
+                    onClick={() => {
+                      onConsultantManagementClick();
+                      setShowDropdown(false);
+                    }}
+                  >
+                    <FontAwesomeIcon
+                      icon={faCog}
+                      className={styles["dropdown-icon"]}
+                    />
+                    Consultant Management
+                  </div>
+                  <div
+                    className={styles["dropdown-item"]}
+                    onClick={() => {
+                      onLawyerManagementClick();
+                      setShowDropdown(false);
+                    }}
+                  >
+                    <FontAwesomeIcon
+                      icon={faCog}
+                      className={styles["dropdown-icon"]}
+                    />
+                    Lawyer Management
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       <div>
         <div className={styles.headerRow}>

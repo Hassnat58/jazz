@@ -39,11 +39,16 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
           "Author/Title",
           "Editor/Id",
           "Editor/Title",
-          "CaseNumberId"
+          "CaseNumber/Id",
+          "CaseNumber/Title",
+          "CaseNumber/TaxAuthority",
+          "CaseNumber/TaxConsultantAssigned",
+          "CaseNumber/TaxType"
         )
-        .expand("Author", "Editor")
+        .expand("Author", "Editor", "CaseNumber")
         .filter("Status eq 'Pending' and ApprovalStatus eq 'Pending'")
         .orderBy("ID", false)();
+
       const normalizedCases = items.map((item: any) => ({
         id: item.ID,
         caseNo: item.ParentCaseId
@@ -54,7 +59,6 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
             : `CN-0${item.ParentCaseId}`
           : item.Title,
         authority: item.TaxAuthority,
-        jurisdiction: item.Jurisdiction,
         consultant: item.TaxConsultantAssigned,
         description: item.BriefDescription,
         approvalStatus: item.ApprovalStatus,
@@ -65,24 +69,19 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
       }));
 
       // 4. Normalize UTPData
-      const normalizedUTP = items2.map((item: any) => {
-        // fetch related case to show info
-        const relatedCase = items.find((c: any) => c.ID === item.CaseNumberId);
-
-        return {
-          id: item.ID,
-          caseNo: item.UTPId || item.Title,
-          authority: relatedCase?.TaxAuthority || "-",
-          jurisdiction: relatedCase?.Jurisdiction || "-",
-          TaxType: relatedCase?.TaxType || "-",
-          consultant: relatedCase?.TaxConsultantAssigned || "-",
-          description: relatedCase?.BriefDescription || item.Description || "-",
-          approvalStatus: item.ApprovalStatus || "Pending",
-          type: "utp",
-          created: new Date(item.Created),
-          raw: { ...item, relatedCase },
-        };
-      });
+      const normalizedUTP = items2.map((item: any) => ({
+        id: item.ID,
+        caseNo: item.UTPId || item.Title,
+        authority: item.CaseNumber?.TaxAuthority || "-",
+        TaxType: item.CaseNumber?.TaxType || "-",
+        consultant: item.CaseNumber?.TaxConsultantAssigned || "-",
+        description:
+          item.CaseNumber?.BriefDescription || item.Description || "-",
+        approvalStatus: item.ApprovalStatus || "Pending",
+        type: "utp",
+        created: new Date(item.Created),
+        raw: item,
+      }));
 
       // 5. Merge both
       const combined = [...normalizedCases, ...normalizedUTP].sort(
@@ -119,7 +118,6 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
             <th>Case No</th>
             <th>Authority</th>
             <th>Consultant</th>
-            <th>Brief description</th>
             <th>Approval Status</th>
             <th>Action</th>
           </tr>
@@ -131,13 +129,12 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
               <td>{item.caseNo}</td>
               <td>{item.authority}</td>
               <td>{item.consultant}</td>
-              <td>{item.description}</td>
               <td>{item.approvalStatus}</td>
               <td>
                 <Button
                   variant="outline-warning"
                   size="sm"
-                  onClick={() => handleView(item)} // pass original for drawer
+                  onClick={() => handleView(item)}
                 >
                   👁
                 </Button>

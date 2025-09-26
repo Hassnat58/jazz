@@ -100,9 +100,9 @@ const ViewUTPForm: React.FC<{
             </td>
             <td>{data.PaymentType}</td>
             <td>
-              <strong>EBITDA Exposure:</strong>
+              <strong>Amount:</strong>
             </td>
-            <td>{data.EBITDAExposure}</td>
+            <td>{data.Amount}</td>
           </tr>
           <tr>
             <td>

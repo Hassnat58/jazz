@@ -92,6 +92,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
   >([]);
 
   const sp = spfi().using(SPFx(SpfxContext));
+  const isEditMode = !!selectedCase;
 
   const selectedTaxType = watch("TaxType");
   useEffect(() => {
@@ -134,20 +135,12 @@ const UTPForm: React.FC<UTPFormProps> = ({
       const caseStatus = (item.CaseStatus || "").toLowerCase().trim();
       const approvalStatus = (item.ApprovalStatus || "").toLowerCase().trim();
 
-      console.log(`Case ${item.Id}:`, {
-        caseStatus,
-        approvalStatus,
-        isActive: caseStatus === "active",
-        isApproved: approvalStatus === "approved", // CHANGED: Only explicitly approved
-      });
-
       const isActive = caseStatus === "active";
       const isApproved = approvalStatus === "approved"; // CHANGED: Remove empty string allowance
 
       return isActive && isApproved;
     });
-
-    console.log("Filtered active cases:", activeCases); // Debug log
+    // Debug log
 
     if (selectedTaxType) {
       const filtered = activeCases.filter(
@@ -309,7 +302,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
       ["UTPCategory", "TaxType", "PaymentType", "ERMCategory"].forEach(
         (f) => (prefilled[f] = selectedCase[f] || "")
       );
-      ["GRSCode", "ERMUniqueNumbering"].forEach(
+      ["GRSCode", "ERMUniqueNumbering", "Amount"].forEach(
         (name) => (prefilled[name] = selectedCase[name] || "")
       );
       [{ name: "UTPDate" }].forEach(
@@ -334,7 +327,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
         : null;
       prefilled.UTPId = selectedCase?.UTPId || null;
       prefilled.GMLRID = selectedCase?.GMLRID || null;
-      prefilled.Amount = selectedCase?.Amount || null;
+      // prefilled.Amount = selectedCase?.Amount || null;
 
       // prefilled.PLExposure =
       //   selectedCase.PLExposure !== undefined &&
@@ -348,8 +341,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
       //     ? Number(selectedCase.EBITDAExposure)
 
       prefilled.ContigencyNote = selectedCase.ContigencyNote || "";
-      console.log("Prefilled CaseNumber:", prefilled.CaseNumber);
-      console.log("Available CaseOptions:", caseOptions);
 
       reset(prefilled);
       const files = await sp.web.lists
@@ -396,65 +387,62 @@ const UTPForm: React.FC<UTPFormProps> = ({
     prefillForm();
   }, [selectedCase, caseOptions]);
 
+  const toNullIfEmpty = (val: any) => {
+    if (val === undefined || val === null || val === "") return null;
+    return val;
+  };
+
   const submitForm = async (isDraft: boolean) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    const data = getValues();
-
-    // helper to normalize number values
-    const toNumberOrNull = (val: any): number | null => {
-      if (
-        val === null ||
-        val === undefined ||
-        val === "" ||
-        isNaN(Number(val))
-      ) {
-        return null; // SharePoint will accept null
-      }
-      return Number(val);
-    };
-
-    const itemData: any = {
-      IsDraft: isDraft,
-      Status: isDraft ? "Draft" : "Pending",
-      CaseNumberId: data.CaseNumber || null,
-    };
-
-    ["UTPCategory", "TaxType", "PaymentType", "ERMCategory", "GRSCode"].forEach(
-      (key) => (itemData[key] = data[key] || "")
-    );
-
-    // Text
-    ["ERMUniqueNumbering", "Amount"].forEach(
-      (name) => (itemData[name] = data[name] || "")
-    );
-
-    if (data.TaxType === "Income Tax") {
-      itemData.EBITDAExposure = true; // Yes
-    } else if (data.TaxType === "Sales Tax") {
-      itemData.EBITDAExposure = false; // No
-    } else {
-      itemData.EBITDAExposure = null; // leave empty if other tax type
-    }
-
-    // Date
-    if (data.UTPDate) {
-      const dateVal =
-        data.UTPDate instanceof Date ? data.UTPDate : new Date(data.UTPDate); // normalize
-
-      itemData.UTPDate = dateVal.toISOString();
-    } else {
-      itemData.UTPDate = null;
-    }
-
-    itemData.GMLRID = data.GMLRID || "";
-
     try {
+      const data = getValues();
+
+      // 🔹 Build itemData safely
+      const itemData: any = {
+        IsDraft: isDraft,
+        Status: isDraft ? "Draft" : "Pending",
+        ApprovalStatus: "Pending",
+        CaseNumberId: data.CaseNumber ? Number(data.CaseNumber) : null,
+        // Choice/Text fields
+        UTPCategory: toNullIfEmpty(data.UTPCategory),
+        TaxType: toNullIfEmpty(data.TaxType),
+        PaymentType: toNullIfEmpty(data.PaymentType),
+        ERMCategory: toNullIfEmpty(data.ERMCategory),
+        GRSCode: toNullIfEmpty(data.GRSCode),
+
+        // Text fields
+        ERMUniqueNumbering: toNullIfEmpty(data.ERMUniqueNumbering),
+        Amount: data.Amount ? String(data.Amount) : null, // string column
+
+        // Other text field
+        GMLRID: toNullIfEmpty(data.GMLRID),
+      };
+
+      // 🔹 Yes/No field
+      if (data.TaxType === "Income Tax") {
+        itemData.EBITDAExposureExists = true; // Yes
+      } else if (data.TaxType === "Sales Tax") {
+        itemData.EBITDAExposureExists = false; // No
+      } else {
+        itemData.EBITDAExposureExists = null; // leave empty if other tax type
+      }
+
+      // 🔹 Date field
+      if (data.UTPDate) {
+        const dateVal =
+          data.UTPDate instanceof Date ? data.UTPDate : new Date(data.UTPDate);
+        itemData.UTPDate = dateVal.toISOString();
+      } else {
+        itemData.UTPDate = null;
+      }
+
+      // 🔹 Save item
       let itemId: number;
 
       if (isDraft && selectedCase?.ID && selectedCase?.Status === "Draft") {
-        // 🔹 Update existing draft
+        // Update existing draft
         await sp.web.lists
           .getByTitle("UTPData")
           .items.getById(selectedCase.ID)
@@ -462,10 +450,14 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
         itemId = selectedCase.ID;
       } else {
+        // Create new item
         const result = await sp.web.lists
           .getByTitle("UTPData")
           .items.add(itemData);
+
         itemId = result.ID;
+
+        // Generate UTP Id
         const selectedCaseItem = allCases.find((c) => c.Id === data.CaseNumber);
         const taxAuth = selectedCaseItem?.TaxAuthority || "N/A";
         const taxtype =
@@ -507,6 +499,18 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
       // Tax Issues
       taxIssueEntries.forEach((entry) => {
+        const toNumberOrNull = (val: any) => {
+          if (
+            val === null ||
+            val === undefined ||
+            val === "" ||
+            isNaN(Number(val))
+          ) {
+            return null;
+          }
+          return Number(val);
+        };
+
         const amountContested = toNumberOrNull(entry.amountContested);
         const rate = toNumberOrNull(entry.rate);
         const grossTaxExposure = toNumberOrNull(entry.grossTaxExposure);
@@ -540,7 +544,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
       // 🔹 Calculate Gross Exposure after batch
       const grossExposures = taxIssueEntries.map(
-        (entry) => toNumberOrNull(entry.grossTaxExposure) ?? 0
+        (entry) => Number(entry.grossTaxExposure) || 0
       );
       const totalGrossExposure = grossExposures.reduce(
         (sum, val) => sum + val,
@@ -551,7 +555,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
         GrossExposure: totalGrossExposure,
       });
 
-      // Success
+      // 🔹 Success
       toast.success(
         isDraft ? "Draft saved successfully" : "Case submitted successfully",
         {
@@ -695,12 +699,11 @@ const UTPForm: React.FC<UTPFormProps> = ({
           <Controller
             name="CaseNumber"
             control={control}
-            rules={{ required: "Case Number is required" }}
             render={({ field, fieldState: { error } }) => (
               <ComboBox
                 label="Case Number"
                 options={caseOptions}
-                required
+                disabled={isEditMode}
                 selectedKey={field.value ? Number(field.value) : undefined}
                 onChange={(_, option) => field.onChange(option?.key)}
                 placeholder="Select Case Number"
@@ -709,7 +712,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 useComboBoxAsMenuWidth
                 onInputValueChange={(newValue) => {
                   if (!newValue) {
-                    // When input is cleared, reset to the original filtered list
                     const activeCases = allCases.filter((item) => {
                       if (!item.TaxType) return false;
 
@@ -721,7 +723,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                         .trim();
 
                       const isActive = caseStatus === "active";
-                      const isApproved = approvalStatus === "approved"; // CHANGED: Only explicitly approved
+                      const isApproved = approvalStatus === "approved";
 
                       return isActive && isApproved;
                     });
@@ -1069,7 +1071,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
           <Controller
             name="PaymentType"
             control={control}
-            rules={{ required: "Payment Type is required" }}
             render={({ field, fieldState }) => (
               <div
                 style={{
@@ -1091,7 +1092,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     }
                   }}
                   placeholder="Select"
-                  required
                   errorMessage={fieldState.error?.message}
                 />
                 {field.value && (
@@ -1116,20 +1116,32 @@ const UTPForm: React.FC<UTPFormProps> = ({
               </div>
             )}
           />
-          {PaymentType?.toLowerCase() ===
-            "payment under protest".toLowerCase() && (
+          {PaymentType && (
             <Controller
               name="Amount"
               control={control}
               rules={{
-                required:
-                  "Amount is required when Payment Type is Payment Under Protest",
+                required: "Amount is required when Payment Type is selected",
               }}
               render={({ field, fieldState }) => (
                 <TextField
                   label="Amount"
                   placeholder="Enter Amount"
-                  {...field}
+                  value={
+                    field.value
+                      ? new Intl.NumberFormat("en-US").format(
+                          Number(field.value)
+                        )
+                      : ""
+                  }
+                  onChange={(e, newValue) => {
+                    // Remove all commas before saving raw number
+                    const rawValue = newValue?.replace(/,/g, "") || "";
+                    // Allow only numbers
+                    if (/^\d*$/.test(rawValue)) {
+                      field.onChange(rawValue);
+                    }
+                  }}
                   errorMessage={fieldState.error?.message}
                 />
               )}
@@ -1137,380 +1149,412 @@ const UTPForm: React.FC<UTPFormProps> = ({
           )}
 
           {/* Row 6 - Attachments */}
-          <div style={{ gridColumn: "span 3" }}>
-            <label style={{ fontWeight: 600 }}> Attachments</label>
+          <div style={{ display: "contents" }}>
+            <div style={{ gridColumn: "span 1" }}>
+              <label style={{ fontWeight: 600 }}> Attachments</label>
 
-            {/* Upload Box */}
-            <div
-              style={{
-                width: 400,
-                border: "1px solid #d1d5db",
-                borderRadius: 6,
-                padding: 10,
-                marginTop: 5,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                height: 30,
-                cursor: "pointer",
-                background: "#f9fafb",
-              }}
-              onClick={() => document.getElementById("file-upload")?.click()}
-            >
-              <span style={{ color: "#9ca3af" }}>⬆️ Upload</span>
-              <input
-                id="file-upload"
-                type="file"
-                multiple
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  const newAttachments: AttachmentWithRename[] = files.map(
-                    (file) => ({
-                      file,
-                      originalName: file.name,
-                      newName: file.name,
-                      isRenamed: false,
-                    })
-                  );
-                  setAttachments((prev) => [...prev, ...newAttachments]);
+              {/* Upload Box */}
+              <div
+                style={{
+                  width: 400,
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  padding: 10,
+                  marginTop: 5,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: 30,
+                  cursor: "pointer",
+                  background: "#f9fafb",
                 }}
-                style={{ display: "none" }}
-              />
-            </div>
-
-            {/* Existing File List */}
-            <div style={{ marginTop: 10 }}>
-              {existingAttachments.map((file) => (
-                <div
-                  key={file.ID}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 5,
-                    padding: "5px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "4px",
-                    backgroundColor: "#f9fafb",
-                    width: "fit-content",
-                    maxWidth: "100%",
+                onClick={() => document.getElementById("file-upload")?.click()}
+              >
+                <span style={{ color: "#9ca3af" }}>⬆️ Upload</span>
+                <input
+                  id="file-upload"
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    const newAttachments: AttachmentWithRename[] = files.map(
+                      (file) => ({
+                        file,
+                        originalName: file.name,
+                        newName: file.name,
+                        isRenamed: false,
+                      })
+                    );
+                    setAttachments((prev) => [...prev, ...newAttachments]);
                   }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExistingAttachments((prev) =>
-                        prev.filter((att) => att.ID !== file.ID)
-                      );
-                    }}
-                    style={{
-                      border: "none",
-                      background: "none",
-                      color: "red",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      padding: "0 5px",
-                    }}
-                  >
-                    ✖
-                  </button>
-
-                  {editingAttachment === file.ID ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 5,
-                        flex: 1,
-                        width: "fit-content",
-                      }}
-                    >
-                      <input
-                        type="text"
-                        value={tempName}
-                        onChange={(e) => setTempName(e.target.value)}
-                        style={{
-                          border: "1px solid #d1d5db",
-                          borderRadius: "3px",
-                          padding: "2px 5px",
-                          fontSize: "12px",
-                          flex: 1,
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            saveAttachmentName(file.ID, true);
-                          if (e.key === "Escape") cancelEditing();
-                        }}
-                        autoFocus
-                      />
-                      <span style={{ fontSize: 12, color: "#9ca3af" }}>
-                        {getFileExtension(file.originalName)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => saveAttachmentName(file.ID, true)}
-                        style={{
-                          border: "none",
-                          background: "#10b981",
-                          color: "white",
-                          borderRadius: "3px",
-                          padding: "2px 5px",
-                          fontSize: "10px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        ✓
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEditing}
-                        style={{
-                          border: "none",
-                          background: "#ef4444",
-                          color: "white",
-                          borderRadius: "3px",
-                          padding: "2px 5px",
-                          fontSize: "10px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        ✗
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <a
-                        href={file.FileRef + `?web=1`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          color: "#2563eb",
-                          textDecoration: "none",
-                          fontSize: 14,
-                          flex: 1,
-                        }}
-                      >
-                        {file.newName}
-                        {file.isRenamed && (
-                          <span style={{ color: "#10b981", marginLeft: 5 }}>
-                            ✓ Renamed
-                          </span>
-                        )}
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          startEditingAttachment(file.ID, file.newName)
-                        }
-                        style={{
-                          border: "none",
-                          background: "#3b82f6",
-                          color: "white",
-                          borderRadius: "3px",
-                          padding: "2px 5px",
-                          fontSize: "10px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        ✏️ Rename
-                      </button>
-                    </>
-                  )}
-                </div>
-              ))}
-
-              {/* New Attachments */}
-              {attachments.map((attachment, idx) => (
-                <div
-                  key={`new-${idx}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 5,
-                    padding: "5px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "4px",
-                    backgroundColor: "#fff7ed",
-                    width: "fit-content",
-                    maxWidth: "100%",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updated = [...attachments];
-                      updated.splice(idx, 1);
-                      setAttachments(updated);
-                    }}
-                    style={{
-                      border: "none",
-                      background: "none",
-                      color: "red",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      padding: "0 5px",
-                    }}
-                  >
-                    ✖
-                  </button>
-
-                  {editingAttachment === attachment.file.name ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 5,
-                        flex: 1,
-                        width: "fit-content",
-                      }}
-                    >
-                      <input
-                        type="text"
-                        value={tempName}
-                        onChange={(e) => setTempName(e.target.value)}
-                        style={{
-                          border: "1px solid #d1d5db",
-                          borderRadius: "3px",
-                          padding: "2px 5px",
-                          fontSize: "12px",
-                          flex: 1,
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            saveAttachmentName(attachment.file.name, false);
-                          if (e.key === "Escape") cancelEditing();
-                        }}
-                        autoFocus
-                      />
-                      <span style={{ fontSize: 12, color: "#9ca3af" }}>
-                        {getFileExtension(attachment.originalName)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          saveAttachmentName(attachment.file.name, false)
-                        }
-                        style={{
-                          border: "none",
-                          background: "#10b981",
-                          color: "white",
-                          borderRadius: "3px",
-                          padding: "2px 5px",
-                          fontSize: "10px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        ✓
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEditing}
-                        style={{
-                          border: "none",
-                          background: "#ef4444",
-                          color: "white",
-                          borderRadius: "3px",
-                          padding: "2px 5px",
-                          fontSize: "10px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        ✗
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span style={{ fontSize: 14, flex: 1 }}>
-                        {attachment.newName}
-                        {attachment.isRenamed && (
-                          <span style={{ color: "#10b981", marginLeft: 5 }}>
-                            ✓ Renamed
-                          </span>
-                        )}
-                      </span>
-                      <span style={{ color: "#9ca3af", fontSize: 12 }}>
-                        {(attachment.file.size / (1024 * 1024)).toFixed(1)}MB
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          startEditingAttachment(
-                            attachment.file.name,
-                            attachment.newName
-                          )
-                        }
-                        style={{
-                          border: "none",
-                          background: "#3b82f6",
-                          color: "white",
-                          borderRadius: "3px",
-                          padding: "2px 5px",
-                          fontSize: "10px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        ✏️ Rename
-                      </button>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Row 7 - Date */}
-          <Controller
-            name="UTPDate"
-            control={control}
-            render={({ field }) => (
-              <>
-                <DatePicker
-                  label="UTP Date"
-                  value={field.value}
-                  onSelectDate={(date) => {
-                    if (date) {
-                      field.onChange(date);
-                      datePickerRef.current?.focus();
-                      const today = new Date();
-                      const currentMonth = today.getMonth();
-                      const currentYear = today.getFullYear();
-                      const selectedMonth = date.getMonth();
-                      const selectedYear = date.getFullYear();
-                      const prevMonth =
-                        currentMonth === 0 ? 11 : currentMonth - 1;
-                      const prevYear =
-                        currentMonth === 0 ? currentYear - 1 : currentYear;
-                      if (
-                        selectedMonth === prevMonth &&
-                        selectedYear === prevYear
-                      ) {
-                        setShowDialog(true);
-                      }
-                    }
-                  }}
-                  placeholder="Select"
+                  style={{ display: "none" }}
                 />
+              </div>
 
-                <Dialog
-                  hidden={!showDialog}
-                  onDismiss={() => setShowDialog(false)}
-                  dialogContentProps={{
-                    title: "Notice",
-                    subText:
-                      "You selected a date from the previous month. Please double-check before proceeding.",
+              {/* Existing File List */}
+              <div style={{ marginTop: 10 }}>
+                {existingAttachments.map((file) => (
+                  <div
+                    key={file.ID}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 5,
+                      padding: "5px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "4px",
+                      backgroundColor: "#f9fafb",
+                      width: "fit-content",
+                      maxWidth: "100%",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExistingAttachments((prev) =>
+                          prev.filter((att) => att.ID !== file.ID)
+                        );
+                      }}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        color: "red",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        padding: "0 5px",
+                      }}
+                    >
+                      ✖
+                    </button>
+
+                    {editingAttachment === file.ID ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          flex: 1,
+                          width: "fit-content",
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={tempName}
+                          onChange={(e) => setTempName(e.target.value)}
+                          style={{
+                            border: "1px solid #d1d5db",
+                            borderRadius: "3px",
+                            padding: "2px 5px",
+                            fontSize: "12px",
+                            flex: 1,
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter")
+                              saveAttachmentName(file.ID, true);
+                            if (e.key === "Escape") cancelEditing();
+                          }}
+                          autoFocus
+                        />
+                        <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                          {getFileExtension(file.originalName)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => saveAttachmentName(file.ID, true)}
+                          style={{
+                            border: "none",
+                            background: "#10b981",
+                            color: "white",
+                            borderRadius: "3px",
+                            padding: "2px 5px",
+                            fontSize: "10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditing}
+                          style={{
+                            border: "none",
+                            background: "#ef4444",
+                            color: "white",
+                            borderRadius: "3px",
+                            padding: "2px 5px",
+                            fontSize: "10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✗
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <a
+                          href={file.FileRef + `?web=1`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            color: "#2563eb",
+                            textDecoration: "none",
+                            fontSize: 14,
+                            flex: 1,
+                          }}
+                        >
+                          {file.newName}
+                          {file.isRenamed && (
+                            <span style={{ color: "#10b981", marginLeft: 5 }}>
+                              ✓ Renamed
+                            </span>
+                          )}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            startEditingAttachment(file.ID, file.newName)
+                          }
+                          style={{
+                            border: "none",
+                            background: "#3b82f6",
+                            color: "white",
+                            borderRadius: "3px",
+                            padding: "2px 5px",
+                            fontSize: "10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✏️ Rename
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+
+                {/* New Attachments */}
+                {attachments.map((attachment, idx) => (
+                  <div
+                    key={`new-${idx}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 5,
+                      padding: "5px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "4px",
+                      backgroundColor: "#fff7ed",
+                      width: "fit-content",
+                      maxWidth: "100%",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...attachments];
+                        updated.splice(idx, 1);
+                        setAttachments(updated);
+                      }}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        color: "red",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        padding: "0 5px",
+                      }}
+                    >
+                      ✖
+                    </button>
+
+                    {editingAttachment === attachment.file.name ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          flex: 1,
+                          width: "fit-content",
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={tempName}
+                          onChange={(e) => setTempName(e.target.value)}
+                          style={{
+                            border: "1px solid #d1d5db",
+                            borderRadius: "3px",
+                            padding: "2px 5px",
+                            fontSize: "12px",
+                            flex: 1,
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter")
+                              saveAttachmentName(attachment.file.name, false);
+                            if (e.key === "Escape") cancelEditing();
+                          }}
+                          autoFocus
+                        />
+                        <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                          {getFileExtension(attachment.originalName)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            saveAttachmentName(attachment.file.name, false)
+                          }
+                          style={{
+                            border: "none",
+                            background: "#10b981",
+                            color: "white",
+                            borderRadius: "3px",
+                            padding: "2px 5px",
+                            fontSize: "10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditing}
+                          style={{
+                            border: "none",
+                            background: "#ef4444",
+                            color: "white",
+                            borderRadius: "3px",
+                            padding: "2px 5px",
+                            fontSize: "10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✗
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 14, flex: 1 }}>
+                          {attachment.newName}
+                          {attachment.isRenamed && (
+                            <span style={{ color: "#10b981", marginLeft: 5 }}>
+                              ✓ Renamed
+                            </span>
+                          )}
+                        </span>
+                        <span style={{ color: "#9ca3af", fontSize: 12 }}>
+                          {(attachment.file.size / (1024 * 1024)).toFixed(1)}MB
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            startEditingAttachment(
+                              attachment.file.name,
+                              attachment.newName
+                            )
+                          }
+                          style={{
+                            border: "none",
+                            background: "#3b82f6",
+                            color: "white",
+                            borderRadius: "3px",
+                            padding: "2px 5px",
+                            fontSize: "10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✏️ Rename
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Controller
+              name="UTPDate"
+              control={control}
+              render={({ field }) => (
+                <div
+                  style={{
+                    position: "relative",
+                    display: "inline-block",
+                    width: "100%",
+                    marginTop: -5,
                   }}
                 >
-                  <DialogFooter>
-                    <PrimaryButton
-                      onClick={() => setShowDialog(false)}
-                      text="OK"
-                    />
-                  </DialogFooter>
-                </Dialog>
-              </>
-            )}
-          />
+                  <DatePicker
+                    label="UTP Date"
+                    value={field.value}
+                    onSelectDate={(date) => {
+                      if (date) {
+                        field.onChange(date);
+                        datePickerRef.current?.focus();
+
+                        const today = new Date();
+                        const currentMonth = today.getMonth();
+                        const currentYear = today.getFullYear();
+                        const selectedMonth = date.getMonth();
+                        const selectedYear = date.getFullYear();
+
+                        const prevMonth =
+                          currentMonth === 0 ? 11 : currentMonth - 1;
+                        const prevYear =
+                          currentMonth === 0 ? currentYear - 1 : currentYear;
+
+                        if (
+                          selectedMonth === prevMonth &&
+                          selectedYear === prevYear
+                        ) {
+                          setShowDialog(true);
+                        }
+                      }
+                    }}
+                    placeholder="Select"
+                    styles={{ root: { width: "100%" } }}
+                  />
+
+                  {field.value && (
+                    <button
+                      type="button"
+                      onClick={() => field.onChange(undefined)}
+                      style={{
+                        position: "absolute",
+                        right: 35, // keeps clear button left of calendar icon
+                        top: "65%",
+                        transform: "translateY(-50%)",
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        fontSize: "16px",
+                        color: "#888",
+                        padding: 0,
+                      }}
+                    >
+                      ✖
+                    </button>
+                  )}
+
+                  <Dialog
+                    hidden={!showDialog}
+                    onDismiss={() => setShowDialog(false)}
+                    dialogContentProps={{
+                      title: "Notice",
+                      subText:
+                        "You selected a date from the previous month. Please double-check before proceeding.",
+                    }}
+                  >
+                    <DialogFooter>
+                      <PrimaryButton
+                        onClick={() => setShowDialog(false)}
+                        text="OK"
+                      />
+                    </DialogFooter>
+                  </Dialog>
+                </div>
+              )}
+            />
+          </div>
         </div>
         <div style={{ marginTop: "1rem" }}>
           <h3>UTP Issues</h3>

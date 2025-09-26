@@ -1,0 +1,20 @@
+.date-picker-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%; /* make it fit parent */
+}
+
+.date-clear-btn {
+  position: absolute;
+  right: 30px;
+  top: 70%;
+  transform: translateY(-50%);
+  height: 28px;
+  width: 28px;
+  z-index: 2;
+}
+
+/* Hide the button when disabled */
+.date-clear-btn[disabled] {
+  display: none;
+}

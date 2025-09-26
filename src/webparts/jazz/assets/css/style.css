@@ -391,7 +391,7 @@ body {
 }
 
 .tablePagination {
-  background-color: #8a191e;
+  background-color: black;
   border-radius: 3px;
   padding: 1rem;
   display: flex;

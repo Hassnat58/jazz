@@ -83,6 +83,10 @@ const ViewCaseOffcanvas: React.FC<{
               <strong>Correspondence Type:</strong>
             </td>
             <td>{data.CorrespondenceType}</td>
+            <td>
+              <strong>Tax Consultant</strong>
+            </td>
+            <td>{data.TaxConsultantAssigned}</td>
           </tr>
           <tr>
             <td>
