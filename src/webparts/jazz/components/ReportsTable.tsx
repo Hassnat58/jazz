@@ -95,7 +95,7 @@ const reportConfig: Record<
       { header: "Authority", field: "taxAuthority" },
       { header: "Entity", field: "entity" },
       { header: "Tax Year", field: "taxYear" },
-      { header: "Tax exposure SCN", field: "taxExposureScn" },
+      // { header: "Tax exposure SCN", field: "taxExposureScn" },
       // { header: "Tax exposure Order", field: "taxExposureOrder" },
       // { header: "Tax period Start", field: "taxPeriodStart" },
       // { header: "Tax period End", field: "taxPeriodEnd" },
@@ -111,8 +111,8 @@ const reportConfig: Record<
       { header: "Consultant", field: "consultant" },
       { header: "Email Title", field: "emailTitle" },
       { header: "HC Document Number", field: "hcDocumentNumber" },
-      { header: "Billing Information", field: "billingInfo" },
-      { header: "Review Status LP", field: "reviewStatusLp" },
+      // { header: "Billing Information", field: "billingInfo" },
+      // { header: "Review Status LP", field: "reviewStatusLp" },
       { header: "In UTP", field: "inUtp" },
     ],
   },
@@ -438,7 +438,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           dateReceived: item.DateReceived
             ? new Date(item.DateReceived).toLocaleDateString()
             : "", // "Date of Receipt"
-          complianceDate: item.DateofCompliance
+         complianceDate: item.DateofCompliance
             ? new Date(item.DateofCompliance).toLocaleDateString()
             : "", // "Compliance Date"
           DateofCompliance: item.DateofCompliance
@@ -463,100 +463,119 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           briefDescription: item.BriefDescription || "",
           // "In UTP"
         }));
-      case "Provisions1":
-        // Group by provision type & GL code
-        const groupBy = (arr: CaseItem[], keyFn: (r: CaseItem) => string) => {
-          return arr.reduce((acc, r) => {
-            const key = keyFn(r);
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(r);
-            return acc;
-          }, {} as Record<string, CaseItem[]>);
-        };
-        const now = new Date();
-        const currentMonth = now.getMonth(); // 0 = Jan, 7 = Aug
-        const year = now.getFullYear();
+    case "Provisions1": {
+  const sp = spfi().using(SPFx(SpfxContext));
 
-        const prevDate = new Date(year, currentMonth - 1, 1);
-        const prevMonth = prevDate.getMonth();
-        const filtered = rawData.filter((r) => r.RiskCategory === "Probable");
+  // Step 1: Get Risk Categories from UTP Tax Issue
+  const utpIssues = await sp.web.lists
+    .getByTitle("UTP Tax Issue")
+    .items.select("Id", "RiskCategory", "UTP/Id")
+    .expand("UTP")();
 
-        const enriched = filtered.map((r) => {
-          const d = r.UTPDate ? new Date(r.UTPDate) : null;
-          return {
-            ...r,
-            month: d ? d.getMonth() : null,
-            year: d ? d.getFullYear() : null,
-          };
-        });
-        const segregated = groupBy(enriched, (r) => r.TaxType);
-        console.log(segregated);
+  const riskMap = new Map(
+    utpIssues.map((i) => [i.UTP?.Id, i.RiskCategory])
+  );
 
-        const exportData: any[] = [];
+  // Step 2: Merge RiskCategory into rawData
+  const merged = rawData.map((r) => {
+    const riskCategory = riskMap.get(r.Id) || "";
+    const d = r.UTPDate ? new Date(r.UTPDate) : null;
+    return {
+      ...r,
+      RiskCategory: riskCategory,
+      month: d ? d.getMonth() : null,
+      year: d ? d.getFullYear() : null,
+    };
+  });
 
-        Object.entries(segregated).forEach(([TaxType, rows]) => {
-          const byGL = groupBy(rows, (r) => r.GMLRID);
+  // Step 3: Filter only Probable
+  const filtered = merged.filter((r) => r.RiskCategory === "Probable");
 
-          let subtotalCurr = 0;
-          let subtotalPrev = 0;
+  // Step 4: Group by provision type & GL code
+  const groupBy = (arr: any[], keyFn: (r: any) => string) =>
+    arr.reduce((acc, r) => {
+      const key = keyFn(r);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(r);
+      return acc;
+    }, {} as Record<string, any[]>);
 
-          Object.entries(byGL).forEach(([GMLRID, records]) => {
-            const curr = records
-              .filter((r: any) => r.month === currentMonth && r.year === year)
-              .reduce((sum: any, r: any) => sum + r.GrossExposure, 0);
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0 = Jan
+  const year = now.getFullYear();
 
-            const prev = records
-              .filter((r: any) => r.month === prevMonth && r.year === year)
-              .reduce((sum: any, r: any) => sum + r.GrossExposure, 0);
+  const prevDate = new Date(year, currentMonth - 1, 1);
+  const prevMonth = prevDate.getMonth();
 
-            const variance = curr - prev;
+  const segregated = groupBy(filtered, (r) => r.TaxType);
 
-            subtotalCurr += curr;
-            subtotalPrev += prev;
+  const exportData: any[] = [];
 
-            exportData.push({
-              glCode: GMLRID,
-              taxType: records[0]?.TaxType || "",
-              provisionType:
-                TaxType == "Income Tax" ? "Above Ebitda" : "Below Ebitda",
-              entity: records[0]?.Entity || "",
-              currentMonthAmount: curr,
-              previousMonthAmount: prev,
-              variance: variance,
-            });
-          });
+  Object.entries(segregated).forEach(([TaxType, rows]) => {
+    const byGL = groupBy(rows as any[], (r) => r.GMLRID);
 
-          // Subtotal row
-          exportData.push({
-            glCode: "",
-            taxType: "",
-            provisionType: "",
-            entity: "Sub Total",
-            currentMonthAmount: subtotalCurr,
-            previousMonthAmount: subtotalPrev,
-            Variance: subtotalCurr - subtotalPrev,
-          });
-        });
+    let subtotalCurr = 0;
+    let subtotalPrev = 0;
 
-        // Grand total
-        const totalCurr = exportData
-          .filter((r) => r.Entity === "Sub Total")
-          .reduce((sum, r) => sum + (r["Current Month Amount"] || 0), 0);
+    Object.entries(byGL).forEach(([GMLRID, records]) => {
+      const curr = (records as any[])
+        .filter((r: any) => r.month === currentMonth && r.year === year)
+        .reduce((sum: any, r: any) => sum + r.GrossExposure, 0);
 
-        const totalPrev = exportData
-          .filter((r) => r.Entity === "Sub Total")
-          .reduce((sum, r) => sum + (r["Previous Month Amount"] || 0), 0);
+      const prev = (records as any[])
+        .filter((r: any) => r.month === prevMonth && r.year === year)
+        .reduce((sum: any, r: any) => sum + r.GrossExposure, 0);
 
-        exportData.push({
-          "GL Code": "",
-          "Tax Matter": "",
-          "Provision Type": "",
-          Entity: "Grand Total",
-          "Current Month Amount": totalCurr,
-          "Previous Month Amount": totalPrev,
-          Variance: totalCurr - totalPrev,
-        });
-        return exportData;
+      const variance = curr - prev;
+
+      subtotalCurr += curr;
+      subtotalPrev += prev;
+
+      exportData.push({
+        glCode: GMLRID,
+        taxType: (records as any[])[0]?.TaxType || "",
+        provisionType:
+          TaxType == "Income Tax" ? "Above Ebitda" : "Below Ebitda",
+        entity: (records as any[])[0]?.CaseNumber?.Entity || "",
+        currentMonthAmount: curr,
+        previousMonthAmount: prev,
+        variance: variance,
+      });
+    });
+
+    // Subtotal row
+    exportData.push({
+      glCode: "",
+      taxType: "",
+      provisionType: "",
+      entity: "Sub Total",
+      currentMonthAmount: subtotalCurr,
+      previousMonthAmount: subtotalPrev,
+      variance: subtotalCurr - subtotalPrev,
+    });
+  });
+
+  // Grand total row
+  const totalCurr = exportData
+    .filter((r) => r.entity === "Sub Total")
+    .reduce((sum, r) => sum + (r.currentMonthAmount || 0), 0);
+
+  const totalPrev = exportData
+    .filter((r) => r.entity === "Sub Total")
+    .reduce((sum, r) => sum + (r.previousMonthAmount || 0), 0);
+
+  exportData.push({
+    glCode: "",
+    taxType: "",
+    provisionType: "",
+    entity: "Grand Total",
+    currentMonthAmount: totalCurr,
+    previousMonthAmount: totalPrev,
+    variance: totalCurr - totalPrev,
+  });
+
+  return exportData;
+}
 
       case "Provisions3":
         const now3 = new Date();
@@ -694,7 +713,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             if (!acc[item.GRSCode]) {
               acc[item.GRSCode] = {
                 GRSCode: item.GRSCode || "",
-                entity: item.Entity || "",
+                entity: item?.CaseNumber?.Entity || "",
                 taxType: item.TaxType || "",
                 GrossExposure: 0,
               };
@@ -769,7 +788,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           exportData3.push({
             glCode: GMLRID,
             taxType: records[0]?.TaxType || "Brief Description",
-            entity: records[0]?.Entity || "",
+            entity: records[0]?.CaseNumber?.Entity || "",
             currentMonthAmount: curr || 0,
             previousMonthAmount: prev || 0,
             variance: (curr || 0) - (prev || 0),
@@ -814,17 +833,17 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             ...utp,
             utpId: utp.UTPId, // exists (currently null in your data)
             mlrClaimId: utp.GMLRID, // mapping from GMLRID
-            pendingAuthority: utp.PendingAuthority, // exists but null
+            pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
             type: utp.PaymentType, // exists but null
             grossExposureJul: utp.GrossExposure, // only one field, reusing
             grossExposureJun: utp.GrossExposure,
             UTPDate: utp.UTPDate,
             category: utp.RiskCategory, // exists
-            fy: utp.FinancialYear, // exists but null
-            taxYear: utp.TaxYear, // exists but null
-            taxAuthority: utp.TaxAuthority, // ❌ not in data (will be undefined)
-            taxType: utp.TaxType, // exists
-            entity: utp.Entity, // exists but null
+            fy: utp?.CaseNumber?.FinancialYear, // exists but null
+            taxYear: utp?.CaseNumber?.TaxYear, // exists but null
+            taxAuthority: utp?.CaseNumber?.TaxAuthority, // ❌ not in data (will be undefined)
+            taxType: utp?.TaxType, // exists
+            entity: utp?.CaseNumber?.Entity, // exists but null
 
             varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
             grossExposureMay: utp.GrossExposure,
@@ -853,17 +872,17 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             ...utp,
             utpId: `${utp.UTPId}-${String.fromCharCode(97 + index)}`, // exists (currently null in your data)
             mlrClaimId: utp.GMLRID, // mapping from GMLRID
-            pendingAuthority: utp.PendingAuthority, // exists but null
+            pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
             type: utp.PaymentType, // exists but null
             grossExposureJul: utp.GrossExposure, // only one field, reusing
             grossExposureJun: issue.GrossTaxExposure ?? utp.GrossExposure,
             UTPDate: utp.UTPDate,
-            category: issue.RiskCategory ?? utp.RiskCategory,
-            fy: utp.FinancialYear, // exists but null
-            taxYear: utp.TaxYear, // exists but null
-            taxAuthority: utp.TaxAuthority, // ❌ not in data (will be undefined)
+           category: utp.RiskCategory, // exists
+            fy: utp?.CaseNumber?.FinancialYear, // exists but null
+            taxYear: utp?.CaseNumber?.TaxYear, // exists but null
+            taxAuthority: utp?.CaseNumber?.TaxAuthority,// ❌ not in data (will be undefined)
             taxType: utp.TaxType, // exists
-            entity: utp.Entity, // exists but null
+          entity: utp?.CaseNumber?.Entity, // exists but null
 
             varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
             grossExposureMay: utp.GrossExposure,
@@ -911,10 +930,27 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   const fetchData = async () => {
     setLoading(true);
     let items_updated;
+    let items: any[] = [];
     try {
       const listName = getListName(reportType);
-      const items = await sp.web.lists.getByTitle(listName).items();
-      if (reportType === "ActiveCases") {
+     if (listName === "UTPData") {
+  // Expand the CaseNumber lookup and bring fields from Litigation list
+  items = await sp.web.lists
+    .getByTitle(listName)
+   .items.select(
+    "*",
+    "CaseNumber/Id",
+    "CaseNumber/Title",
+    "CaseNumber/TaxAuthority",
+    "CaseNumber/PendingAuthority",
+     "CaseNumber/Entity",
+    "CaseNumber/FinancialYear",
+    "CaseNumber/TaxYear"
+  )
+  .expand("CaseNumber")(); // expand lookup field
+} else {
+  items = await sp.web.lists.getByTitle(listName).items();
+}  if (reportType === "ActiveCases") {
         const today = new Date();
         const next30 = new Date();
         next30.setDate(today.getDate() + 30);
@@ -1103,20 +1139,15 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           ? new Date(itemDateRaw).toISOString().split("T")[0]
           : null;
 
-        console.log(
-          updatedFilters,
-          item,
-          item.DateofCompliance,
-          itemDateStr,
-          "updatedFilters23"
-        );
+       
 
         if (itemDateStr) {
           dateMatch = true;
+console.log(startStr, endStr, itemDateStr, "updatedFilters234");
 
-          if (startStr && itemDateStr < startStr) {
-            dateMatch = false;
-          }
+          // if (startStr && itemDateStr < startStr) {
+          //   dateMatch = false;
+          // }
           if (endStr && itemDateStr > endStr) {
             dateMatch = false;
           }
@@ -1171,94 +1202,83 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     setLoading(false);
   };
   const handleFilterChangeDate2 = async (
-    value1: string,
-    value2: string,
-    data2: any
-  ) => {
-    const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
-    setFilters(updatedFilters);
+  value1: string,
+  value2: string,
+  data2: any
+) => {
+  const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
+  setFilters(updatedFilters);
 
-    const filtered = data2.filter((item: any) => {
-      let dateMatch = true;
+  const filtered = data2.filter((item: any) => {
+    let dateMatch = true;
 
-      if (value1 || value2) {
-        // convert to YYYY-MM-DD for comparison
-        const startStr = updatedFilters.dateStart || null;
-        const endStr = updatedFilters.dateEnd || null;
+    if (value1 || value2) {
+      const startDate = value1 ? new Date(value1) : null;
+      const endDate = value2 ? new Date(value2) : null;
 
-        const itemDateRaw = item.DateofCompliance;
+      const itemDateRaw = item.DateofCompliance;
+      const itemDate = itemDateRaw ? new Date(itemDateRaw) : null;
 
-        const itemDateStr = itemDateRaw
-          ? new Date(itemDateRaw).toISOString().split("T")[0]
-          : null;
+      if (itemDate) {
+        dateMatch = true;
 
-        console.log(
-          updatedFilters,
-          item,
-          item.DateofCompliance,
-          itemDateStr,
-          "updatedFilters2346"
-        );
-
-        if (itemDateStr) {
-          dateMatch = true;
-
-          if (startStr && itemDateStr < startStr) {
-            dateMatch = false;
-          }
-          if (endStr && itemDateStr > endStr) {
-            dateMatch = false;
-          }
-        } else {
+        if (startDate && itemDate < startDate) {
           dateMatch = false;
         }
+        if (endDate && itemDate > endDate) {
+          dateMatch = false;
+        }
+      } else {
+        dateMatch = false;
       }
+    }
 
-      // ---- OTHER FILTERS ----
-      switch (reportType) {
-        case "UTP":
-        case "Provisions1":
-        case "Provisions2":
-        case "Provisions3":
-        case "Contingencies":
-        case "ERM":
-          return (
-            dateMatch &&
-            (!updatedFilters.category ||
-              item.RiskCategory === updatedFilters.category) &&
-            (!updatedFilters.financialYear ||
-              item.FinancialYear === updatedFilters.financialYear) &&
-            (!updatedFilters.taxYear ||
-              item.TaxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxType ||
-              item.TaxType === updatedFilters.taxType) &&
-            (!updatedFilters.entity || item.Entity === updatedFilters.entity)
-          );
+    // ---- OTHER FILTERS ----
+    switch (reportType) {
+      case "UTP":
+      case "Provisions1":
+      case "Provisions2":
+      case "Provisions3":
+      case "Contingencies":
+      case "ERM":
+        return (
+          dateMatch &&
+          (!updatedFilters.category ||
+            item.RiskCategory === updatedFilters.category) &&
+          (!updatedFilters.financialYear ||
+            item.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.taxYear ||
+            item.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxType ||
+            item.TaxType === updatedFilters.taxType) &&
+          (!updatedFilters.entity || item.Entity === updatedFilters.entity)
+        );
 
-        case "Litigation":
-        case "ActiveCases":
-          return (
-            dateMatch &&
-            (!updatedFilters.taxYear ||
-              item.TaxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxAuthority ||
-              item.TaxAuthority === updatedFilters.taxAuthority) &&
-            (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
-            (!updatedFilters.financialYear ||
-              item.FinancialYear === updatedFilters.financialYear) &&
-            (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
-          );
+      case "Litigation":
+      case "ActiveCases":
+        return (
+          dateMatch &&
+          (!updatedFilters.taxYear ||
+            item.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxAuthority ||
+            item.TaxAuthority === updatedFilters.taxAuthority) &&
+          (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
+          (!updatedFilters.financialYear ||
+            item.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
+        );
 
-        default:
-          return dateMatch;
-      }
-    });
+      default:
+        return dateMatch;
+    }
+  });
 
-    setLoading(true);
-    const dataf = await normalizeData(reportType, filtered);
-    setFilteredData(dataf);
-    setLoading(false);
-  };
+  setLoading(true);
+  const dataf = await normalizeData(reportType, filtered);
+  setFilteredData(dataf);
+  setLoading(false);
+};
+
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const paginatedData = ["Litigation", "UTP", "ActiveCases"].includes(
