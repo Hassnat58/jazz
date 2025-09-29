@@ -62,28 +62,36 @@ const reportConfig: Record<
     columns: [
       { header: "UTP ID", field: "utpId" },
       { header: "MLR Claim ID", field: "mlrClaimId" },
-      { header: "Tax Matter", field: "taxType" },
+      { header: "Tax Matter", field: "taxMatter" },
       { header: "Tax Authority", field: "taxAuthority" },
       { header: "Pending Authority", field: "pendingAuthority" },
       { header: "Entity", field: "entity" },
-      { header: "Type", field: "type" },
+      { header: "Type", field: "taxType" },
       { header: "Financial Year", field: "fy" },
       { header: "Tax Year", field: "taxYear" },
       { header: "UTP Issue", field: "utpIssue" },
+{ header: "Amount contested", field: "amtContested" },
+{ header: "Rate", field: "rate" },
 
       // { header: "Gross Exposure PKR Jul 2024", field: "grossExposureJul" },
       { header: "Gross Exposure ", field: "grossExposureJun" },
       // { header: "Variance with last month PKR", field: "varianceLastMonth" },
       // { header: "Gross Exposure PKR May 2024", field: "grossExposureMay" },
       // { header: "Gross Exposure PKR Apr 2024", field: "grossExposureApr" },
-      { header: "Category", field: "category" },
+      { header: "Risk Category", field: "category" },
       { header: "Contingency Note", field: "contingencyNote" },
-      { header: "Description", field: "briefDescription" },
+      { header: "Brief Description", field: "briefDescription" },
       { header: "Provision GL Code", field: "provisionGlCode" },
       { header: "Provision GRS Code", field: "provisionGrsCode" },
       { header: "Payment under Protest", field: "paymentUnderProtest" },
       { header: "Payment GL Code", field: "paymentGlCode" },
+       { header: "Admitted Tax", field: "admittedTax" },
       { header: "UTP Paper Category", field: "utpPaperCategory" },
+     { header: "ERM Category", field: "ermCategory" },
+{ header: "Cash flow exposure PKR", field: "cashFlowExposurePKR" },
+{ header: "P&L exposure PKR", field: "plExposurePKR" },
+{ header: "EBITDA exposure PKR", field: "ebitdaExposurePKR" },
+{ header: "ERM unique numbering", field: "ermUniqueNumbering" },
     ],
   },
 
@@ -856,7 +864,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             fy: utp?.CaseNumber?.FinancialYear, // exists but null
             taxYear: utp?.CaseNumber?.TaxYear, // exists but null
             taxAuthority: utp?.CaseNumber?.TaxAuthority, // ❌ not in data (will be undefined)
-            taxType: utp?.TaxType, // exists
+                     taxMatter:utp?.CaseNumber?.CorrespondenceType,// ❌ not in data (will be undefined)
+            taxType: utp?.CaseNumber?.TaxType, // exists
             entity: utp?.CaseNumber?.Entity, // exists but null
 
             varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
@@ -864,16 +873,26 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             grossExposureApr: utp.GrossExposure,
             arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
             contingencyNote: utp.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
-            briefDescription: utp.Description, // exists but null
-            provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
+           briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
+              provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
             provisionGrsCode: utp.GRSCode, // exists
-            paymentUnderProtest: utp.Paymentunderprotest, // exists but null (note lowercase "u")
+            paymentUnderProtest: utp.PaymentType=="Payment under Protest"? utp.Amount:"", // exists but null (note lowercase "u")
+             admittedTax:utp.PaymentType=="Admitted Tax"? utp.Amount:"", // exists but null (note lowercase "u")
+           
             paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
             utpPaperCategory: utp.UTPPaperCategory, // exists but null
             provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
 
             utpIdDisplay: utp.Id,
             utpIssue: "",
+            ermCategory:utp.ERMCategory??"",
+            cashFlowExposurePKR:Number(utp.CashFlowExposure)?.toFixed(2)??"",
+
+            plExposurePKR:Number(utp.PLExposure)?.toFixed(2)??"",
+
+            ebitdaExposurePKR:Number(utp.EBITDAExposure)?.toFixed(2)??"",
+
+            ermUniqueNumbering:utp.ERMUniqueNumbering??"",
           };
 
           const relatedIssues = utpIssues.filter(
@@ -889,13 +908,14 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
             type: utp.PaymentType, // exists but null
             grossExposureJul: utp.GrossExposure, // only one field, reusing
-            grossExposureJun: issue.GrossTaxExposure ?? utp.GrossExposure,
+            grossExposureJun: issue.GrossTaxExposure ?? utp.GrossExposure?.toFixed(2),
             UTPDate: utp.UTPDate,
            category: issue.RiskCategory, // exists
             fy: utp?.CaseNumber?.FinancialYear, // exists but null
             taxYear: utp?.CaseNumber?.TaxYear, // exists but null
-            taxAuthority: utp?.CaseNumber?.TaxAuthority,// ❌ not in data (will be undefined)
-            taxType: utp.TaxType, // exists
+            taxAuthority: utp?.CaseNumber?.TaxAuthority,
+            taxMatter:utp?.CaseNumber?.CorrespondenceType,// ❌ not in data (will be undefined)
+            taxType: utp?.CaseNumber?.TaxType, // exists
           entity: utp?.CaseNumber?.Entity, // exists but null
 
             varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
@@ -904,15 +924,29 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
 
             contingencyNote: issue.ContigencyNote , // exists but null (be careful: property is "ContigencyNote" with missing 'n')
-            briefDescription: utp.Description, // exists but null
+            briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
             provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
             provisionGrsCode: utp.GRSCode, // exists
-            paymentUnderProtest: utp.Paymentunderprotest, // exists but null (note lowercase "u")
+            paymentUnderProtest: utp.PaymentType=="Payment under Protest"? utp.Amount:"", // exists but null (note lowercase "u")
+            admittedTax:utp.PaymentType=="Admitted Tax"? utp.Amount:"", // exists but null (note lowercase "u")
+             // exists but null (note lowercase "u")
             paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
             utpPaperCategory: utp.UTPPaperCategory, // exists but null
             provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
 
             utpIssue: issue.Title ?? "",
+            amtContested:issue.AmountContested ?? "",
+            rate:issue.Rate ?? "",
+            ermCategory:utp.ERMCategory??"",
+            cashFlowExposurePKR:Number(utp.CashFlowExposure)?.toFixed(2)??"",
+
+            plExposurePKR:Number(utp.PLExposure)?.toFixed(2)??"",
+
+            ebitdaExposurePKR:Number(utp.EBITDAExposure)?.toFixed(2)??"",
+
+            ermUniqueNumbering:utp.ERMUniqueNumbering??"",
+
+
           }));
 
           // return [mainRow, ...issueRows];
@@ -947,22 +981,60 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     let items: any[] = [];
     try {
       const listName = getListName(reportType);
-     if (listName === "UTPData") {
-  // Expand the CaseNumber lookup and bring fields from Litigation list
-  items = await sp.web.lists
+if (listName === "UTPData") {
+  // 1️⃣ Fetch UTPData items and expand CaseNumber lookup
+   items = await sp.web.lists
     .getByTitle(listName)
-   .items.select(
-    "*",
-    "CaseNumber/Id",
-    "CaseNumber/Title",
-    "CaseNumber/TaxAuthority",
-    "CaseNumber/PendingAuthority",
-     "CaseNumber/Entity",
-    "CaseNumber/FinancialYear",
-    "CaseNumber/TaxYear"
-  )
-  .expand("CaseNumber")(); // expand lookup field
-} else {
+    .items.select(
+      "*",
+      "CaseNumber/Id",
+      "CaseNumber/Title",
+      "CaseNumber/TaxAuthority",
+      "CaseNumber/PendingAuthority",
+      "CaseNumber/Entity",
+      "CaseNumber/CorrespondenceType",
+      "CaseNumber/TaxType",
+      "CaseNumber/FinancialYear",
+      "CaseNumber/TaxYear"
+    )
+    .expand("CaseNumber")();
+
+  // 2️⃣ Extract unique Case IDs (no Set used)
+  const caseIdsArray = items
+    .map((i) => i?.CaseNumber?.Id)
+    .filter((id) => id !== undefined && id !== null);
+
+  const caseIds = caseIdsArray.filter(
+    (id, index) => caseIdsArray.indexOf(id) === index
+  );
+
+  if (caseIds.length > 0) {
+    // 3️⃣ Build filter string like: Id eq 1 or Id eq 2 or Id eq 3
+    const caseFilter = caseIds.map((id) => `Id eq ${id}`).join(" or ");
+
+    // 4️⃣ Fetch BriefDescription separately from Cases list
+    const caseDetails = await sp.web.lists
+      .getByTitle("Cases")
+      .items.select("Id", "BriefDescription")
+      .filter(caseFilter)();
+
+    // 5️⃣ Merge BriefDescription into UTPData items
+    items = items.map((item) => {
+      const caseDetail = caseDetails.find(
+        (c) => c.Id === item?.CaseNumber?.Id
+      );
+      return {
+        ...item,
+        CaseNumber: {
+          ...item.CaseNumber,
+          BriefDescription: caseDetail ? caseDetail.BriefDescription : "",
+        },
+      };
+    });
+  }
+}
+
+ else {
   items = await sp.web.lists.getByTitle(listName).items();
 }  if (reportType === "ActiveCases") {
         const today = new Date();
@@ -1430,7 +1502,7 @@ console.log(startStr, endStr, itemDateStr, "updatedFilters234");
           <Dropdown
             label="Tax Authority"
             placeholder="Select Tax Authority"
-            options={lovOptions.TaxAuthority || []}
+            options={lovOptions["Tax Authority"] || []}
             selectedKey={filters.taxAuthority || null}
             onChange={(_, option) =>
               handleFilterChange("taxAuthority", option?.key as string)
