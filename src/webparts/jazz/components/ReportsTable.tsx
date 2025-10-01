@@ -150,6 +150,7 @@ const reportConfig: Record<
     columns: [
       { header: "GL Code", field: "glCode" },
       { header: "Tax Matter", field: "taxType" },
+     
       { header: "Provision Type", field: "provisionType" },
       { header: "Entity", field: "entity" },
       { header: "Current Month Amount", field: "currentMonthAmount" },
@@ -161,7 +162,8 @@ const reportConfig: Record<
   Provisions2: {
     columns: [
       { header: "GRS Code", field: "GRSCode" },
-      { header: "Tax Matter", field: "taxType" },
+      { header: "Tax Matter", field: "taxMatter" },
+      { header: "Tax Type", field: "taxType" },
       { header: "Entity", field: "entity" },
       { header: "Current Month Amount", field: "GrossExposure" },
     ],
@@ -485,7 +487,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           briefDescription: item.BriefDescription || "",
           // "In UTP"
         }));
-    case "Provisions1": {
+case "Provisions1": {
   const sp = spfi().using(SPFx(SpfxContext));
 
   // Step 1: Get Risk Categories from UTP Tax Issue
@@ -494,26 +496,35 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     .items.select("Id", "RiskCategory", "UTP/Id")
     .expand("UTP")();
 
-  const riskMap = new Map(
-    utpIssues.map((i) => [i.UTP?.Id, i.RiskCategory])
-  );
+  // Step 2: Group multiple risk categories by UTP Id
+  const riskMap = utpIssues.reduce((acc, issue) => {
+    const utpId = issue.UTP?.Id;
+    if (!utpId) return acc;
+    if (!acc[utpId]) acc[utpId] = [];
+    acc[utpId].push(issue.RiskCategory);
+    return acc;
+  }, {} as Record<number, string[]>);
 
-  // Step 2: Merge RiskCategory into rawData
+  // Step 3: Merge all RiskCategories into rawData
   const merged = rawData.map((r) => {
-    const riskCategory = riskMap.get(r.Id) || "";
+    const riskCategories = riskMap[r.Id] || [];
     const d = r.UTPDate ? new Date(r.UTPDate) : null;
+
     return {
       ...r,
-      RiskCategory: riskCategory,
+      RiskCategories: riskCategories, // array of all categories
+      hasProbable: riskCategories.includes("Probable"), // flag for filtering
       month: d ? d.getMonth() : null,
       year: d ? d.getFullYear() : null,
     };
   });
 
-  // Step 3: Filter only Probable
-  const filtered = merged.filter((r) => r.RiskCategory === "Probable");
+  console.log(merged, rawData, "mm");
 
-  // Step 4: Group by provision type & GL code
+  // Step 4: Filter only those having at least one "Probable" RiskCategory
+  const filtered = merged.filter((r) => r.hasProbable);
+
+  // Step 5: Group by provision type & GL code
   const groupBy = (arr: any[], keyFn: (r: any) => string) =>
     arr.reduce((acc, r) => {
       const key = keyFn(r);
@@ -532,6 +543,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   const segregated = groupBy(filtered, (r) => r.TaxType);
 
   const exportData: any[] = [];
+  console.log(segregated, filtered, "hhh");
 
   Object.entries(segregated).forEach(([TaxType, rows]) => {
     const byGL = groupBy(rows as any[], (r) => r.GMLRID);
@@ -539,31 +551,28 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     let subtotalCurr = 0;
     let subtotalPrev = 0;
 
-    Object.entries(byGL).forEach(([GMLRID, records]) => {
-      const curr = (records as any[])
-        .filter((r: any) => r.month === currentMonth && r.year === year)
-        .reduce((sum: any, r: any) => sum + r.GrossExposure, 0);
+   Object.entries(byGL).forEach(([GMLRID, records]) => {
+  (records as any[]).forEach((r: any) => {
+    const curr =
+      r.month === currentMonth && r.year === year ? r.GrossExposure || 0 : 0;
+    const prev =
+      r.month === prevMonth && r.year === year ? r.GrossExposure || 0 : 0;
 
-      const prev = (records as any[])
-        .filter((r: any) => r.month === prevMonth && r.year === year)
-        .reduce((sum: any, r: any) => sum + r.GrossExposure, 0);
+    subtotalCurr += curr;
+    subtotalPrev += prev;
 
-      const variance = curr - prev;
-
-      subtotalCurr += curr;
-      subtotalPrev += prev;
-
-      exportData.push({
-        glCode: GMLRID,
-        taxType: (records as any[])[0]?.TaxType || "",
-        provisionType:
-          TaxType == "Income Tax" ? "Above Ebitda" : "Below Ebitda",
-        entity: (records as any[])[0]?.CaseNumber?.Entity || "",
-        currentMonthAmount: curr,
-        previousMonthAmount: prev,
-        variance: variance,
-      });
+    exportData.push({
+      glCode: GMLRID,
+      taxType: r?.CaseNumber?.CorrespondenceType || "",
+      provisionType: r?.CaseNumber?.TaxType === "Income Tax" ? "Above Ebitda" : "Below Ebitda",
+      entity: r?.CaseNumber?.Entity || "",
+      currentMonthAmount: curr,
+      previousMonthAmount: prev,
+      variance: curr - prev,
     });
+  });
+});
+
 
     // Subtotal row
     exportData.push({
@@ -599,167 +608,186 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   return exportData;
 }
 
-      case "Provisions3":
-        const now3 = new Date();
-        const currentMonth3 = now3.getMonth();
-        const currentYear3 = now3.getFullYear();
-        const prevDate3 = new Date(currentYear3, currentMonth3 - 1, 1);
-        const prevMonth3 = prevDate3.getMonth();
-        const prevYear3 = prevDate3.getFullYear();
 
-        // Enrich
-        const enriched3 = rawData.map((r) => {
-          const d = r.UTPDate ? new Date(r.UTPDate) : null;
-          return {
-            ...r,
-            month: d ? d.getMonth() : null,
-            year: d ? d.getFullYear() : null,
-          };
-        });
+   case "Provisions3":
+  const sp3 = spfi().using(SPFx(SpfxContext));
 
-        // --- Core calculations ---
-        const totalExposureCurr = enriched3
-          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
+  // Step 1: Fetch Risk Categories from UTP Tax Issue
+  const utpIssues3 = await sp3.web.lists
+    .getByTitle("UTP Tax Issue")
+    .items.select("Id", "RiskCategory", "UTP/Id")
+    .expand("UTP")();
 
-        const totalExposurePrev = enriched3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
+  // Step 2: Group multiple risk categories by UTP Id
+  const riskMap3 = utpIssues3.reduce((acc, issue) => {
+    const utpId = issue.UTP?.Id;
+    if (!utpId) return acc;
+    if (!acc[utpId]) acc[utpId] = [];
+    acc[utpId].push(issue.RiskCategory);
+    return acc;
+  }, {} as Record<number, string[]>);
 
-        const paymentsCurr = enriched3
-          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce(
-            (s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0),
-            0
-          );
+  // Step 3: Merge RiskCategories into rawData
+  const merged3 = rawData.map((r) => {
+    const riskCategories = riskMap3[r.Id] || [];
+    const d = r.UTPDate ? new Date(r.UTPDate) : null;
 
-        const paymentsPrev = enriched3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce(
-            (s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0),
-            0
-          );
+    return {
+      ...r,
+      RiskCategories: riskCategories,
+      hasProbable: riskCategories.includes("Probable"),
+      month: d ? d.getMonth() : null,
+      year: d ? d.getFullYear() : null,
+    };
+  });
 
-        const provisionCurr = enriched3
-          .filter(
-            (r: any) =>
-              r.month === currentMonth3 &&
-              r.year === currentYear3 &&
-              r.RiskCategory === "Probable"
-          )
-          .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
+  // Step 4: Filter only Probable
+  const filtered3 = merged3.filter((r) => r.hasProbable);
 
-        const provisionPrev = enriched3
-          .filter(
-            (r: any) =>
-              r.month === prevMonth3 &&
-              r.year === prevYear3 &&
-              r.RiskCategory === "Probable"
-          )
-          .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
-        const plCurr = enriched3
-          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce((s, r: any) => s + (Number(r.PLExposure) || 0), 0);
+  // Step 5: Do your calculations using filtered3
+  const now3 = new Date();
+  const currentMonth3 = now3.getMonth();
+  const currentYear3 = now3.getFullYear();
+  const prevDate3 = new Date(currentYear3, currentMonth3 - 1, 1);
+  const prevMonth3 = prevDate3.getMonth();
+  const prevYear3 = prevDate3.getFullYear();
 
-        const plPrev = enriched3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce((s, r: any) => s + (Number(r.PLExposure) || 0), 0);
+  const totalExposureCurr = filtered3
+    .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+    .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
 
-        const ebitdaCurr = enriched3
-          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce((s, r: any) => s + (Number(r.EBITDAExposure) || 0), 0);
+  const totalExposurePrev = filtered3
+    .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+    .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
 
-        const ebitdaPrev = enriched3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce((s, r: any) => s + (Number(r.EBITDAExposure) || 0), 0);
-        // --- Build matrix rows ---
-        const results3 = [
-          {
-            label: "Total Exposure",
-            current: totalExposureCurr,
-            prior: totalExposurePrev,
-            variance: totalExposureCurr - totalExposurePrev,
-          },
-          {
-            label: "Less – Payments under Protest",
-            current: paymentsCurr,
-            prior: paymentsPrev,
-            variance: paymentsCurr - paymentsPrev,
-          },
-          {
-            label: "Cashflow Exposure",
-            current: totalExposureCurr - paymentsCurr,
-            prior: totalExposurePrev - paymentsPrev,
-            variance:
-              totalExposureCurr -
-              paymentsCurr -
-              (totalExposurePrev - paymentsPrev),
-          },
-          {
-            label: "Total Exposure",
-            current: totalExposureCurr,
-            prior: totalExposurePrev,
-            variance: totalExposureCurr - totalExposurePrev,
-          },
-          {
-            label: "Less – Total Provision",
-            current: totalExposureCurr - provisionCurr,
-            prior: totalExposurePrev - provisionPrev,
-            variance: provisionCurr - provisionPrev,
-          },
-          {
-            label: "P&L Exposure",
-            current: plCurr,
-            prior: plPrev,
-            variance:
-              totalExposureCurr -
-              provisionCurr -
-              (totalExposurePrev - provisionPrev),
-          },
-          {
-            label: "EBITDA Exposure (%)",
-            current: ebitdaCurr,
-            prior: ebitdaPrev,
-            variance: ebitdaCurr - ebitdaPrev,
-          },
-        ];
+  const paymentsCurr = filtered3
+    .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+    .reduce((s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
 
-        return results3;
+  const paymentsPrev = filtered3
+    .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+    .reduce((s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
 
-      case "Provisions2":
-        const currentMonthData: any = filterCurrentMonth(rawData);
+  const plCurr = filtered3
+    .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+    .reduce((s, r: any) => s + (Number(r.PLExposure) || 0), 0);
 
-        // Group & sum by GRS Code
-        const summarized = Object.values(
-          currentMonthData.reduce((acc: any, item: any) => {
-            if (!acc[item.GRSCode]) {
-              acc[item.GRSCode] = {
-                GRSCode: item.GRSCode || "",
-                entity: item?.CaseNumber?.Entity || "",
-                taxType: item.TaxType || "",
-                GrossExposure: 0,
-              };
-            }
-            acc[item.GRSCode].GrossExposure += item.GrossExposure || 0;
-            return acc;
-          }, {})
-        );
+  const plPrev = filtered3
+    .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+    .reduce((s, r: any) => s + (Number(r.PLExposure) || 0), 0);
 
-        // Subtotal
-        const total = summarized.reduce(
-          (sum: number, r: any) => sum + (r.GrossExposure || 0),
-          0
-        );
+  const ebitdaCurr = filtered3
+    .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+    .reduce((s, r: any) => s + (Number(r.EBITDAExposure) || 0), 0);
 
-        // Add subtotal row
-        summarized.push({
-          GRSCode: "",
-          entity: "Sub Total",
-          taxType: "",
-          GrossExposure: total,
-        });
+  const ebitdaPrev = filtered3
+    .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+    .reduce((s, r: any) => s + (Number(r.EBITDAExposure) || 0), 0);
 
-        return summarized;
+  const results3 = [
+    {
+      label: "Total Exposure (Probable only)",
+      current: totalExposureCurr,
+      prior: totalExposurePrev,
+      variance: totalExposureCurr - totalExposurePrev,
+    },
+    {
+      label: "Less – Payments under Protest",
+      current: paymentsCurr,
+      prior: paymentsPrev,
+      variance: paymentsCurr - paymentsPrev,
+    },
+    {
+      label: "Cashflow Exposure",
+      current: totalExposureCurr - paymentsCurr,
+      prior: totalExposurePrev - paymentsPrev,
+      variance:
+        totalExposureCurr - paymentsCurr - (totalExposurePrev - paymentsPrev),
+    },
+    {
+      label: "P&L Exposure",
+      current: plCurr,
+      prior: plPrev,
+      variance: plCurr - plPrev,
+    },
+    {
+      label: "EBITDA Exposure (PKR)",
+      current: ebitdaCurr,
+      prior: ebitdaPrev,
+      variance: ebitdaCurr - ebitdaPrev,
+    },
+  ];
+
+  return results3;
+
+    case "Provisions2": {
+  const sp = spfi().using(SPFx(SpfxContext));
+
+  // ✅ Step 1: Get Risk Categories from UTP Tax Issue
+  const utpIssues = await sp.web.lists
+    .getByTitle("UTP Tax Issue")
+    .items.select("Id", "RiskCategory", "UTP/Id")
+    .expand("UTP")();
+
+  // ✅ Step 2: Group multiple risk categories by UTP Id
+  const riskMap = utpIssues.reduce((acc, issue) => {
+    const utpId = issue.UTP?.Id;
+    if (!utpId) return acc;
+    if (!acc[utpId]) acc[utpId] = [];
+    acc[utpId].push(issue.RiskCategory);
+    return acc;
+  }, {} as Record<number, string[]>);
+
+  // ✅ Step 3: Merge RiskCategories into rawData
+  const rawDataWithRisk = rawData.map((r) => {
+    const riskCategories = riskMap[r.Id] || [];
+    return {
+      ...r,
+      RiskCategories: riskCategories,
+      hasProbable: riskCategories.includes("Probable"),
+    };
+  });
+
+  // ✅ Step 4: Use only Probable risk categories for current month
+  const currentMonthData: any = filterCurrentMonth(rawDataWithRisk).filter(
+    (r: any) => r.hasProbable
+  );
+
+  // ✅ Step 5: Group & sum by GRS Code
+  const summarized = Object.values(
+    currentMonthData.reduce((acc: any, item: any) => {
+      if (!acc[item.GRSCode]) {
+        acc[item.GRSCode] = {
+          GRSCode: item.GRSCode || "",
+          entity: item?.CaseNumber?.Entity || "",
+          taxMatter: item?.CaseNumber?.CorrespondenceType || "",
+          taxType: item?.CaseNumber?.TaxType || "",
+          GrossExposure: 0,
+          RiskCategories: item.RiskCategories || [],
+        };
+      }
+      acc[item.GRSCode].GrossExposure += item.GrossExposure || 0;
+      return acc;
+    }, {})
+  );
+
+  // ✅ Step 6: Subtotal
+  const total = summarized.reduce(
+    (sum: number, r: any) => sum + (r.GrossExposure || 0),
+    0
+  );
+
+  // ✅ Step 7: Add subtotal row
+  summarized.push({
+    GRSCode: "",
+    taxMatter: "",
+    entity: "Sub Total",
+    taxType: "",
+    GrossExposure: total,
+  });
+
+  return summarized;
+}
 
       case "Contingencies":
         // helper: group by GLCode
@@ -794,28 +822,26 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         let subtotalCurr = 0;
         let subtotalPrev = 0;
 
-        Object.entries(grouped).forEach(([GMLRID, records]) => {
-          const curr = records
-            .filter((r: any) => r.month === currentMonth1 && r.year === year1)
-            .reduce((sum: any, r: any) => sum + (r.GrossExposure || 0), 0);
+       Object.entries(grouped).forEach(([GMLRID, records]) => {
+  (records as any[]).forEach((r: any) => {
+    const curr =
+      r.month === currentMonth1 && r.year === year1 ? r.GrossExposure || 0 : 0;
+    const prev =
+      r.month === prevMonth1 && r.year === year1 ? r.GrossExposure || 0 : 0;
 
-          const prev = records
-            .filter((r: any) => r.month === prevMonth1 && r.year === year1)
-            .reduce((sum: any, r: any) => sum + (r.GrossExposure || 0), 0);
+    subtotalCurr += curr;
+    subtotalPrev += prev;
 
-          subtotalCurr += curr;
-          subtotalPrev += prev;
-
-          // Push only ONE row per GLCode
-          exportData3.push({
-            glCode: GMLRID,
-            taxType: records[0]?.TaxType || "Brief Description",
-            entity: records[0]?.CaseNumber?.Entity || "",
-            currentMonthAmount: curr || 0,
-            previousMonthAmount: prev || 0,
-            variance: (curr || 0) - (prev || 0),
-          });
-        });
+    exportData3.push({
+      glCode: GMLRID,
+      taxType: r?.CaseNumber?.CorrespondenceType || "", // ✅ now each row’s own correspondence type
+      entity: r?.CaseNumber?.Entity || "",
+      currentMonthAmount: curr || 0,
+      previousMonthAmount: prev || 0,
+      variance: (curr || 0) - (prev || 0),
+    });
+  });
+});
 
         // Subtotal row
         exportData3.push({
@@ -880,7 +906,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
              admittedTax:utp.PaymentType=="Admitted Tax"? utp.Amount:"", // exists but null (note lowercase "u")
            
             paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
-            utpPaperCategory: utp.UTPPaperCategory, // exists but null
+            utpPaperCategory: utp.UTPCategory, // exists but null
             provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
 
             utpIdDisplay: utp.Id,
@@ -931,7 +957,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             admittedTax:utp.PaymentType=="Admitted Tax"? utp.Amount:"", // exists but null (note lowercase "u")
              // exists but null (note lowercase "u")
             paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
-            utpPaperCategory: utp.UTPPaperCategory, // exists but null
+            utpPaperCategory: utp.UTPCategory, // exists but null
             provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
 
             utpIssue: issue.Title ?? "",
@@ -997,7 +1023,7 @@ if (listName === "UTPData") {
       "CaseNumber/FinancialYear",
       "CaseNumber/TaxYear"
     )
-    .expand("CaseNumber")();
+    .expand("CaseNumber").filter(` ApprovalStatus eq 'Approved'`)();
 
   // 2️⃣ Extract unique Case IDs (no Set used)
   const caseIdsArray = items
@@ -1016,7 +1042,7 @@ if (listName === "UTPData") {
     const caseDetails = await sp.web.lists
       .getByTitle("Cases")
       .items.select("Id", "BriefDescription")
-      .filter(caseFilter)();
+      .filter(`${caseFilter}`)();
 
     // 5️⃣ Merge BriefDescription into UTPData items
     items = items.map((item) => {
@@ -1035,7 +1061,7 @@ if (listName === "UTPData") {
 }
 
  else {
-  items = await sp.web.lists.getByTitle(listName).items();
+  items = await sp.web.lists.getByTitle(listName).items.filter(` ApprovalStatus eq 'Approved'`)();
 }  if (reportType === "ActiveCases") {
         const today = new Date();
         const next30 = new Date();

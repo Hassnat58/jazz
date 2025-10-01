@@ -30,8 +30,9 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
   );
   const [comments, setComments] = React.useState("");
   const sp = spfi().using(SPFx(SpfxContext));
+  const [attachments, setAttachments] = React.useState<any[]>([]);
 
-  if (!caseData) return null;
+  
 
   const handleSubmit = async () => {
     if (decision === "Rejected" && comments.trim() === "") {
@@ -68,7 +69,37 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
       alert("Error updating the record.");
     }
   };
+  const fetchAttachments = async (
+    itemId: number,
+    type: "case" | "correspondenceOut" | "UTP"
+  ) => {
+    try {
+      let filter = "";
 
+      if (type === "case") {
+        filter = `CaseId eq ${itemId}`;
+      } else if (type === "correspondenceOut") {
+        filter = `CorrespondenceOutId eq ${itemId}`;
+      } else if (type === "UTP") {
+        filter = `UTPId eq ${itemId}`;
+      }
+
+      const files = await sp.web.lists
+        .getByTitle("Core Data Repositories")
+        .items.filter(filter)
+        .select("File/Name", "File/ServerRelativeUrl", "ID")
+        .expand("File")();
+      setAttachments(files);
+    } catch (error) {
+      console.error("Error fetching attachments:", error);
+    }
+  };
+ React.useEffect(() => {
+  if (caseData && caseData.id) {
+    fetchAttachments(caseData.id, caseData.type === "utp" ? "UTP" : "case");
+  }
+}, [caseData]); 
+if (!caseData) return null;
   return (
     <Offcanvas
       className={styles.viewCaseContainer}
