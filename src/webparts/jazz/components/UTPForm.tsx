@@ -1659,7 +1659,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 label="Rate"
                 placeholder="Enter Rate"
                 type="text"
-                required
                 suffix="%"
                 styles={{ root: { flex: 1 } }}
                 value={
@@ -1668,24 +1667,31 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     : ""
                 }
                 onChange={(_, v) => {
-                  // Allow only numeric input
-                  const numeric =
-                    v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
+                  // Allow only numbers with up to 2 decimals
+                  const numeric = v?.replace(/[^0-9.]/g, "") || "";
+
+                  // Ensure only the first "." remains
+                  const cleaned = numeric.replace(/(\..*)\./g, "$1");
+
+                  // Parse to float
+                  const parsed = cleaned ? parseFloat(cleaned) : NaN;
+
                   const updated = [...taxIssueEntries];
+                  if (!isNaN(parsed)) {
+                    // Restrict to 2 decimal places
+                    updated[idx].rate = parseFloat(parsed.toFixed(2));
 
-                  // Save as percentage value
-                  updated[idx].rate = numeric ? parseFloat(numeric) : 0;
-
-                  // ✅ Calculate grossTaxExposure using % (divide by 100)
-                  const rateAsDecimal = (updated[idx].rate || 0) / 100;
-                  updated[idx].grossTaxExposure =
-                    (updated[idx].amountContested || 0) * rateAsDecimal;
+                    const rateAsDecimal = updated[idx].rate / 100;
+                    updated[idx].grossTaxExposure =
+                      (updated[idx].amountContested || 0) * rateAsDecimal;
+                  } else {
+                    updated[idx].rate = 0;
+                  }
 
                   setTaxIssueEntries(updated);
                 }}
               />
 
-              {/* Gross Tax Exposure */}
               {/* Gross Tax Exposure */}
               <TextField
                 label="Gross Tax Exposure"

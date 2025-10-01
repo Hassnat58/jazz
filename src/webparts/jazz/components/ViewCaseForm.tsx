@@ -146,7 +146,7 @@ const ViewCaseOffcanvas: React.FC<{
             </td>
             <td>{data.Email}</td>
             <td>
-              <strong>Tax exposure:</strong>
+              <strong>Tax Exposure:</strong>
             </td>
             <td>{data.TaxExposure}</td>
           </tr>
@@ -154,6 +154,7 @@ const ViewCaseOffcanvas: React.FC<{
       </table>
 
       <div className={styles.attachments}>
+        {console.log("attachments", attachments)}
         <h6>Attachments:</h6>
         <div className={styles.fileList}>
           {attachments && attachments.length > 0 ? (

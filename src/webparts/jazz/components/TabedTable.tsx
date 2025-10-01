@@ -305,7 +305,8 @@ const TabbedTables: React.FC<{
           "ConsultantEmail",
           "LawyerAssigned0",
           "LawyerEmail",
-          "ApprovalStatus"
+          "ApprovalStatus",
+          "TaxExposure"
         )
         .top(50)
         .expand("Author", "Editor", "ParentCase")
@@ -1555,7 +1556,12 @@ const TabbedTables: React.FC<{
 
     switch (activeTab) {
       case "Dashboard":
-        return <PowerBIDashboard SpfxContext={SpfxContext} />;
+        return (
+          <PowerBIDashboard
+            SpfxContext={SpfxContext}
+            attachments={attachments}
+          />
+        );
       case "Litigation":
         return renderCorrespondenceTable();
       case "Response":

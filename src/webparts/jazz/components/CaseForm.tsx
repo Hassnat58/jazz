@@ -1660,14 +1660,27 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     : ""
                 }
                 onChange={(_, v) => {
-                  // Allow only numeric input
-                  const numeric =
-                    v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
+                  // Allow only numbers with up to 2 decimals
+                  const numeric = v?.replace(/[^0-9.]/g, "") || "";
+
+                  // Ensure only the first "." remains
+                  const cleaned = numeric.replace(/(\..*)\./g, "$1");
+
+                  // Parse to float
+                  const parsed = cleaned ? parseFloat(cleaned) : NaN;
+
                   const updated = [...taxIssueEntries];
-                  updated[idx].rate = numeric ? parseFloat(numeric) : 0;
-                  const rateAsDecimal = (updated[idx].rate || 0) / 100;
-                  updated[idx].grossTaxExposure =
-                    (updated[idx].amountContested || 0) * rateAsDecimal;
+                  if (!isNaN(parsed)) {
+                    // Restrict to 2 decimal places
+                    updated[idx].rate = parseFloat(parsed.toFixed(2));
+
+                    const rateAsDecimal = updated[idx].rate / 100;
+                    updated[idx].grossTaxExposure =
+                      (updated[idx].amountContested || 0) * rateAsDecimal;
+                  } else {
+                    updated[idx].rate = 0;
+                  }
+
                   setTaxIssueEntries(updated);
                 }}
               />

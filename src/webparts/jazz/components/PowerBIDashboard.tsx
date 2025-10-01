@@ -6,7 +6,10 @@ import * as React from "react";
 import ManagersTable from "./ManagersTable";
 import { spfi, SPFx } from "@pnp/sp";
 
-const PowerBIDashboard: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
+const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
+  SpfxContext,
+  attachments,
+}) => {
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [isManager, setIsManager] = React.useState(false);
 

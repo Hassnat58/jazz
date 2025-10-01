@@ -14,6 +14,7 @@ interface Props {
   caseData: any;
   SpfxContext: any;
   loadCasesData: any;
+  attachments: any;
 }
 
 const ManagerDetailsDrawer: React.FC<Props> = ({
@@ -22,6 +23,7 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
   caseData,
   SpfxContext,
   loadCasesData,
+  attachments,
 }) => {
   const [decision, setDecision] = React.useState<"Approved" | "Rejected">(
     "Approved"
@@ -90,14 +92,14 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
             show={true}
             onClose={() => {}}
             utpData={caseData.raw}
-            attachments={caseData.raw.Attachments}
+            attachments={attachments}
           />
         ) : (
           <ViewCaseOffcanvas
             show={true}
             onClose={() => {}}
             caseData={caseData.raw}
-            attachments={caseData.raw.Attachments}
+            attachments={attachments}
           />
         )}
 

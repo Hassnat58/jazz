@@ -9,7 +9,10 @@ import styles from "./TabedTables.module.scss";
 import { spfi, SPFx } from "@pnp/sp";
 import Pagination from "./Pagination";
 
-const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
+const ManagersTable: React.FC<{ SpfxContext: any; attachments: any }> = ({
+  SpfxContext,
+  attachments,
+}) => {
   const [selectedCase, setSelectedCase] = useState(null);
   const [showDrawer, setShowDrawer] = useState(false);
   const [casesData, setCasesData] = useState<any[]>([]);
@@ -155,6 +158,7 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
         SpfxContext={SpfxContext}
         onHide={() => setShowDrawer(false)}
         caseData={selectedCase}
+        attachments={attachments}
         loadCasesData={loadCasesData}
       />
     </>
