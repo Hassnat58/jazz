@@ -73,7 +73,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
   const [editingAttachment, setEditingAttachment] = useState<string | null>(
     null
   );
-
+  const [rateInputs, setRateInputs] = React.useState<{ [key: number]: string }>(
+    {}
+  );
   const [tempName, setTempName] = useState<string>("");
   const [caseOptions, setCaseOptions] = useState<IComboBoxOption[]>([]);
   const [allCases, setAllCases] = useState<any[]>([]);
@@ -327,6 +329,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
         : null;
       prefilled.UTPId = selectedCase?.UTPId || null;
       prefilled.GMLRID = selectedCase?.GMLRID || null;
+      prefilled.PaymentGLCode = selectedCase?.PaymentGLCode || null;
+      prefilled.ProvisionGLCode = selectedCase?.ProvisionGLCode || null;
       // prefilled.Amount = selectedCase?.Amount || null;
 
       // prefilled.PLExposure =
@@ -382,6 +386,13 @@ const UTPForm: React.FC<UTPFormProps> = ({
       }));
 
       setTaxIssueEntries(mappedIssues);
+      const initialRates: { [id: number]: string } = {};
+      mappedIssues.forEach((entry) => {
+        if (entry.rate !== undefined && entry.rate !== null) {
+          initialRates[entry.id] = Number(entry.rate).toFixed(2);
+        }
+      });
+      setRateInputs(initialRates);
     };
 
     prefillForm();
@@ -414,7 +425,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
         // Text fields
         ERMUniqueNumbering: toNullIfEmpty(data.ERMUniqueNumbering),
-        Amount: data.Amount ? String(data.Amount) : null, // string column
+        PaymentGLCode: toNullIfEmpty(data.PaymentGLCode),
+        ProvisionGLCode: toNullIfEmpty(data.ProvisionGLCode),
+        Amount: data.Amount ? String(data.Amount) : null,
 
         // Other text field
         GMLRID: toNullIfEmpty(data.GMLRID),
@@ -426,7 +439,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
       } else if (data.TaxType === "Sales Tax") {
         itemData.EBITDAExposureExists = false; // No
       } else {
-        itemData.EBITDAExposureExists = null; // leave empty if other tax type
+        itemData.EBITDAExposureExists = null;
       }
 
       // 🔹 Date field
@@ -479,23 +492,56 @@ const UTPForm: React.FC<UTPFormProps> = ({
       const [batchedSP, execute] = sp.batched();
 
       // Upload new attachments
-      for (const attachment of attachments) {
+      // 🔹 Process new attachments in parallel
+      const attachmentPromises = attachments.map(async (attachment) => {
         const finalFileName = attachment.isRenamed
           ? attachment.newName
           : attachment.originalName;
 
-        batchedSP.web.lists
+        const uploadResult = await sp.web.lists
           .getByTitle("Core Data Repositories")
           .rootFolder.files.addUsingPath(finalFileName, attachment.file, {
             Overwrite: true,
-          })
-          .then(async (uploadResult) => {
-            const fileItem = await batchedSP.web
+          });
+
+        const fileItem = await sp.web
+          .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+          .getItem();
+
+        return fileItem.update({ UTPId: itemId });
+      });
+
+      // 🔹 Process existing attachments in parallel
+      const existingAttachmentPromises = existingAttachments.map(
+        async (file) => {
+          try {
+            const blob = await sp.web
+              .getFileByServerRelativePath(file.FileRef2 || file.FileRef)
+              .getBlob();
+
+            const finalFileName = file.isRenamed
+              ? file.newName
+              : file.FileLeafRef;
+
+            const uploadResult: any = await sp.web.lists
+              .getByTitle("Core Data Repositories")
+              .rootFolder.files.addUsingPath(finalFileName, blob, {
+                Overwrite: true,
+              });
+
+            const uploadedItem = await sp.web
               .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
               .getItem();
-            await fileItem.update({ UTPId: itemId });
-          });
-      }
+
+            return uploadedItem.update({ UTPId: itemId });
+          } catch (err) {
+            console.error("Failed to copy attachment:", err);
+          }
+        }
+      );
+
+      // Wait for all attachments together
+      await Promise.all([...attachmentPromises, ...existingAttachmentPromises]);
 
       // Tax Issues
       taxIssueEntries.forEach((entry) => {
@@ -889,13 +935,14 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     style={{
                       position: "absolute",
                       right: 20,
-                      top: "75%",
+                      top: "50%",
                       transform: "translateY(-50%)",
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
                       fontSize: "16px",
                       color: "#888",
+                      lineHeight: 1,
                     }}
                   >
                     ✖
@@ -940,13 +987,14 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     style={{
                       position: "absolute",
                       right: 20,
-                      top: "75%",
+                      top: "50%",
                       transform: "translateY(-50%)",
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
                       fontSize: "16px",
                       color: "#888",
+                      lineHeight: "1",
                     }}
                   >
                     ✖
@@ -955,18 +1003,28 @@ const UTPForm: React.FC<UTPFormProps> = ({
               </div>
             )}
           />
-          {/* <Controller
-          name="GrossExposure"
-          control={control}
-          render={({ field }) => (
-            <TextField
-              label="Gross Exposure"
-              required
-              placeholder="Enter Value"
-              {...field}
-            />
-          )}
-        /> */}
+          <Controller
+            name="PaymentGLCode"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                label="Payment GL Code"
+                placeholder="Enter Value"
+                {...field}
+              />
+            )}
+          />
+          <Controller
+            name="ProvisionGLCode"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                label="Provision GL Code"
+                placeholder="Enter Value"
+                {...field}
+              />
+            )}
+          />
 
           {/* Row 3 */}
           {/* <Controller
@@ -1101,13 +1159,14 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     style={{
                       position: "absolute",
                       right: 20,
-                      top: "75%",
+                      top: "50%", // ✅ center aligned
                       transform: "translateY(-50%)",
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
                       fontSize: "16px",
                       color: "#888",
+                      lineHeight: 1,
                     }}
                   >
                     ✖
@@ -1662,33 +1721,39 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 suffix="%"
                 styles={{ root: { flex: 1 } }}
                 value={
-                  entry.rate !== undefined && entry.rate !== null
+                  rateInputs[idx] !== undefined
+                    ? rateInputs[idx]
+                    : entry.rate !== undefined && entry.rate !== null
                     ? entry.rate.toString()
                     : ""
                 }
                 onChange={(_, v) => {
-                  // Allow only numbers with up to 2 decimals
-                  const numeric = v?.replace(/[^0-9.]/g, "") || "";
+                  // Allow only numbers and a single decimal
+                  const cleaned = v?.replace(/[^0-9.]/g, "") || "";
+                  const singleDot = cleaned.replace(/(\..*)\./g, "$1");
 
-                  // Ensure only the first "." remains
-                  const cleaned = numeric.replace(/(\..*)\./g, "$1");
+                  // Update temporary input state
+                  setRateInputs((prev) => ({ ...prev, [idx]: singleDot }));
 
-                  // Parse to float
-                  const parsed = cleaned ? parseFloat(cleaned) : NaN;
-
-                  const updated = [...taxIssueEntries];
+                  const parsed = parseFloat(singleDot);
                   if (!isNaN(parsed)) {
-                    // Restrict to 2 decimal places
-                    updated[idx].rate = parseFloat(parsed.toFixed(2));
-
-                    const rateAsDecimal = updated[idx].rate / 100;
+                    const updated = [...taxIssueEntries];
+                    updated[idx].rate = parsed; // stays a number ✅
                     updated[idx].grossTaxExposure =
-                      (updated[idx].amountContested || 0) * rateAsDecimal;
-                  } else {
-                    updated[idx].rate = 0;
+                      (updated[idx].amountContested || 0) * (parsed / 100);
+                    setTaxIssueEntries(updated);
                   }
+                }}
+                onBlur={() => {
+                  const parsed = parseFloat(rateInputs[idx]);
+                  if (!isNaN(parsed)) {
+                    const rounded = parsed.toFixed(2);
+                    setRateInputs((prev) => ({ ...prev, [idx]: rounded }));
 
-                  setTaxIssueEntries(updated);
+                    const updated = [...taxIssueEntries];
+                    updated[idx].rate = parseFloat(rounded); // stored as number ✅
+                    setTaxIssueEntries(updated);
+                  }
                 }}
               />
 

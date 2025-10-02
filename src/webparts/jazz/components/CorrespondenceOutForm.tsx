@@ -367,80 +367,74 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
       if (notiID) markAsRead(notiID).catch(console.error);
 
       // =====================================
-      // 1) Batch upload NEW attachments
+      // 1) Upload NEW attachments
       // =====================================
-      if (attachments.length > 0) {
-        const [batchedSP, execute] = sp.batched();
+      const attachmentPromises = attachments.map(async (attachment) => {
+        const finalFileName = attachment.isRenamed
+          ? attachment.newName
+          : attachment.originalName;
 
-        attachments.forEach((attachment) => {
-          const finalFileName = attachment.isRenamed
-            ? attachment.newName
-            : attachment.originalName;
+        const uploadResult = await sp.web.lists
+          .getByTitle("Core Data Repositories")
+          .rootFolder.files.addUsingPath(finalFileName, attachment.file, {
+            Overwrite: true,
+          });
 
-          batchedSP.web.lists
-            .getByTitle("Core Data Repositories")
-            .rootFolder.files.addUsingPath(finalFileName, attachment.file, {
-              Overwrite: true,
-            })
-            .then(async (uploadResult: any) => {
-              const fileItem = await sp.web
-                .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
-                .getItem();
-              return fileItem.update({ CorrespondenceOutId: itemId });
-            });
-        });
+        const fileItem = await sp.web
+          .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+          .getItem();
 
-        await execute();
-      }
+        return fileItem.update({ CorrespondenceOutId: itemId });
+      });
 
       // =====================================
-      // 2) Batch upload EXISTING attachments (from inbox)
+      // 2) Upload EXISTING attachments (from inbox)
       // =====================================
-      if (notiID && existingAttachments.length > 0) {
-        const [batchedSP, execute] = sp.batched();
-
-        for (const inboxFile of existingAttachments) {
-          if (
-            attachments.some(
-              (att) => att.originalName === inboxFile.FileLeafRef
-            )
-          ) {
-            continue; // skip removed ones
-          }
-
+      const existingAttachmentPromises = existingAttachments.map(
+        async (file) => {
           try {
+            // skip if removed
+            if (
+              attachments.some((att) => att.originalName === file.FileLeafRef)
+            ) {
+              return;
+            }
+
             const blob = await sp.web
-              .getFileByServerRelativePath(inboxFile.FileRef2!)
+              .getFileByServerRelativePath(file.FileRef2 || file.FileRef)
               .getBlob();
 
-            const finalFileName = inboxFile.isRenamed
-              ? inboxFile.newName
-              : inboxFile.originalName;
+            const finalFileName = file.isRenamed
+              ? file.newName
+              : file.FileLeafRef;
 
-            batchedSP.web.lists
+            const uploadResult: any = await sp.web.lists
               .getByTitle("Core Data Repositories")
               .rootFolder.files.addUsingPath(finalFileName, blob, {
                 Overwrite: true,
-              })
-              .then(async (uploadResult: any) => {
-                const uploadedItem = await sp.web
-                  .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
-                  .getItem();
-                return uploadedItem.update({ CorrespondenceOutId: itemId });
               });
+
+            const uploadedItem = await sp.web
+              .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+              .getItem();
+
+            return uploadedItem.update({ CorrespondenceOutId: itemId });
           } catch (err) {
             console.error("Failed to copy inbox attachment", err);
           }
         }
+      );
 
-        await execute();
-      }
+      // 🔹 Wait for all uploads to finish
+      await Promise.all([...attachmentPromises, ...existingAttachmentPromises]);
 
       // =====================================
       // Success UX
       // =====================================
       toast.success(
-        isDraft ? "Draft saved successfully" : "Case submitted successfully",
+        isDraft
+          ? "Draft saved successfully"
+          : "Correspondence Out submitted successfully",
         {
           icon: "✅",
           style: {
@@ -627,13 +621,14 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                       style={{
                         position: "absolute",
                         right: 25,
-                        top: "70%",
+                        top: "50%",
                         transform: "translateY(-50%)",
                         border: "none",
                         background: "transparent",
                         cursor: "pointer",
                         fontSize: "16px",
                         color: "#888",
+                        lineHeight: 1,
                       }}
                     >
                       ✖

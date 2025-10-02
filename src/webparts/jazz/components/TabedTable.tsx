@@ -346,7 +346,9 @@ const TabbedTables: React.FC<{
           "UTPCategory",
           "UTPDate",
           "Modified",
-          "Amount"
+          "Amount",
+          "PaymentGLCode",
+          "ProvisionGLCode"
         )
         .top(50)
         .orderBy("ID", false)
@@ -1804,7 +1806,10 @@ const TabbedTables: React.FC<{
                     { key: "UTP", text: "UTP Report" },
                     { key: "Litigation", text: "Litigation Report" },
                     { key: "ActiveCases", text: "Active Cases Weekly" },
-                    { key: "Provisions1", text: "Provisions-GL code wise summary	" },
+                    {
+                      key: "Provisions1",
+                      text: "Provisions-GL code wise summary	",
+                    },
                     { key: "Provisions2", text: "Provisions-Case wise list" },
                     { key: "Provisions3", text: "Exposure wise breakdown" },
 

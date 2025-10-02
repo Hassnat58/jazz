@@ -56,7 +56,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
           "Case/Id",
           "Case/Title",
           "UTP/Id",
-          "UTP/Title",
+          "UTP/UTPId",
           "CorrespondenceOut/Id",
           "CorrespondenceOut/Title"
         )
@@ -76,15 +76,16 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
     try {
       const caseItems = await sp.web.lists
         .getByTitle("Cases")
-        .items.select("Id", "Title", "Taxtype", "TaxAuthority")();
+        .items.select("Id", "Title")();
 
       const utpItems = await sp.web.lists
         .getByTitle("UTPData")
-        .items.select("Id", "Title")();
+        .items.select("Id", "UTPId")();
 
       const coItems = await sp.web.lists
         .getByTitle("CorrespondenceOut")
-        .items.select("Id", "Title")();
+        .items.select("Id", "CaseNumber/Title")
+        .expand("CaseNumber")();
 
       // ✅ remove duplicates by Id
       const uniqueCases = caseItems.filter(
@@ -115,26 +116,16 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
     }
 
     if (filters.caseId) {
-      filtered = filtered.filter(
-        (d) =>
-          d.Case?.Id === filters.caseId ||
-          `CN-${d.Case?.Id}` === String(filters.caseId)
-      );
+      filtered = filtered.filter((d) => d.Case?.Id === filters.caseId);
     }
 
     if (filters.utpId) {
-      filtered = filtered.filter(
-        (d) =>
-          d.UTP?.Id === filters.utpId ||
-          `UTP-${d.UTP?.Id}` === String(filters.utpId)
-      );
+      filtered = filtered.filter((d) => d.UTP?.Id === filters.utpId);
     }
 
     if (filters.correspondenceId) {
       filtered = filtered.filter(
-        (d) =>
-          d.CorrespondenceOut?.Id === filters.correspondenceId ||
-          `CO-${d.CorrespondenceOut?.Id}` === String(filters.correspondenceId)
+        (d) => d.CorrespondenceOut?.Id === filters.correspondenceId
       );
     }
 
@@ -169,15 +160,17 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
           styles={{ root: { minWidth: 200, marginRight: 16 } }}
         />
 
+        {/* Case Dropdown */}
         <ComboBox
           label="Case"
           placeholder="Select Case"
           options={cases.map((c) => ({
             key: c.Id,
-            text: `CN-${c.Id}`,
+            text: c.Title, // ✅ Case Title
           }))}
           selectedKey={filters.caseId || null}
           allowFreeform
+          useComboBoxAsMenuWidth
           autoComplete="on"
           onChange={(_, option, __, value) =>
             setFilters((f) => ({
@@ -185,17 +178,33 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
               caseId: option ? Number(option.key) : Number(value) || 0,
             }))
           }
+          styles={{
+            root: { width: "200px" },
+            container: { width: "200px" },
+            callout: {
+              width: "100%",
+              maxHeight: 5 * 36,
+              overflowY: "auto",
+            },
+            optionsContainerWrapper: {
+              maxHeight: 5 * 36,
+              overflowY: "auto",
+            },
+            input: { width: "100%" },
+          }}
         />
 
+        {/* UTP Dropdown */}
         <ComboBox
           label="UTP"
           placeholder="Select UTP"
           options={utps.map((u) => ({
             key: u.Id,
-            text: `UTP-${u.Id}`,
+            text: u.UTPId, // ✅ UTPId
           }))}
           selectedKey={filters.utpId || null}
           allowFreeform
+          useComboBoxAsMenuWidth
           autoComplete="on"
           onChange={(_, option, __, value) =>
             setFilters((f) => ({
@@ -203,17 +212,33 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
               utpId: option ? Number(option.key) : Number(value) || 0,
             }))
           }
+          styles={{
+            root: { width: "200px" },
+            container: { width: "200px" },
+            callout: {
+              width: "100%",
+              maxHeight: 5 * 36,
+              overflowY: "auto",
+            },
+            optionsContainerWrapper: {
+              maxHeight: 5 * 36,
+              overflowY: "auto",
+            },
+            input: { width: "100%" },
+          }}
         />
 
+        {/* Correspondence Out Dropdown */}
         <ComboBox
           label="Correspondence Out"
           placeholder="Select Correspondence"
           options={correspondenceOuts.map((co) => ({
             key: co.Id,
-            text: `CO-${co.Id}`,
+            text: co.CaseNumber?.Title || `CO-${co.Id}`, // ✅ CaseNumber Title
           }))}
           selectedKey={filters.correspondenceId || null}
           allowFreeform
+          useComboBoxAsMenuWidth
           autoComplete="on"
           onChange={(_, option, __, value) =>
             setFilters((f) => ({
@@ -223,6 +248,20 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
                 : Number(value) || 0,
             }))
           }
+          styles={{
+            root: { width: "200px" },
+            container: { width: "200px" },
+            callout: {
+              width: "100%",
+              maxHeight: 5 * 36,
+              overflowY: "auto",
+            },
+            optionsContainerWrapper: {
+              maxHeight: 5 * 36,
+              overflowY: "auto",
+            },
+            input: { width: "100%" },
+          }}
         />
 
         <Button

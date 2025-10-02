@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
@@ -14,7 +15,7 @@ interface Props {
   caseData: any;
   SpfxContext: any;
   loadCasesData: any;
-  attachments: any;
+  // attachments: any;
 }
 
 const ManagerDetailsDrawer: React.FC<Props> = ({
@@ -23,7 +24,7 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
   caseData,
   SpfxContext,
   loadCasesData,
-  attachments,
+  // attachments,
 }) => {
   const [decision, setDecision] = React.useState<"Approved" | "Rejected">(
     "Approved"
@@ -31,8 +32,6 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
   const [comments, setComments] = React.useState("");
   const sp = spfi().using(SPFx(SpfxContext));
   const [attachments, setAttachments] = React.useState<any[]>([]);
-
-  
 
   const handleSubmit = async () => {
     if (decision === "Rejected" && comments.trim() === "") {
@@ -94,12 +93,12 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
       console.error("Error fetching attachments:", error);
     }
   };
- React.useEffect(() => {
-  if (caseData && caseData.id) {
-    fetchAttachments(caseData.id, caseData.type === "utp" ? "UTP" : "case");
-  }
-}, [caseData]); 
-if (!caseData) return null;
+  React.useEffect(() => {
+    if (caseData && caseData.id) {
+      fetchAttachments(caseData.id, caseData.type === "utp" ? "UTP" : "case");
+    }
+  }, [caseData]);
+  if (!caseData) return null;
   return (
     <Offcanvas
       className={styles.viewCaseContainer}

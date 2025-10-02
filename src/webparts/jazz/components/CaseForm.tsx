@@ -101,6 +101,9 @@ const CaseForm: React.FC<CaseFormProps> = ({
   >([]);
   const [nextCaseNumber, setNextCaseNumber] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rateInputs, setRateInputs] = React.useState<{ [key: number]: string }>(
+    {}
+  );
   // const [isNewCaseFromNotification, setIsNewCaseFromNotification] =
   // useState(false);
 
@@ -523,15 +526,25 @@ const CaseForm: React.FC<CaseFormProps> = ({
         const taxItems = await sp.web.lists
           .getByTitle("Tax Issues")
           .items.filter(`CaseId eq ${selectedCase.ID}`)();
-        setTaxIssueEntries(
-          taxItems.map((item: any) => ({
-            id: item.Id,
-            taxIssue: item.Title,
-            amountContested: item.AmountContested,
-            rate: item.Rate,
-            grossTaxExposure: item.GrossTaxExposure,
-          }))
-        );
+
+        const entries = taxItems.map((item: any) => ({
+          id: item.Id,
+          taxIssue: item.Title,
+          amountContested: item.AmountContested,
+          rate: item.Rate,
+          grossTaxExposure: item.GrossTaxExposure,
+        }));
+
+        setTaxIssueEntries(entries);
+
+        // 👇 Initialize rateInputs for display with 2 decimals
+        const initialRates: { [key: number]: string } = {};
+        entries.forEach((entry, i) => {
+          if (entry.rate !== undefined && entry.rate !== null) {
+            initialRates[i] = Number(entry.rate).toFixed(2);
+          }
+        });
+        setRateInputs(initialRates);
       }
     };
 
@@ -1655,33 +1668,39 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 suffix="%"
                 styles={{ root: { flex: 1 } }}
                 value={
-                  entry.rate !== undefined && entry.rate !== null
+                  rateInputs[idx] !== undefined
+                    ? rateInputs[idx]
+                    : entry.rate !== undefined && entry.rate !== null
                     ? entry.rate.toString()
                     : ""
                 }
                 onChange={(_, v) => {
-                  // Allow only numbers with up to 2 decimals
-                  const numeric = v?.replace(/[^0-9.]/g, "") || "";
+                  // Allow only numbers and a single decimal
+                  const cleaned = v?.replace(/[^0-9.]/g, "") || "";
+                  const singleDot = cleaned.replace(/(\..*)\./g, "$1");
 
-                  // Ensure only the first "." remains
-                  const cleaned = numeric.replace(/(\..*)\./g, "$1");
+                  // Update temporary input state
+                  setRateInputs((prev) => ({ ...prev, [idx]: singleDot }));
 
-                  // Parse to float
-                  const parsed = cleaned ? parseFloat(cleaned) : NaN;
-
-                  const updated = [...taxIssueEntries];
+                  const parsed = parseFloat(singleDot);
                   if (!isNaN(parsed)) {
-                    // Restrict to 2 decimal places
-                    updated[idx].rate = parseFloat(parsed.toFixed(2));
-
-                    const rateAsDecimal = updated[idx].rate / 100;
+                    const updated = [...taxIssueEntries];
+                    updated[idx].rate = parsed; // stays a number ✅
                     updated[idx].grossTaxExposure =
-                      (updated[idx].amountContested || 0) * rateAsDecimal;
-                  } else {
-                    updated[idx].rate = 0;
+                      (updated[idx].amountContested || 0) * (parsed / 100);
+                    setTaxIssueEntries(updated);
                   }
+                }}
+                onBlur={() => {
+                  const parsed = parseFloat(rateInputs[idx]);
+                  if (!isNaN(parsed)) {
+                    const rounded = parsed.toFixed(2);
+                    setRateInputs((prev) => ({ ...prev, [idx]: rounded }));
 
-                  setTaxIssueEntries(updated);
+                    const updated = [...taxIssueEntries];
+                    updated[idx].rate = parseFloat(rounded); // stored as number ✅
+                    setTaxIssueEntries(updated);
+                  }
                 }}
               />
 
