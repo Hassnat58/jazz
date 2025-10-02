@@ -362,6 +362,41 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
       );
     });
   };
+// format helpers
+const formatAmount = (
+  value: number | string | null | undefined,
+  style: "indian" | "western" = "indian",
+  decimals = 2
+): string => {
+  if (value === null || value === undefined || value === "") return "";
+  const num = Number(value);
+  if (isNaN(num)) return String(value);
+
+  const sign = num < 0 ? "-" : ""; // ✅ preserve negative sign
+  const absNum = Math.abs(num);    // ✅ work with positive part only
+
+  if (style === "western") {
+    return (
+      sign +
+      absNum.toLocaleString("en-US", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })
+    );
+  }
+
+  // ✅ Indian style formatting
+  const parts = absNum.toFixed(decimals).split(".");
+  let integer = parts[0];
+  const fraction = parts[1];
+  if (integer.length <= 3) {
+    return sign + integer + (decimals ? "." + fraction : "");
+  }
+  const last3 = integer.slice(-3);
+  let rest = integer.slice(0, -3);
+  rest = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
+  return sign + rest + "," + last3 + (decimals ? "." + fraction : "");
+};
 
   const normalizeData = async (reportType: string, rawData: any[]) => {
     switch (reportType) {
@@ -393,7 +428,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
       taxExposureScn: item.TaxExposure || "",
       taxExposureOrder: item.TaxExposureOrder || "",
-      taxExposure: item.TaxExposure || "",
+      taxExposure: formatAmount(item.TaxExposure) || "",
 
       taxPeriodStart: item.TaxPeriodStartDate
         ? new Date(item.TaxPeriodStartDate).toISOString().split("T")[0]
@@ -425,7 +460,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
       billingInfo: item.BilligInfo || "",
       reviewStatusLp: "Peview Pending",
-      grossExp: item.GrossExposure || "",
+      grossExp: formatAmount(item.GrossExposure) || "",
 
       // ✅ now links UTPId if exists
       inUtp: utp?.UTPId || "",
@@ -444,11 +479,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           taxYear: item.TaxYear || "", // "Tax Year"
           DateReceived: item.DateReceived || "",
           fy: item.FinancialYear || "",
-          grossExp: item.GrossExposure || "",
+          grossExp: formatAmount(item.GrossExposure) || "",
           // exposures (only TaxExposure exists for now)
           taxExposureScn: item.TaxExposureScn || "", // "Tax exposure SCN" (placeholder)
           taxExposureOrder: item.TaxExposureOrder || "", // "Tax exposure Order" (placeholder)
-          amount: item.TaxExposure || "", // "Tax Exposure"
+          amount: formatAmount(item.TaxExposure) || "", // "Tax Exposure"
 
           // tax period dates (placeholders)
           taxPeriodStart: item.TaxPeriodStartDate
@@ -566,9 +601,9 @@ case "Provisions1": {
       taxType: r?.CaseNumber?.CorrespondenceType || "",
       provisionType: r?.CaseNumber?.TaxType === "Income Tax" ? "Above Ebitda" : "Below Ebitda",
       entity: r?.CaseNumber?.Entity || "",
-      currentMonthAmount: curr,
-      previousMonthAmount: prev,
-      variance: curr - prev,
+      currentMonthAmount: formatAmount(curr),
+      previousMonthAmount: formatAmount(prev),
+      variance: formatAmount(curr - prev),
     });
   });
 });
@@ -580,9 +615,9 @@ case "Provisions1": {
       taxType: "",
       provisionType: "",
       entity: "Sub Total",
-      currentMonthAmount: subtotalCurr,
-      previousMonthAmount: subtotalPrev,
-      variance: subtotalCurr - subtotalPrev,
+      currentMonthAmount: formatAmount(subtotalCurr),
+      previousMonthAmount: formatAmount(subtotalPrev),
+      variance: formatAmount(subtotalCurr - subtotalPrev),
     });
   });
 
@@ -600,9 +635,9 @@ case "Provisions1": {
     taxType: "",
     provisionType: "",
     entity: "Grand Total",
-    currentMonthAmount: totalCurr,
-    previousMonthAmount: totalPrev,
-    variance: totalCurr - totalPrev,
+    currentMonthAmount: formatAmount(totalCurr),
+    previousMonthAmount: formatAmount(totalPrev),
+    variance: formatAmount(totalCurr - totalPrev),
   });
 
   return exportData;
@@ -687,34 +722,34 @@ case "Provisions1": {
   const results3 = [
     {
       label: "Total Exposure (Probable only)",
-      current: totalExposureCurr,
-      prior: totalExposurePrev,
-      variance: totalExposureCurr - totalExposurePrev,
+      current: formatAmount(totalExposureCurr),
+      prior: formatAmount(totalExposurePrev),
+      variance: formatAmount(totalExposureCurr - totalExposurePrev),
     },
     {
       label: "Less – Payments under Protest",
-      current: paymentsCurr,
-      prior: paymentsPrev,
-      variance: paymentsCurr - paymentsPrev,
+      current: formatAmount(paymentsCurr),
+      prior: formatAmount(paymentsPrev),
+      variance: formatAmount(paymentsCurr - paymentsPrev),
     },
     {
       label: "Cashflow Exposure",
-      current: totalExposureCurr - paymentsCurr,
-      prior: totalExposurePrev - paymentsPrev,
+      current: formatAmount(totalExposureCurr - paymentsCurr),
+      prior: formatAmount(totalExposurePrev - paymentsPrev),
       variance:
-        totalExposureCurr - paymentsCurr - (totalExposurePrev - paymentsPrev),
+        formatAmount(totalExposureCurr - paymentsCurr - (totalExposurePrev - paymentsPrev)),
     },
     {
       label: "P&L Exposure",
-      current: plCurr,
-      prior: plPrev,
-      variance: plCurr - plPrev,
+      current: formatAmount(plCurr),
+      prior: formatAmount(plPrev),
+      variance: formatAmount(plCurr - plPrev),
     },
     {
       label: "EBITDA Exposure (PKR)",
-      current: ebitdaCurr,
-      prior: ebitdaPrev,
-      variance: ebitdaCurr - ebitdaPrev,
+      current: formatAmount(ebitdaCurr),
+      prior: formatAmount(ebitdaPrev),
+      variance: formatAmount(ebitdaCurr - ebitdaPrev),
     },
   ];
 
@@ -772,7 +807,7 @@ case "Provisions1": {
   );
 
   // ✅ Step 6: Subtotal
-  const total = summarized.reduce(
+  const total:any = summarized.reduce(
     (sum: number, r: any) => sum + (r.GrossExposure || 0),
     0
   );
@@ -783,7 +818,7 @@ case "Provisions1": {
     taxMatter: "",
     entity: "Sub Total",
     taxType: "",
-    GrossExposure: total,
+    GrossExposure: formatAmount(total),
   });
 
   return summarized;
@@ -836,9 +871,9 @@ case "Provisions1": {
       glCode: GMLRID,
       taxType: r?.CaseNumber?.CorrespondenceType || "", // ✅ now each row’s own correspondence type
       entity: r?.CaseNumber?.Entity || "",
-      currentMonthAmount: curr || 0,
-      previousMonthAmount: prev || 0,
-      variance: (curr || 0) - (prev || 0),
+      currentMonthAmount: formatAmount(curr) || 0,
+      previousMonthAmount: formatAmount(prev) || 0,
+      variance: formatAmount((curr || 0) - (prev || 0)),
     });
   });
 });
@@ -848,9 +883,9 @@ case "Provisions1": {
           glCode: "",
           taxType: "",
           entity: "Sub Total",
-          currentMonthAmount: subtotalCurr,
-          previousMonthAmount: subtotalPrev,
-          variance: subtotalCurr - subtotalPrev,
+          currentMonthAmount: formatAmount(subtotalCurr),
+          previousMonthAmount: formatAmount(subtotalPrev),
+          variance: formatAmount(subtotalCurr - subtotalPrev),
         });
 
         return exportData3;
@@ -883,8 +918,8 @@ case "Provisions1": {
             mlrClaimId: utp.GMLRID, // mapping from GMLRID
             pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
             type: utp.PaymentType, // exists but null
-            grossExposureJul: utp.GrossExposure, // only one field, reusing
-            grossExposureJun: utp.GrossExposure,
+            grossExposureJul: formatAmount(utp.GrossExposure), // only one field, reusing
+            grossExposureJun: formatAmount(utp.GrossExposure),
             UTPDate: utp.UTPDate,
             category: utp.RiskCategory, // exists
             fy: utp?.CaseNumber?.FinancialYear, // exists but null
@@ -894,9 +929,9 @@ case "Provisions1": {
             taxType: utp?.CaseNumber?.TaxType, // exists
             entity: utp?.CaseNumber?.Entity, // exists but null
 
-            varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
-            grossExposureMay: utp.GrossExposure,
-            grossExposureApr: utp.GrossExposure,
+            varianceLastMonth: formatAmount(utp.VarianceWithLastMonthPKR), // ❌ not in data (undefined)
+            grossExposureMay: formatAmount(utp.GrossExposure),
+            grossExposureApr: formatAmount(utp.GrossExposure),
             arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
             contingencyNote: utp.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
            briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
@@ -912,11 +947,11 @@ case "Provisions1": {
             utpIdDisplay: utp.Id,
             utpIssue: "",
             ermCategory:utp.ERMCategory??"",
-            cashFlowExposurePKR:Number(utp.CashFlowExposure)?.toFixed(2)??"",
+            cashFlowExposurePKR:formatAmount(utp.CashFlowExposure)??"",
 
-            plExposurePKR:Number(utp.PLExposure)?.toFixed(2)??"",
+            plExposurePKR:formatAmount(utp.PLExposure)??"",
 
-            ebitdaExposurePKR:Number(utp.EBITDAExposure)?.toFixed(2)??"",
+            ebitdaExposurePKR:formatAmount(utp.EBITDAExposure)??"",
 
             ermUniqueNumbering:utp.ERMUniqueNumbering??"",
           };
@@ -934,7 +969,7 @@ case "Provisions1": {
             pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
             type: utp.PaymentType, // exists but null
             grossExposureJul: utp.GrossExposure, // only one field, reusing
-            grossExposureJun: issue.GrossTaxExposure ?? utp.GrossExposure?.toFixed(2),
+            grossExposureJun: formatAmount(issue.GrossTaxExposure) ?? utp.GrossExposure?.toFixed(2),
             UTPDate: utp.UTPDate,
            category: issue.RiskCategory, // exists
             fy: utp?.CaseNumber?.FinancialYear, // exists but null
@@ -945,30 +980,30 @@ case "Provisions1": {
           entity: utp?.CaseNumber?.Entity, // exists but null
 
             varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
-            grossExposureMay: utp.GrossExposure,
-            grossExposureApr: utp.GrossExposure,
+            grossExposureMay: formatAmount(utp.GrossExposure),
+            grossExposureApr: formatAmount(utp.GrossExposure),
             arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
 
             contingencyNote: issue.ContigencyNote , // exists but null (be careful: property is "ContigencyNote" with missing 'n')
             briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
             provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
             provisionGrsCode: utp.GRSCode, // exists
-            paymentUnderProtest: utp.PaymentType=="Payment under Protest"? utp.Amount:"", // exists but null (note lowercase "u")
-            admittedTax:utp.PaymentType=="Admitted Tax"? utp.Amount:"", // exists but null (note lowercase "u")
+            paymentUnderProtest: utp.PaymentType=="Payment under Protest"? formatAmount(utp.Amount):"", // exists but null (note lowercase "u")
+            admittedTax:utp.PaymentType=="Admitted Tax"? formatAmount(utp.Amount):"", // exists but null (note lowercase "u")
              // exists but null (note lowercase "u")
             paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
             utpPaperCategory: utp.UTPCategory, // exists but null
             provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
 
             utpIssue: issue.Title ?? "",
-            amtContested:issue.AmountContested ?? "",
+            amtContested:formatAmount(issue.AmountContested) ?? "",
             rate:issue.Rate ?? "",
             ermCategory:utp.ERMCategory??"",
-            cashFlowExposurePKR:Number(utp.CashFlowExposure)?.toFixed(2)??"",
+            cashFlowExposurePKR:formatAmount(utp.CashFlowExposure)??"",
 
-            plExposurePKR:Number(utp.PLExposure)?.toFixed(2)??"",
+            plExposurePKR:formatAmount(utp.PLExposure)??"",
 
-            ebitdaExposurePKR:Number(utp.EBITDAExposure)?.toFixed(2)??"",
+            ebitdaExposurePKR:formatAmount(utp.EBITDAExposure)??"",
 
             ermUniqueNumbering:utp.ERMUniqueNumbering??"",
 
