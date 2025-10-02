@@ -372,6 +372,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           "RiskCategory",
           "GrossTaxExposure",
           "AmountContested",
+          "ContigencyNote",
           "Rate"
         )();
 
