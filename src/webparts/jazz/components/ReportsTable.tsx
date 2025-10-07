@@ -365,37 +365,26 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 // format helpers
 const formatAmount = (
   value: number | string | null | undefined,
-  style: "indian" | "western" = "indian",
+  style: "indian" | "western" = "western",
   decimals = 2
 ): string => {
   if (value === null || value === undefined || value === "") return "";
+  
   const num = Number(value);
   if (isNaN(num)) return String(value);
 
-  const sign = num < 0 ? "-" : ""; // ✅ preserve negative sign
-  const absNum = Math.abs(num);    // ✅ work with positive part only
+  const sign = num < 0 ? "-" : "";
+  const absNum = Math.abs(num);
 
-  if (style === "western") {
-    return (
-      sign +
-      absNum.toLocaleString("en-US", {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      })
-    );
-  }
+  // ✅ Use Intl.NumberFormat for both styles
+  const locale = style === "indian" ? "en-IN" : "en-US";
 
-  // ✅ Indian style formatting
-  const parts = absNum.toFixed(decimals).split(".");
-  let integer = parts[0];
-  const fraction = parts[1];
-  if (integer.length <= 3) {
-    return sign + integer + (decimals ? "." + fraction : "");
-  }
-  const last3 = integer.slice(-3);
-  let rest = integer.slice(0, -3);
-  rest = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
-  return sign + rest + "," + last3 + (decimals ? "." + fraction : "");
+  const formatted = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(absNum);
+
+  return sign + formatted;
 };
 
   const normalizeData = async (reportType: string, rawData: any[]) => {
@@ -554,7 +543,6 @@ case "Provisions1": {
     };
   });
 
-  console.log(merged, rawData, "mm");
 
   // Step 4: Filter only those having at least one "Probable" RiskCategory
   const filtered = merged.filter((r) => r.hasProbable);
@@ -581,12 +569,12 @@ case "Provisions1": {
   console.log(segregated, filtered, "hhh");
 
   Object.entries(segregated).forEach(([TaxType, rows]) => {
-    const byGL = groupBy(rows as any[], (r) => r.GMLRID);
+    const byGL = groupBy(rows as any[], (r) => r.ProvisionGLCode||"");
 
     let subtotalCurr = 0;
     let subtotalPrev = 0;
 
-   Object.entries(byGL).forEach(([GMLRID, records]) => {
+   Object.entries(byGL).forEach(([ProvisionGLCode, records]) => {
   (records as any[]).forEach((r: any) => {
     const curr =
       r.month === currentMonth && r.year === year ? r.GrossExposure || 0 : 0;
@@ -597,13 +585,13 @@ case "Provisions1": {
     subtotalPrev += prev;
 
     exportData.push({
-      glCode: GMLRID,
+      glCode: ProvisionGLCode || "",
       taxType: r?.CaseNumber?.CorrespondenceType || "",
       provisionType: r?.CaseNumber?.TaxType === "Income Tax" ? "Above Ebitda" : "Below Ebitda",
       entity: r?.CaseNumber?.Entity || "",
       currentMonthAmount: formatAmount(curr),
       previousMonthAmount: formatAmount(prev),
-      variance: formatAmount(curr - prev),
+      variance: formatAmount(( Number((curr + "").replace(/,/g, "")) )-( Number((prev + "").replace(/,/g, "")) )),
     });
   });
 });
@@ -617,18 +605,18 @@ case "Provisions1": {
       entity: "Sub Total",
       currentMonthAmount: formatAmount(subtotalCurr),
       previousMonthAmount: formatAmount(subtotalPrev),
-      variance: formatAmount(subtotalCurr - subtotalPrev),
+      variance: formatAmount(( Number((subtotalCurr + "").replace(/,/g, "")))  - ( Number((subtotalPrev + "").replace(/,/g, "")) ) ),
     });
   });
 
   // Grand total row
   const totalCurr = exportData
     .filter((r) => r.entity === "Sub Total")
-    .reduce((sum, r) => sum + (r.currentMonthAmount || 0), 0);
+    .reduce((sum, r) => sum + ( Number((r.currentMonthAmount + "").replace(/,/g, "")) || 0), 0);
 
   const totalPrev = exportData
     .filter((r) => r.entity === "Sub Total")
-    .reduce((sum, r) => sum + (r.previousMonthAmount || 0), 0);
+    .reduce((sum, r) => sum + ( Number((r.previousMonthAmount + "").replace(/,/g, "")) || 0), 0);
 
   exportData.push({
     glCode: "",
@@ -637,7 +625,7 @@ case "Provisions1": {
     entity: "Grand Total",
     currentMonthAmount: formatAmount(totalCurr),
     previousMonthAmount: formatAmount(totalPrev),
-    variance: formatAmount(totalCurr - totalPrev),
+    variance: formatAmount(( Number((totalCurr + "").replace(/,/g, "")))  - ( Number((totalPrev + "").replace(/,/g, "")) )),
   });
 
   return exportData;
@@ -662,8 +650,18 @@ case "Provisions1": {
     return acc;
   }, {} as Record<number, string[]>);
 
+  // ✅ Step 2.1: Map UTP Payments (from another list or inside rawData)
+  // Assuming your rawData already includes UTP-related info
+  const updatedRawData = rawData.map((utp: any) => ({
+    ...utp,
+    Paymentunderprotest:
+      utp.PaymentType === "Payment under Protest" ? utp.Amount || 0 : 0,
+    AdmittedTax:
+      utp.PaymentType === "Admitted Tax" ? utp.Amount || 0 : 0,
+  }));
+
   // Step 3: Merge RiskCategories into rawData
-  const merged3 = rawData.map((r) => {
+  const merged3 = updatedRawData.map((r) => {
     const riskCategories = riskMap3[r.Id] || [];
     const d = r.UTPDate ? new Date(r.UTPDate) : null;
 
@@ -679,7 +677,7 @@ case "Provisions1": {
   // Step 4: Filter only Probable
   const filtered3 = merged3.filter((r) => r.hasProbable);
 
-  // Step 5: Do your calculations using filtered3
+  // Step 5: Define current/previous months
   const now3 = new Date();
   const currentMonth3 = now3.getMonth();
   const currentYear3 = now3.getFullYear();
@@ -687,6 +685,7 @@ case "Provisions1": {
   const prevMonth3 = prevDate3.getMonth();
   const prevYear3 = prevDate3.getFullYear();
 
+  // Step 6: Calculate summaries
   const totalExposureCurr = filtered3
     .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
     .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
@@ -694,7 +693,13 @@ case "Provisions1": {
   const totalExposurePrev = filtered3
     .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
     .reduce((s, r: any) => s + (r.GrossExposure || 0), 0);
+const totalCashExposureCurr = filtered3
+    .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+    .reduce((s, r: any) => s + (r.CashFlowExposure || 0), 0);
 
+  const totalCashExposurePrev = filtered3
+    .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+    .reduce((s, r: any) => s + (r.CashFlowExposure || 0), 0);
   const paymentsCurr = filtered3
     .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
     .reduce((s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
@@ -702,6 +707,13 @@ case "Provisions1": {
   const paymentsPrev = filtered3
     .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
     .reduce((s, r: any) => s + (parseFloat(r.Paymentunderprotest) || 0), 0);
+const paymentsAdCurr = filtered3
+    .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
+    .reduce((s, r: any) => s + (parseFloat(r.AdmittedTax) || 0), 0);
+
+  const paymentsAdPrev = filtered3
+    .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
+    .reduce((s, r: any) => s + (parseFloat(r.AdmittedTax) || 0), 0);
 
   const plCurr = filtered3
     .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
@@ -719,6 +731,7 @@ case "Provisions1": {
     .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
     .reduce((s, r: any) => s + (Number(r.EBITDAExposure) || 0), 0);
 
+  // Step 7: Build Results
   const results3 = [
     {
       label: "Total Exposure (Probable only)",
@@ -733,11 +746,17 @@ case "Provisions1": {
       variance: formatAmount(paymentsCurr - paymentsPrev),
     },
     {
+      label: "Admitted Tax",
+      current: formatAmount(paymentsAdCurr),
+      prior: formatAmount(paymentsAdPrev),
+      variance: formatAmount(paymentsAdCurr - paymentsAdPrev),
+    },
+    {
       label: "Cashflow Exposure",
-      current: formatAmount(totalExposureCurr - paymentsCurr),
-      prior: formatAmount(totalExposurePrev - paymentsPrev),
-      variance:
-        formatAmount(totalExposureCurr - paymentsCurr - (totalExposurePrev - paymentsPrev)),
+   current: formatAmount(totalCashExposureCurr),
+      prior: formatAmount(totalCashExposurePrev),
+      variance: formatAmount(totalCashExposureCurr - totalCashExposurePrev),
+      
     },
     {
       label: "P&L Exposure",
@@ -788,40 +807,51 @@ case "Provisions1": {
     (r: any) => r.hasProbable
   );
 
-  // ✅ Step 5: Group & sum by GRS Code
-  const summarized = Object.values(
-    currentMonthData.reduce((acc: any, item: any) => {
-      if (!acc[item.GRSCode]) {
-        acc[item.GRSCode] = {
-          GRSCode: item.GRSCode || "",
-          entity: item?.CaseNumber?.Entity || "",
-          taxMatter: item?.CaseNumber?.CorrespondenceType || "",
-          taxType: item?.CaseNumber?.TaxType || "",
-          GrossExposure: 0,
-          RiskCategories: item.RiskCategories || [],
-        };
-      }
-      acc[item.GRSCode].GrossExposure += item.GrossExposure || 0;
-      return acc;
-    }, {})
-  );
+ // ✅ Step 5: Group & sum by GRS Code
+const summarized = Object.values(
+  currentMonthData.reduce((acc: any, item: any) => {
+    const grsCode = item.GRSCode || "";
+    const exposure = Number(String(item.GrossExposure || "0").replace(/,/g, "")); // ✅ numeric value only
 
-  // ✅ Step 6: Subtotal
-  const total:any = summarized.reduce(
-    (sum: number, r: any) => sum + (r.GrossExposure || 0),
-    0
-  );
+    if (!acc[grsCode]) {
+      acc[grsCode] = {
+        GRSCode: grsCode,
+        entity: item?.CaseNumber?.Entity || "",
+        taxMatter: item?.CaseNumber?.CorrespondenceType || "",
+        taxType: item?.CaseNumber?.TaxType || "",
+        GrossExposure: 0,
+        RiskCategories: item.RiskCategories || [],
+      };
+    }
 
-  // ✅ Step 7: Add subtotal row
-  summarized.push({
-    GRSCode: "",
-    taxMatter: "",
-    entity: "Sub Total",
-    taxType: "",
-    GrossExposure: formatAmount(total),
-  });
+    acc[grsCode].GrossExposure += exposure; // ✅ numeric addition only
+    return acc;
+  }, {})
+);
 
-  return summarized;
+// ✅ Step 6: Subtotal
+const total :any= summarized.reduce(
+  (sum: number, r: any) => sum + (Number(String(r.GrossExposure || "0").replace(/,/g, "")) || 0),
+  0
+);
+
+// ✅ Step 7: Format for output
+const formattedSummary = summarized.map((r: any) => ({
+  ...r,
+  GrossExposure: formatAmount(r.GrossExposure), // ✅ format only at the end
+}));
+
+// ✅ Step 8: Add subtotal row
+formattedSummary.push({
+  GRSCode: "",
+  taxMatter: "",
+  entity: "Sub Total",
+  taxType: "",
+  GrossExposure: formatAmount(total),
+});
+
+return formattedSummary;
+
 }
 
       case "Contingencies":
@@ -851,13 +881,13 @@ case "Provisions1": {
           };
         });
 
-        const grouped = groupBy2(enriched1, (r) => r.GMLRID);
+        const grouped = groupBy2(enriched1, (r) => r.ProvisionGLCode||"");
 
         const exportData3: any[] = [];
         let subtotalCurr = 0;
         let subtotalPrev = 0;
 
-       Object.entries(grouped).forEach(([GMLRID, records]) => {
+       Object.entries(grouped).forEach(([ProvisionGLCode, records]) => {
   (records as any[]).forEach((r: any) => {
     const curr =
       r.month === currentMonth1 && r.year === year1 ? r.GrossExposure || 0 : 0;
@@ -868,7 +898,7 @@ case "Provisions1": {
     subtotalPrev += prev;
 
     exportData3.push({
-      glCode: GMLRID,
+      glCode: ProvisionGLCode || "",
       taxType: r?.CaseNumber?.CorrespondenceType || "", // ✅ now each row’s own correspondence type
       entity: r?.CaseNumber?.Entity || "",
       currentMonthAmount: formatAmount(curr) || 0,
@@ -885,7 +915,7 @@ case "Provisions1": {
           entity: "Sub Total",
           currentMonthAmount: formatAmount(subtotalCurr),
           previousMonthAmount: formatAmount(subtotalPrev),
-          variance: formatAmount(subtotalCurr - subtotalPrev),
+          variance: formatAmount(( Number((subtotalCurr+ "").replace(/,/g, "")) ) - ( Number((subtotalPrev + "").replace(/,/g, "")) )),
         });
 
         return exportData3;
@@ -935,7 +965,7 @@ case "Provisions1": {
             arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
             contingencyNote: utp.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
            briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
-              provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
+              provisionGlCode: utp.ProvisionGLCode , // ❌ not in data (undefined)
             provisionGrsCode: utp.GRSCode, // exists
             paymentUnderProtest: utp.PaymentType=="Payment under Protest"? utp.Amount:"", // exists but null (note lowercase "u")
              admittedTax:utp.PaymentType=="Admitted Tax"? utp.Amount:"", // exists but null (note lowercase "u")
