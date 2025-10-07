@@ -726,14 +726,15 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     onClick={() => f.onChange(undefined)}
                     style={{
                       position: "absolute",
-                      right: 20,
-                      top: "75%",
+                      right: 22,
+                      top: "70%",
                       transform: "translateY(-50%)",
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
                       fontSize: "16px",
                       color: "#888",
+                      lineHeight: 1,
                     }}
                   >
                     ✖
@@ -884,14 +885,15 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     onClick={() => f.onChange(undefined)}
                     style={{
                       position: "absolute",
-                      right: 20,
-                      top: "75%",
+                      right: 22,
+                      top: "70%",
                       transform: "translateY(-50%)",
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
                       fontSize: "16px",
                       color: "#888",
+                      lineHeight: 1,
                     }}
                   >
                     ✖
@@ -935,8 +937,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     onClick={() => field.onChange(undefined)}
                     style={{
                       position: "absolute",
-                      right: 20,
-                      top: "50%",
+                      right: 22,
+                      top: "70%",
                       transform: "translateY(-50%)",
                       border: "none",
                       background: "transparent",
@@ -987,15 +989,15 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     onClick={() => field.onChange(undefined)}
                     style={{
                       position: "absolute",
-                      right: 20,
-                      top: "50%",
+                      right: 22,
+                      top: "70%",
                       transform: "translateY(-50%)",
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
                       fontSize: "16px",
                       color: "#888",
-                      lineHeight: "1",
+                      lineHeight: 1,
                     }}
                   >
                     ✖
@@ -1004,7 +1006,111 @@ const UTPForm: React.FC<UTPFormProps> = ({
               </div>
             )}
           />
+
           <Controller
+            name="PaymentGLCode"
+            control={control}
+            rules={{ required: " is required" }}
+            render={({ field, fieldState: { error } }) => (
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  width: "100%",
+                }}
+              >
+                <Dropdown
+                  key={field.value ?? "empty"}
+                  label="Payment GL Code"
+                  options={lovOptions["Payment GL Code"] || []}
+                  selectedKey={field.value ?? undefined}
+                  onChange={(_, option) => {
+                    if (field.value === option?.key) {
+                      field.onChange(undefined);
+                    } else {
+                      field.onChange(option?.key as string);
+                    }
+                  }}
+                  placeholder="Select"
+                  required
+                  errorMessage={error?.message}
+                />
+                {field.value && (
+                  <button
+                    type="button"
+                    onClick={() => field.onChange(undefined)}
+                    style={{
+                      position: "absolute",
+                      right: 22,
+                      top: "70%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#888",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
+            )}
+          />
+
+          <Controller
+            name="ProvisionGLCode"
+            control={control}
+            rules={{ required: "Provision GL Code is required" }}
+            render={({ field, fieldState: { error } }) => (
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  width: "100%",
+                }}
+              >
+                <Dropdown
+                  key={field.value ?? "empty"}
+                  label="Provision GL Code"
+                  options={lovOptions["Provision GL Code"] || []}
+                  selectedKey={field.value ?? undefined}
+                  onChange={(_, option) => {
+                    if (field.value === option?.key) {
+                      field.onChange(undefined);
+                    } else {
+                      field.onChange(option?.key as string);
+                    }
+                  }}
+                  placeholder="Select"
+                  required
+                  errorMessage={error?.message}
+                />
+                {field.value && (
+                  <button
+                    type="button"
+                    onClick={() => field.onChange(undefined)}
+                    style={{
+                      position: "absolute",
+                      right: 22,
+                      top: "70%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#888",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
+            )}
+          />
+          {/* <Controller
             name="PaymentGLCode"
             control={control}
             render={({ field }) => (
@@ -1025,7 +1131,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 {...field}
               />
             )}
-          />
+          /> */}
 
           {/* Row 3 */}
           {/* <Controller
@@ -1159,8 +1265,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     onClick={() => field.onChange(undefined)}
                     style={{
                       position: "absolute",
-                      right: 20,
-                      top: "50%", // ✅ center aligned
+                      right: 22,
+                      top: "70%", // ✅ center aligned
                       transform: "translateY(-50%)",
                       border: "none",
                       background: "transparent",
@@ -1538,14 +1644,16 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 <div
                   style={{
                     position: "relative",
-                    display: "inline-block",
                     width: "100%",
-                    marginTop: -5,
+                    marginTop: 0,
                   }}
                 >
                   <DatePicker
                     label="UTP Date"
                     value={field.value}
+                    calloutProps={{
+                      preventDismissOnScroll: true,
+                    }}
                     onSelectDate={(date) => {
                       if (date) {
                         field.onChange(date);
@@ -1571,30 +1679,51 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       }
                     }}
                     placeholder="Select"
-                    styles={{ root: { width: "100%" } }}
+                    styles={{
+                      root: { width: "100%" },
+                      textField: {
+                        selectors: {
+                          ".ms-TextField-fieldGroup": {
+                            height: 40,
+                            display: "flex",
+                            alignItems: "center",
+                            position: "relative",
+                            paddingRight: "28px", // space for ❌ icon
+                          },
+                          ".ms-TextField-field": {
+                            paddingRight: "28px", // ensure text doesn't overlap icon
+                          },
+                        },
+                      },
+                    }}
                   />
 
+                  {/* ❌ Clear button inside the field */}
                   {field.value && (
                     <button
                       type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => field.onChange(undefined)}
                       style={{
                         position: "absolute",
-                        right: 35, // keeps clear button left of calendar icon
-                        top: "65%",
+                        right: "30px",
+                        top: "50px",
                         transform: "translateY(-50%)",
                         border: "none",
                         background: "transparent",
                         cursor: "pointer",
                         fontSize: "16px",
                         color: "#888",
+                        lineHeight: 1,
                         padding: 0,
+                        zIndex: 3,
                       }}
                     >
                       ✖
                     </button>
                   )}
 
+                  {/* Dialog for previous-month selection */}
                   <Dialog
                     hidden={!showDialog}
                     onDismiss={() => setShowDialog(false)}

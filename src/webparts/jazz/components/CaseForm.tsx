@@ -1188,14 +1188,15 @@ const CaseForm: React.FC<CaseFormProps> = ({
                             onClick={() => f.onChange(undefined)}
                             style={{
                               position: "absolute",
-                              right: 20,
-                              top: "75%",
+                              right: 30,
+                              top: "70%",
                               transform: "translateY(-50%)",
                               border: "none",
                               background: "transparent",
                               cursor: "pointer",
                               fontSize: "16px",
                               color: "#888",
+                              lineHeight: 1,
                             }}
                           >
                             ✖
@@ -1218,7 +1219,12 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     return (
                       <div
                         className="date-picker-wrapper"
-                        style={{ position: "relative" }}
+                        style={{
+                          position: "relative",
+                          display: "flex",
+                          alignItems: "center",
+                          width: "100%",
+                        }}
                       >
                         <DatePicker
                           label={field.label}
@@ -1227,16 +1233,24 @@ const CaseForm: React.FC<CaseFormProps> = ({
                           componentRef={datePickerRef}
                           onSelectDate={(date) => f.onChange(date)}
                           allowTextInput
+                          calloutProps={{
+                            preventDismissOnScroll: true,
+                          }}
+                          styles={{
+                            root: { width: "100%" },
+                            textField: { width: "100%" },
+                          }}
                         />
 
                         {f.value && (
                           <button
                             type="button"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => f.onChange(undefined)}
                             style={{
                               position: "absolute",
-                              right: "35px", // adjust so it sits inside the input
-                              top: "70%",
+                              right: 22, // snug inside input
+                              top: "69%", // vertically centered
                               transform: "translateY(-50%)",
                               border: "none",
                               background: "transparent",

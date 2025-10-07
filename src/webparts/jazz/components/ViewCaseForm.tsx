@@ -145,10 +145,6 @@ const ViewCaseOffcanvas: React.FC<{
               <strong>Email - Title:</strong>
             </td>
             <td>{data.Email}</td>
-            <td>
-              <strong>Tax Exposure:</strong>
-            </td>
-            <td>{data.TaxExposure}</td>
           </tr>
         </tbody>
       </table>

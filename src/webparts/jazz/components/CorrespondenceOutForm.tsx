@@ -600,40 +600,46 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
               name={name}
               control={control}
               render={({ field }) => (
-                <div
-                  style={{
-                    position: "relative",
-                    display: "inline-block",
-                    width: "100%",
-                  }}
-                >
-                  <DatePicker
-                    label={label}
-                    value={field.value}
-                    onSelectDate={field.onChange}
-                    placeholder="Select a date"
-                    styles={{ root: { width: "100%" } }}
-                  />
-                  {field.value && (
-                    <button
-                      type="button"
-                      onClick={() => field.onChange(undefined)}
-                      style={{
-                        position: "absolute",
-                        right: 25,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        fontSize: "16px",
-                        color: "#888",
-                        lineHeight: 1,
+                <div style={{ width: "100%" }}>
+                  <div
+                    style={{
+                      position: "relative",
+                      display: "flex",
+                      alignItems: "center",
+                      width: "100%",
+                    }}
+                  >
+                    <DatePicker
+                      label={label}
+                      value={field.value}
+                      onSelectDate={field.onChange}
+                      placeholder="Select a date"
+                      styles={{
+                        root: { width: "100%" },
+                        textField: { width: "100%" },
                       }}
-                    >
-                      ✖
-                    </button>
-                  )}
+                    />
+                    {field.value && (
+                      <button
+                        type="button"
+                        onClick={() => field.onChange(undefined)}
+                        style={{
+                          position: "absolute",
+                          right: 22, // stick to the right edge
+                          top: "70%", // center vertically
+                          transform: "translateY(-50%)",
+                          border: "none",
+                          background: "transparent",
+                          cursor: "pointer",
+                          fontSize: "16px",
+                          color: "#888",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ✖
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             />
