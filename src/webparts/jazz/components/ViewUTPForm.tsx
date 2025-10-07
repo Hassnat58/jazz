@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+/* eslint-disable react/self-closing-comp */
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
 import styles from "../components/ViewCaseFor.module.scss";
@@ -7,14 +10,62 @@ import wordIcon from "../assets/word.png";
 import xlsIcon from "../assets/xls.png";
 import imageIcon from "../assets/image.png";
 import genericIcon from "../assets/document.png"; // fallback
-
+import { spfi, SPFx } from "@pnp/sp";
 const ViewUTPForm: React.FC<{
   show: boolean;
   onClose: () => void;
   utpData: any;
   attachments: any;
-}> = ({ show, onClose, utpData: data, attachments }) => {
+  SpfxContext: any;
+}> = ({ show, onClose, utpData: data, attachments, SpfxContext }) => {
   if (!data) return null;
+  const [utpTaxIssueEntries, setUtpTaxIssueEntries] = React.useState<any[]>([]);
+
+  const sp = spfi().using(SPFx(SpfxContext));
+
+  React.useEffect(() => {
+    const fetchUtpTaxIssues = async () => {
+      try {
+        if (!data?.Id) return;
+
+        const issues = await sp.web.lists
+          .getByTitle("UTP Tax Issue")
+          .items.filter(`UTPId eq ${data?.Id}`)
+          .select(
+            "Id",
+            "Title",
+            "RiskCategory",
+            "GrossTaxExposure",
+            "AmountContested",
+            "ContigencyNote",
+            "Rate",
+            "PaymentType",
+            "Amount",
+            "EBITDA"
+          )
+          .orderBy("ID", true)();
+
+        const mappedIssues = issues.map((item) => ({
+          id: item.Id,
+          taxIssue: item.Title,
+          riskCategory: item.RiskCategory,
+          contigencyNote: item.ContigencyNote,
+          rate: item.Rate,
+          amountContested: item.AmountContested,
+          grossTaxExposure: item.GrossTaxExposure,
+          paymentType: item.PaymentType,
+          amount: item.Amount,
+          ebitda: item.EBITDA,
+        }));
+
+        setUtpTaxIssueEntries(mappedIssues);
+      } catch (error) {
+        console.error("Error fetching UTP Tax Issues:", error);
+      }
+    };
+
+    fetchUtpTaxIssues();
+  }, [data?.Id]);
 
   return (
     <div className={styles.viewCaseContainer}>
@@ -38,80 +89,145 @@ const ViewUTPForm: React.FC<{
             </td>
             <td>{data.UTPId}</td>
             <td>
-              <strong>GMLR ID:</strong>
+              <strong>Entity:</strong>
             </td>
-            <td>{data.GMLRID}</td>
+            <td>{data.CaseNumber?.Entity}</td>
             <td>
-              <strong>Tax type</strong>
+              <strong>Pending Authority:</strong>
+            </td>
+            <td>{data.CaseNumber?.PendingAuthority}</td>
+          </tr>
+
+          <tr>
+            <td>
+              <strong>Tax Type:</strong>
             </td>
             <td>{data.TaxType}</td>
+            <td>
+              <strong>Tax Year:</strong>
+            </td>
+            <td>{data.CaseNumber?.TaxYear}</td>
+            <td>
+              <strong>UTP Category:</strong>
+            </td>
+            <td>{data.UTPCategory}</td>
           </tr>
+
           <tr>
             <td>
               <strong>GRS Code:</strong>
             </td>
             <td>{data.GRSCode}</td>
             <td>
-              <strong>UTP Category:</strong>
+              <strong>ERM Unique No:</strong>
             </td>
-            <td>{data.UTPCategory}</td>
+            <td>{data.ERMUniqueNumbering}</td>
+            <td>
+              <strong>UTP Date:</strong>
+            </td>
+            <td>
+              {data.UTPDate ? new Date(data.UTPDate).toLocaleDateString() : ""}
+            </td>
+          </tr>
+
+          <tr>
             <td>
               <strong>Gross Exposure:</strong>
             </td>
             <td>{data.GrossExposure}</td>
+            <td>
+              <strong>EBITDA Exposure Exist:</strong>
+            </td>
+            <td>{data.EBITDAExposureExists ? "Yes" : "No"}</td>
           </tr>
+
           <tr>
             <td>
-              <strong>P&L Exposure:</strong>
+              <strong>Payment GL Code:</strong>
             </td>
-            <td>{data.PLExposure}</td>
-          </tr>
-          {/* <tr>
+            <td>{data.PaymentGLCode}</td>
             <td>
-              <strong>Contingency Note Exists:</strong>
+              <strong>Provision GL Code:</strong>
             </td>
+            <td>{data.ProvisionGLCode}</td>
             <td>
-              {data.ContingencyNoteExists ? <span>Yes</span> : <span>No</span>}
+              <strong>ERM Category:</strong>
             </td>
-            <td>
-              <strong>Risk Category:</strong>
-            </td>
-            <td>{data.RiskCategory}</td>
-          </tr> */}
-          <tr>
-            <td>
-              <strong>CaseNumber</strong>
-            </td>
-            <td>{data.CaseNumber?.Title}</td>
-            <td>
-              <strong>EBITDA Exposure Exist</strong>
-            </td>
-            <td>
-              {data.EBITDAExposureExist ? <span>Yes</span> : <span>No</span>}
-            </td>
-            <td>
-              <strong>ERM Unique Numbering:</strong>
-            </td>
-            <td>{data.ERMUniqueNumbering}</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Payment Type:</strong>
-            </td>
-            <td>{data.PaymentType}</td>
-            <td>
-              <strong>Amount:</strong>
-            </td>
-            <td>{data.Amount}</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>UTP Date:</strong>
-            </td>
-            <td>{new Date(data.UTPDate).toLocaleDateString()}</td>
+            <td>{data.ERMCategory}</td>
           </tr>
         </tbody>
       </table>
+
+      {utpTaxIssueEntries.length > 0 && (
+        <>
+          <h5 className={styles.subHeading}>UTP Tax Issues</h5>
+          <table className={styles.taxIssueTable}>
+            <thead>
+              <tr>
+                <th>Issue Contested</th>
+                <th>Amount Contested</th>
+                <th>Rate</th>
+                <th>Gross Exposure</th>
+                <th>Risk Category</th>
+                <th>Contingency Note</th>
+                <th>Payment Type</th>
+                <th>Amount</th>
+                <th>EBITDA</th>
+              </tr>
+            </thead>
+            <tbody>
+              {utpTaxIssueEntries.map((issue, index) => (
+                <tr key={index}>
+                  <td>{issue.taxIssue}</td>
+                  <td style={{ textAlign: "right" }}>
+                    {issue.amountContested
+                      ? Number(issue.amountContested).toLocaleString()
+                      : "-"}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    {issue.rate ? `${Number(issue.rate).toFixed(2)}%` : "-"}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    {issue.grossTaxExposure
+                      ? Number(issue.grossTaxExposure).toLocaleString()
+                      : "-"}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    {issue.riskCategory || "-"}
+                  </td>
+                  <td>{issue.contigencyNote || "-"}</td>
+                  <td style={{ textAlign: "center" }}>
+                    {issue.paymentType || "-"}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    {issue.amount ? Number(issue.amount).toLocaleString() : "-"}
+                  </td>
+                  <td style={{ textAlign: "right" }}>{issue.ebitda || "-"}</td>
+                </tr>
+              ))}
+
+              {/* Optional: total row */}
+              {/* <tr>
+                <td
+                  colSpan={3}
+                  style={{ textAlign: "right", fontWeight: "600" }}
+                >
+                  Total
+                </td>
+                <td style={{ textAlign: "right", fontWeight: "600" }}>
+                  {utpTaxIssueEntries
+                    .reduce(
+                      (sum, item) => sum + (Number(item.grossTaxExposure) || 0),
+                      0
+                    )
+                    .toLocaleString()}
+                </td>
+                <td colSpan={2}></td>
+              </tr> */}
+            </tbody>
+          </table>
+        </>
+      )}
 
       <div className={styles.attachments}>
         <h6>Attachments:</h6>

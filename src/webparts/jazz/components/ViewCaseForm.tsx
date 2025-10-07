@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
@@ -8,14 +9,46 @@ import wordIcon from "../assets/word.png";
 import xlsIcon from "../assets/xls.png";
 import imageIcon from "../assets/image.png";
 import genericIcon from "../assets/document.png"; // fallback
+import { spfi, SPFx } from "@pnp/sp";
 
 const ViewCaseOffcanvas: React.FC<{
   show: boolean;
   onClose: () => void;
   caseData: any;
   attachments: any;
-}> = ({ show, onClose, caseData: data, attachments }) => {
+  SpfxContext: any;
+}> = ({ show, onClose, caseData: data, attachments, SpfxContext }) => {
   if (!data) return null;
+  const [taxIssueEntries, setTaxIssueEntries] = React.useState<any[]>([]);
+
+  const sp = spfi().using(SPFx(SpfxContext));
+
+  React.useEffect(() => {
+    const fetchTaxIssues = async () => {
+      try {
+        if (!data?.Id) return;
+
+        const taxItems = await sp.web.lists
+          .getByTitle("Tax Issues")
+          .items.filter(`CaseId eq ${data.Id}`)
+          .orderBy("ID", true)(); // ensure same order as image (ascending)
+
+        const entries = taxItems.map((item: any) => ({
+          id: item.Id,
+          taxIssue: item.Title, // Issue name
+          amountContested: item.AmountContested,
+          rate: item.Rate,
+          grossTaxExposure: item.GrossTaxExposure,
+        }));
+
+        setTaxIssueEntries(entries);
+      } catch (error) {
+        console.error("Error fetching Tax Issues:", error);
+      }
+    };
+
+    fetchTaxIssues();
+  }, [data?.Id]);
 
   const getFormattedCaseNumber = (
     taxType: string,
@@ -29,7 +62,7 @@ const ViewCaseOffcanvas: React.FC<{
     // add tax authority if present
     const authority = taxAuthority ? `-${taxAuthority}` : "";
 
-    return `${prefix}${authority}-${parentCaseId}`;
+    return `${prefix}-${authority}-${parentCaseId}`;
   };
 
   // const formattedCaseNumber = getFormattedCaseNumber(
@@ -67,8 +100,6 @@ const ViewCaseOffcanvas: React.FC<{
                   )
                 : data.Title}
             </td>
-          </tr>
-          <tr>
             <td>
               <strong>Entity:</strong>
             </td>
@@ -78,58 +109,52 @@ const ViewCaseOffcanvas: React.FC<{
             </td>
             <td>{data.TaxAuthority}</td>
           </tr>
+
           <tr>
             <td>
               <strong>Correspondence Type:</strong>
             </td>
             <td>{data.CorrespondenceType}</td>
             <td>
-              <strong>Tax Consultant</strong>
+              <strong>Tax Consultant:</strong>
             </td>
             <td>{data.TaxConsultantAssigned}</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Brief Description:</strong>
-            </td>
-            <td colSpan={3}>{data.BriefDescription}</td>
-          </tr>
-          <tr>
             <td>
               <strong>Issued By:</strong>
             </td>
             <td>{data.IssuedBy}</td>
           </tr>
+
           <tr>
             <td>
               <strong>Date of Document:</strong>
             </td>
-            <td>{data.DateReceived?.split("T")[0]}</td>
+            <td>{data.DateofDocument?.split("T")[0]}</td>
             <td>
               <strong>Date Received:</strong>
             </td>
             <td>{data.DateReceived?.split("T")[0]}</td>
-          </tr>
-          <tr>
             <td>
               <strong>Financial Year:</strong>
             </td>
             <td>{data.FinancialYear}</td>
+          </tr>
+
+          <tr>
             <td>
               <strong>Date of Compliance:</strong>
             </td>
             <td>{data.DateofCompliance?.split("T")[0]}</td>
-          </tr>
-          <tr>
             <td>
               <strong>Lawyer Assigned:</strong>
             </td>
             <td>{data.LawyerAssigned0}</td>
             <td>
-              <strong>GrossExposure :</strong>
+              <strong>Gross Exposure:</strong>
             </td>
             <td>{data.GrossExposure}</td>
           </tr>
+
           <tr>
             <td>
               <strong>Hearing Date:</strong>
@@ -139,15 +164,56 @@ const ViewCaseOffcanvas: React.FC<{
               <strong>Pending Authority:</strong>
             </td>
             <td>{data.PendingAuthority}</td>
-          </tr>
-          <tr>
             <td>
               <strong>Email - Title:</strong>
             </td>
             <td>{data.Email}</td>
           </tr>
+
+          <tr>
+            <td>
+              <strong>Brief Description:</strong>
+            </td>
+            <td colSpan={5}>{data.BriefDescription}</td>
+          </tr>
         </tbody>
       </table>
+
+      {taxIssueEntries.length > 0 && (
+        <>
+          <h5 className={styles.subHeading}>Tax Issues</h5>
+          <table className={styles.taxIssueTable}>
+            <thead>
+              <tr>
+                <th>Issues Contested</th>
+                <th>Amount Contested</th>
+                <th>Rate</th>
+                <th>Gross Exposure</th>
+              </tr>
+            </thead>
+            <tbody>
+              {taxIssueEntries.map((issue, index) => (
+                <tr key={index}>
+                  <td>{issue.taxIssue}</td>
+                  <td style={{ textAlign: "right" }}>
+                    {issue.amountContested
+                      ? Number(issue.amountContested).toLocaleString()
+                      : "-"}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    {issue.rate ? `${Number(issue.rate).toFixed(2)}%` : "-"}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    {issue.grossTaxExposure
+                      ? Number(issue.grossTaxExposure).toLocaleString()
+                      : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       <div className={styles.attachments}>
         {console.log("attachments", attachments)}

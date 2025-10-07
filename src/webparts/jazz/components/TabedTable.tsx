@@ -254,9 +254,10 @@ const TabbedTables: React.FC<{
           "CaseNumberId",
           "CaseNumber/TaxType",
           "CaseNumber/TaxAuthority",
-          "CaseNumber/Entity"
+          "CaseNumber/Entity",
+          "CaseNumber/TaxYear"
         )
-        .top(50)
+        .top(5000)
         .expand("CaseNumber", "Author", "Editor")
         .orderBy("ID", false)();
       setCorrespondenceOutData(items);
@@ -308,7 +309,7 @@ const TabbedTables: React.FC<{
           "ApprovalStatus",
           "TaxExposure"
         )
-        .top(50)
+        .top(5000)
         .expand("Author", "Editor", "ParentCase")
         .orderBy("ID", false)();
       setCasesData(items);
@@ -342,6 +343,10 @@ const TabbedTables: React.FC<{
           "CaseNumber/Id",
           "CaseNumber/Title",
           "CaseNumber/TaxType",
+          "CaseNumber/TaxAuthority",
+          "CaseNumber/Entity",
+          "CaseNumber/PendingAuthority",
+          "CaseNumber/TaxYear",
           "ERMCategory",
           "UTPCategory",
           "UTPDate",
@@ -350,7 +355,7 @@ const TabbedTables: React.FC<{
           "PaymentGLCode",
           "ProvisionGLCode"
         )
-        .top(50)
+        .top(5000)
         .orderBy("ID", false)
         .expand("Author", "Editor", "CaseNumber")();
       setUtpData(items);
@@ -1432,7 +1437,6 @@ const TabbedTables: React.FC<{
               <th>ERM Unique Numbering</th>
               <th>Gross Exposure</th>
               <th>Tax Type</th>
-              <th>Payment Type</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -1446,7 +1450,6 @@ const TabbedTables: React.FC<{
                 <td>{item.ERMUniqueNumbering}</td>
                 <td>{item.GrossExposure}</td>
                 <td>{item.TaxType}</td>
-                <td>{item.PaymentType}</td>
                 <td>
                   {item.Status && (
                     <div
@@ -1840,7 +1843,7 @@ const TabbedTables: React.FC<{
         show={showOffcanvas}
         onHide={handleClose}
         placement="end"
-        style={{ width: "800px" }}
+        style={{ width: "850px" }}
       >
         <Offcanvas.Header closeButton>
           <Offcanvas.Title>View Case Details</Offcanvas.Title>
@@ -1852,6 +1855,7 @@ const TabbedTables: React.FC<{
               attachments={attachments}
               onClose={handleClose}
               show={false}
+              SpfxContext={SpfxContext}
             />
           )}
 
@@ -1870,6 +1874,7 @@ const TabbedTables: React.FC<{
               attachments={attachments}
               onClose={handleClose}
               show={false}
+              SpfxContext={SpfxContext}
             />
           )}
         </Offcanvas.Body>

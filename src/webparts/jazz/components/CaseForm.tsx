@@ -891,6 +891,135 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const financialComboRef = React.useRef<IComboBox>(null);
   const taxComboRef = React.useRef<IComboBox>(null);
   const requiredFields = ["Tax Type", "Tax Authority", "Entity"];
+  const handleParentCaseSelect = async (
+    parentKey: string | number | undefined
+  ) => {
+    // if cleared - reset only the ParentCaseId
+    if (!parentKey) {
+      setValue("ParentCaseId", "");
+      return;
+    }
+
+    const parentId = Number(parentKey);
+    if (isNaN(parentId)) return;
+
+    try {
+      // fetch the parent case item
+      const parentCase: any = await sp.web.lists
+        .getByTitle("Cases")
+        .items.getById(parentId)
+        .select(
+          "ID",
+          "Title",
+          "TaxType",
+          "TaxAuthority",
+          "Entity",
+          "TaxConsultantAssigned",
+          "LawyerAssigned0",
+          "Exposure_x0020_Issues",
+          "FinancialYear",
+          "TaxYear",
+          "StayExpiringOn",
+          "Dateofdocument",
+          "DateReceived",
+          "OrderSummary",
+          "BriefDescription",
+          "Email",
+          "ConsultantEmail",
+          "LawyerEmail"
+        )();
+
+      if (!parentCase) return;
+
+      // Build prefilled object following the same mapping you use for selectedCase
+      const prefilled: any = {};
+
+      // Map dropdowns using your fieldMapping
+      Object.keys(fieldMapping).forEach((label) => {
+        const spField = fieldMapping[label];
+        const value = parentCase[spField];
+        prefilled[spField] =
+          typeof value === "string" ? value : value?.toString() || "";
+      });
+
+      // inputs
+      inputFields.forEach(({ name }) => {
+        prefilled[name] = parentCase[name] || "";
+      });
+
+      // dates -> convert to Date instances if present
+      dateFields.forEach(({ name }) => {
+        prefilled[name] = parentCase[name] ? new Date(parentCase[name]) : null;
+      });
+
+      // multiline
+      multilineFields.forEach(({ name }) => {
+        prefilled[name] = parentCase[name] || "";
+      });
+
+      // explicit fields
+      if (parentCase.LawyerAssigned0)
+        prefilled["LawyerAssigned0"] = parentCase.LawyerAssigned0;
+      if (parentCase.TaxConsultantAssigned) {
+        prefilled["TaxConsultantAssigned"] = parentCase.TaxConsultantAssigned;
+      }
+      if (parentCase.ConsultantEmail)
+        prefilled["ConsultantEmail"] = parentCase.ConsultantEmail;
+      if (parentCase.LawyerEmail)
+        prefilled["LawyerEmail"] = parentCase.LawyerEmail;
+
+      // Case number / ParentCaseId
+      prefilled["CaseNumber"] = parentCase.ID?.toString() || "";
+      prefilled["ParentCaseId"] = parentId.toString();
+
+      // apply to form
+      reset(prefilled);
+
+      // load attachments for the selected parent case (Core Data Repositories)
+      // const files = await sp.web.lists
+      //   .getByTitle("Core Data Repositories")
+      //   .items.filter(`CaseId eq ${parentId}`)
+      //   .select("FileLeafRef", "FileRef", "ID")();
+
+      // setExistingAttachments(
+      //   files.map((file: any) => ({
+      //     ID: file.ID,
+      //     FileLeafRef: file.FileLeafRef,
+      //     FileRef: file.FileRef,
+      //     originalName: file.FileLeafRef,
+      //     newName: file.FileLeafRef,
+      //     isRenamed: false,
+      //   }))
+      // );
+
+      // load Tax Issues for this parent case
+      // const taxItems = await sp.web.lists
+      //   .getByTitle("Tax Issues")
+      //   .items.filter(`CaseId eq ${parentId}`)();
+
+      // const entries = taxItems.map((item: any) => ({
+      //   id: item.Id,
+      //   taxIssue: item.Title,
+      //   amountContested: item.AmountContested,
+      //   rate: item.Rate,
+      //   grossTaxExposure: item.GrossTaxExposure,
+      // }));
+
+      // setTaxIssueEntries(entries);
+
+      // // prepare rateInputs (2 decimals) to match display logic
+      // const initialRates: { [key: number]: string } = {};
+      // entries.forEach((entry, i) => {
+      //   if (entry.rate !== undefined && entry.rate !== null) {
+      //     initialRates[i] = Number(entry.rate).toFixed(2);
+      //   }
+      // });
+      // setRateInputs(initialRates);
+    } catch (err) {
+      console.error("Failed to load parent case data", err);
+      toast.error("Unable to load linked case data");
+    }
+  };
 
   return (
     <>
@@ -955,7 +1084,13 @@ const CaseForm: React.FC<CaseFormProps> = ({
                       label="Link Case (If any)"
                       options={caseNumberOptions}
                       selectedKey={f.value ?? ""}
-                      onChange={(_, option) => f.onChange(option?.key ?? "")}
+                      onChange={(_, option) => {
+                        const key = option?.key ?? "";
+                        // update the form field
+                        f.onChange(key?.toString?.() ?? "");
+                        // load and populate linked case data
+                        handleParentCaseSelect(key);
+                      }}
                       placeholder={`Type to search case number (e.g. ${getCaseNumberPrefix()}1234)`}
                       allowFreeform
                       onInputValueChange={(text) => setCaseSearch(text || "")}

@@ -123,6 +123,7 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
             onClose={() => {}}
             utpData={caseData.raw}
             attachments={attachments}
+            SpfxContext={SpfxContext}
           />
         ) : (
           <ViewCaseOffcanvas
@@ -130,6 +131,7 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
             onClose={() => {}}
             caseData={caseData.raw}
             attachments={attachments}
+            SpfxContext={SpfxContext}
           />
         )}
 

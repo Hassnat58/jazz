@@ -49,7 +49,8 @@ const Consultant: React.FC<ConsultantProps> = ({
       setIsLoading(true);
       const items = await sp.web.lists
         .getByTitle("Tax Consultant")
-        .items.select("Id", "Title", "Email", "Status")();
+        .items.select("Id", "Title", "Email", "Status")
+        .top(5000)();
 
       const mapped = items.map((i) => ({
         Id: i.Id,

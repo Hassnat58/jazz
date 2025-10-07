@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /* eslint-disable promise/param-names */
 /* eslint-disable require-atomic-updates */
 /* eslint-disable no-unused-expressions */
@@ -90,6 +91,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
       amountContested: number;
       rate: number;
       grossTaxExposure: number;
+      amount: number;
+      PaymentType?: string;
+      EBITDA?: string;
     }[]
   >([]);
 
@@ -113,7 +117,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
           .top(5000)(),
         sp.web.lists
           .getByTitle("LOVData1")
-          .items.select("Id", "Title", "Value", "Status")(),
+          .items.select("Id", "Title", "Value", "Status")
+          .top(5000)(),
       ]);
 
       setAllCases(cases);
@@ -138,7 +143,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
       const approvalStatus = (item.ApprovalStatus || "").toLowerCase().trim();
 
       const isActive = caseStatus === "active";
-      const isApproved = approvalStatus === "approved"; // CHANGED: Remove empty string allowance
+      const isApproved = approvalStatus === "approved";
 
       return isActive && isApproved;
     });
@@ -373,7 +378,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
           "GrossTaxExposure",
           "AmountContested",
           "ContigencyNote",
-          "Rate"
+          "Rate",
+          "Amount",
+          "PaymentType",
+          "EBITDA"
         )();
 
       const mappedIssues = issues.map((item) => ({
@@ -384,6 +392,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
         rate: item.Rate,
         amountContested: item.AmountContested,
         grossTaxExposure: item.GrossTaxExposure,
+        PaymentType: item.PaymentType,
+        amount: item.Amount,
+        EBITDA: item.EBITDA,
       }));
 
       setTaxIssueEntries(mappedIssues);
@@ -573,14 +584,22 @@ const UTPForm: React.FC<UTPFormProps> = ({
               AmountContested: amountContested,
               Rate: rate,
               GrossTaxExposure: grossTaxExposure,
+              PaymentType: entry.PaymentType || null,
+              Amount: entry.amount || null,
+              EBITDA: entry.EBITDA || null,
+              UTPId: itemId,
             });
         } else {
           batchedSP.web.lists.getByTitle("UTP Tax Issue").items.add({
             Title: entry.taxIssue,
             RiskCategory: entry.RiskCategory,
+            ContigencyNote: entry.contigencynote,
             AmountContested: amountContested,
             Rate: rate,
             GrossTaxExposure: grossTaxExposure,
+            PaymentType: entry.PaymentType || null, // ✅
+            Amount: entry.amount || null, // ✅
+            EBITDA: entry.EBITDA || null,
             UTPId: itemId,
           });
         }
@@ -627,7 +646,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
     }
   };
 
-  const PaymentType = watch("PaymentType");
+  // const PaymentType = watch("PaymentType");
 
   useEffect(() => {
     const loadDefaults = async () => {
@@ -762,17 +781,14 @@ const UTPForm: React.FC<UTPFormProps> = ({
                   if (!newValue) {
                     const activeCases = allCases.filter((item) => {
                       if (!item.TaxType) return false;
-
                       const caseStatus = (item.CaseStatus || "")
                         .toLowerCase()
                         .trim();
                       const approvalStatus = (item.ApprovalStatus || "")
                         .toLowerCase()
                         .trim();
-
                       const isActive = caseStatus === "active";
                       const isApproved = approvalStatus === "approved";
-
                       return isActive && isApproved;
                     });
 
@@ -1233,7 +1249,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
               />
             )}
           />
-          <Controller
+          {/* <Controller
             name="PaymentType"
             control={control}
             render={({ field, fieldState }) => (
@@ -1312,7 +1328,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 />
               )}
             />
-          )}
+          )} */}
 
           {/* Row 6 - Attachments */}
           <div style={{ display: "contents" }}>
@@ -1747,183 +1763,262 @@ const UTPForm: React.FC<UTPFormProps> = ({
         </div>
         <div style={{ marginTop: "1rem" }}>
           <h3>UTP Issues</h3>
+
           {taxIssueEntries.map((entry, idx) => (
             <div
               key={idx}
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                marginBottom: "0.5rem",
+                flexDirection: "column",
+                gap: "0.75rem",
+                marginBottom: "1rem",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "1rem",
+                background: "#fafafa",
               }}
             >
-              {/* Tax Issue Dropdown */}
-              <Dropdown
-                label="UTP Issue"
-                placeholder="Select UTP Issue"
-                options={lovOptions["Tax Issue"] || []}
-                selectedKey={entry.taxIssue}
-                styles={{ root: { flex: 2 } }}
-                onChange={(_, o) => {
-                  const updated = [...taxIssueEntries];
-                  updated[idx].taxIssue = o?.key as string;
-                  setTaxIssueEntries(updated);
-                }}
-              />
-
-              {/* Amount Contested */}
-              <Dropdown
-                label="Risk Category"
-                selectedKey={entry.RiskCategory}
-                placeholder="Select Risk Category"
-                required
-                options={[
-                  { key: "Probable", text: "Probable" },
-                  { key: "Possible", text: "Possible" },
-                  { key: "Remote", text: "Remote" },
-                ]}
-                styles={{ root: { flex: 1 } }}
-                onChange={(_, option) => {
-                  const updated = [...taxIssueEntries];
-                  updated[idx].RiskCategory = (option?.key as string) || "";
-                  setTaxIssueEntries(updated);
-                }}
-              />
-              {entry.RiskCategory === "Possible" && (
-                <Controller
-                  name={`ContigencyNote_${idx}`}
-                  control={control}
-                  rules={{
-                    required:
-                      "Contingency Note is required when Risk Category is Possible",
-                  }}
-                  render={({ field, fieldState }) => (
-                    <TextField
-                      label="Contingency Note"
-                      placeholder="Enter Note"
-                      {...field}
-                      errorMessage={fieldState.error?.message}
-                    />
-                  )}
-                />
-              )}
-
-              {/* Amount Contested */}
-              <TextField
-                label="Amount Contested"
-                placeholder="Enter Amount"
-                type="text"
-                required
-                styles={{ root: { flex: 1 } }}
-                value={
-                  entry.amountContested !== undefined &&
-                  entry.amountContested !== null
-                    ? new Intl.NumberFormat("en-US", {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 2,
-                      }).format(entry.amountContested)
-                    : ""
-                }
-                onChange={(_, v) => {
-                  const numericValue =
-                    v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
-                  const updated = [...taxIssueEntries];
-                  updated[idx].amountContested = numericValue
-                    ? parseFloat(numericValue)
-                    : 0;
-
-                  // Convert rate to decimal before multiplying
-                  const rateAsDecimal = (updated[idx].rate || 0) / 100;
-
-                  // Calculate Gross Exposure automatically
-                  updated[idx].grossTaxExposure =
-                    updated[idx].amountContested * rateAsDecimal;
-
-                  setTaxIssueEntries(updated);
-                }}
-              />
-
-              {/* Rate */}
-              <TextField
-                label="Rate"
-                placeholder="Enter Rate"
-                type="text"
-                suffix="%"
-                styles={{ root: { flex: 1 } }}
-                value={
-                  rateInputs[idx] !== undefined
-                    ? rateInputs[idx]
-                    : entry.rate !== undefined && entry.rate !== null
-                    ? entry.rate.toString()
-                    : ""
-                }
-                onChange={(_, v) => {
-                  // Allow only numbers and a single decimal
-                  const cleaned = v?.replace(/[^0-9.]/g, "") || "";
-                  const singleDot = cleaned.replace(/(\..*)\./g, "$1");
-
-                  // Update temporary input state
-                  setRateInputs((prev) => ({ ...prev, [idx]: singleDot }));
-
-                  const parsed = parseFloat(singleDot);
-                  if (!isNaN(parsed)) {
-                    const updated = [...taxIssueEntries];
-                    updated[idx].rate = parsed; // stays a number ✅
-                    updated[idx].grossTaxExposure =
-                      (updated[idx].amountContested || 0) * (parsed / 100);
-                    setTaxIssueEntries(updated);
-                  }
-                }}
-                onBlur={() => {
-                  const parsed = parseFloat(rateInputs[idx]);
-                  if (!isNaN(parsed)) {
-                    const rounded = parsed.toFixed(2);
-                    setRateInputs((prev) => ({ ...prev, [idx]: rounded }));
-
-                    const updated = [...taxIssueEntries];
-                    updated[idx].rate = parseFloat(rounded); // stored as number ✅
-                    setTaxIssueEntries(updated);
-                  }
-                }}
-              />
-
-              {/* Gross Tax Exposure */}
-              <TextField
-                label="Gross Tax Exposure"
-                readOnly
-                value={
-                  entry.grossTaxExposure !== undefined &&
-                  entry.grossTaxExposure !== null
-                    ? new Intl.NumberFormat("en-US", {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 2,
-                      }).format(entry.grossTaxExposure)
-                    : ""
-                }
-              />
-
-              {/* Remove Button */}
-              <button
-                type="button"
+              {/* ===== Row 1 ===== */}
+              <div
                 style={{
-                  background: "none",
-                  border: "none",
-                  color: "red",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  const updated = [...taxIssueEntries];
-                  updated.splice(idx, 1);
-                  setTaxIssueEntries(updated);
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: "0.75rem",
+                  flexWrap: "wrap",
                 }}
               >
-                ❌
-              </button>
+                {/* Tax Issue Dropdown */}
+                <Dropdown
+                  label="UTP Issue"
+                  placeholder="Select UTP Issue"
+                  options={lovOptions["Tax Issue"] || []}
+                  selectedKey={entry.taxIssue}
+                  styles={{ root: { flex: 1, minWidth: "220px" } }}
+                  onChange={(_, o) => {
+                    const updated = [...taxIssueEntries];
+                    updated[idx].taxIssue = o?.key as string;
+                    setTaxIssueEntries(updated);
+                  }}
+                />
+
+                {/* Risk Category */}
+                <Dropdown
+                  label="Risk Category"
+                  selectedKey={entry.RiskCategory}
+                  placeholder="Select Risk Category"
+                  required
+                  options={[
+                    { key: "Probable", text: "Probable" },
+                    { key: "Possible", text: "Possible" },
+                    { key: "Remote", text: "Remote" },
+                  ]}
+                  styles={{ root: { flex: 1, minWidth: "220px" } }}
+                  onChange={(_, option) => {
+                    const updated = [...taxIssueEntries];
+                    updated[idx].RiskCategory = (option?.key as string) || "";
+                    setTaxIssueEntries(updated);
+                  }}
+                />
+
+                {/* Contingency Note (Conditional) */}
+                {entry.RiskCategory === "Possible" && (
+                  <Controller
+                    name={`ContigencyNote_${idx}`}
+                    control={control}
+                    rules={{
+                      required:
+                        "Contingency Note is required when Risk Category is Possible",
+                    }}
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        label="Contingency Note"
+                        placeholder="Enter Note"
+                        {...field}
+                        errorMessage={fieldState.error?.message}
+                        styles={{ root: { flex: 1, minWidth: "220px" } }}
+                      />
+                    )}
+                  />
+                )}
+
+                {/* Amount Contested */}
+                <TextField
+                  label="Amount Contested"
+                  placeholder="Enter Amount"
+                  type="text"
+                  required
+                  styles={{ root: { flex: 1, minWidth: "220px" } }}
+                  value={
+                    entry.amountContested !== undefined &&
+                    entry.amountContested !== null
+                      ? new Intl.NumberFormat("en-US", {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2,
+                        }).format(entry.amountContested)
+                      : ""
+                  }
+                  onChange={(_, v) => {
+                    const numericValue =
+                      v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
+                    const updated = [...taxIssueEntries];
+                    updated[idx].amountContested = numericValue
+                      ? parseFloat(numericValue)
+                      : 0;
+
+                    const rateAsDecimal = (updated[idx].rate || 0) / 100;
+                    updated[idx].grossTaxExposure =
+                      updated[idx].amountContested * rateAsDecimal;
+
+                    setTaxIssueEntries(updated);
+                  }}
+                />
+
+                {/* Rate */}
+                <TextField
+                  label="Rate"
+                  placeholder="Enter Rate"
+                  type="text"
+                  suffix="%"
+                  styles={{ root: { flex: 1, minWidth: "120px" } }}
+                  value={
+                    rateInputs[idx] !== undefined
+                      ? rateInputs[idx]
+                      : entry.rate !== undefined && entry.rate !== null
+                      ? entry.rate.toString()
+                      : ""
+                  }
+                  onChange={(_, v) => {
+                    const cleaned = v?.replace(/[^0-9.]/g, "") || "";
+                    const singleDot = cleaned.replace(/(\..*)\./g, "$1");
+
+                    setRateInputs((prev) => ({ ...prev, [idx]: singleDot }));
+
+                    const parsed = parseFloat(singleDot);
+                    if (!isNaN(parsed)) {
+                      const updated = [...taxIssueEntries];
+                      updated[idx].rate = parsed;
+                      updated[idx].grossTaxExposure =
+                        (updated[idx].amountContested || 0) * (parsed / 100);
+                      setTaxIssueEntries(updated);
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = parseFloat(rateInputs[idx]);
+                    if (!isNaN(parsed)) {
+                      const rounded = parsed.toFixed(2);
+                      setRateInputs((prev) => ({ ...prev, [idx]: rounded }));
+
+                      const updated = [...taxIssueEntries];
+                      updated[idx].rate = parseFloat(rounded);
+                      setTaxIssueEntries(updated);
+                    }
+                  }}
+                />
+
+                {/* Gross Tax Exposure */}
+                <TextField
+                  label="Gross Tax Exposure"
+                  readOnly
+                  styles={{ root: { flex: 1, minWidth: "220px" } }}
+                  value={
+                    entry.grossTaxExposure !== undefined &&
+                    entry.grossTaxExposure !== null
+                      ? new Intl.NumberFormat("en-US", {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2,
+                        }).format(entry.grossTaxExposure)
+                      : ""
+                  }
+                />
+              </div>
+
+              {/* ===== Row 2 ===== */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: "0.75rem",
+                  flexWrap: "wrap",
+                }}
+              >
+                {/* Payment Type */}
+                <Dropdown
+                  label="Payment Type"
+                  placeholder="Select Payment Type"
+                  options={lovOptions["Payment Type"] || []}
+                  selectedKey={entry.PaymentType}
+                  styles={{ root: { flex: 1, minWidth: "220px" } }}
+                  onChange={(_, o) => {
+                    const updated = [...taxIssueEntries];
+                    updated[idx].PaymentType = o?.key as string;
+                    setTaxIssueEntries(updated);
+                  }}
+                />
+
+                {/* Amount (only if PaymentType selected) */}
+                {entry.PaymentType && (
+                  <TextField
+                    label="Amount"
+                    placeholder="Enter Amount"
+                    type="text"
+                    required
+                    styles={{ root: { flex: 1, minWidth: "200px" } }}
+                    value={
+                      entry.amount !== undefined && entry.amount !== null
+                        ? new Intl.NumberFormat("en-US").format(entry.amount)
+                        : ""
+                    }
+                    onChange={(_, v) => {
+                      const numericValue =
+                        v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
+                      const updated = [...taxIssueEntries];
+                      updated[idx].amount = numericValue
+                        ? parseFloat(numericValue)
+                        : 0;
+                      setTaxIssueEntries(updated);
+                    }}
+                  />
+                )}
+
+                {/* EBITDA Dropdown */}
+                <Dropdown
+                  label="EBITDA"
+                  placeholder="Select EBITDA"
+                  options={lovOptions["EBITDA"] || []}
+                  selectedKey={entry.EBITDA}
+                  styles={{ root: { flex: 1, minWidth: "200px" } }}
+                  onChange={(_, option) => {
+                    const updated = [...taxIssueEntries];
+                    updated[idx].EBITDA = option?.key as string;
+                    setTaxIssueEntries(updated);
+                  }}
+                />
+
+                {/* Remove Button */}
+                <button
+                  type="button"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "red",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    fontSize: "1.5rem",
+                    alignSelf: "center",
+                  }}
+                  onClick={() => {
+                    const updated = [...taxIssueEntries];
+                    updated.splice(idx, 1);
+                    setTaxIssueEntries(updated);
+                  }}
+                >
+                  ❌
+                </button>
+              </div>
             </div>
           ))}
 
-          {/* Add New Button */}
+          {/* ===== Add New Button ===== */}
           {taxIssueEntries.length < (lovOptions["Tax Issue"]?.length || 0) && (
             <button
               type="button"
@@ -1943,6 +2038,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       amountContested: 0,
                       rate: 0,
                       grossTaxExposure: 0,
+                      PaymentType: "",
+                      amount: 0,
+                      EBITDA: "",
                     },
                   ]);
                 }

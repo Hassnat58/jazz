@@ -46,7 +46,10 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({
           "CaseNumber/Title",
           "CaseNumber/TaxAuthority",
           "CaseNumber/TaxConsultantAssigned",
-          "CaseNumber/TaxType"
+          "CaseNumber/TaxType",
+          "CaseNumber/Entity",
+          "CaseNumber/TaxYear",
+          "CaseNumber/PendingAuthority"
         )
         .expand("Author", "Editor", "CaseNumber")
         .filter("Status eq 'Pending' and ApprovalStatus eq 'Pending'")
@@ -54,13 +57,7 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({
 
       const normalizedCases = items.map((item: any) => ({
         id: item.ID,
-        caseNo: item.ParentCaseId
-          ? item.TaxType === "Income Tax"
-            ? `IT-0${item.ParentCaseId}`
-            : item.TaxType === "Sales Tax"
-            ? `ST-0${item.ParentCaseId}`
-            : `CN-0${item.ParentCaseId}`
-          : item.Title,
+        caseNo: item.Title,
         authority: item.TaxAuthority,
         consultant: item.TaxConsultantAssigned,
         description: item.BriefDescription,

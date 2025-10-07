@@ -45,7 +45,8 @@ const Lawyer: React.FC<LawyerProps> = ({ onCancel, onSaved, SpfxContext }) => {
       setIsLoading(true);
       const items = await sp.web.lists
         .getByTitle("Lawyer Assigned")
-        .items.select("Id", "Title", "Email", "Status")();
+        .items.select("Id", "Title", "Email", "Status")
+        .top(5000)();
 
       const mapped = items.map((i) => ({
         Id: i.Id,

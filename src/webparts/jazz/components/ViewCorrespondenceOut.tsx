@@ -81,6 +81,12 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
             </td>
             <td>{data.CaseNumber?.TaxType}</td>
           </tr>
+          <tr>
+            <td>
+              <strong>Tax Year :</strong>
+            </td>
+            <td>{data.CaseNumber?.TaxYear}</td>
+          </tr>
         </tbody>
       </table>
 
