@@ -514,40 +514,56 @@ const formatAmount = (
 case "Provisions1": {
   const sp = spfi().using(SPFx(SpfxContext));
 
-  // Step 1: Get Risk Categories from UTP Tax Issue
+  // Step 1: Get Risk Categories, EBITDA, and GrossTaxExposure from UTP Tax Issue
   const utpIssues = await sp.web.lists
     .getByTitle("UTP Tax Issue")
-    .items.select("Id", "RiskCategory", "UTP/Id")
+    .items.select("Id", "RiskCategory", "EBITDA", "GrossTaxExposure", "UTP/Id")
     .expand("UTP")();
 
-  // Step 2: Group multiple risk categories by UTP Id
+  // Step 2: Group multiple risk categories + values by UTP Id
   const riskMap = utpIssues.reduce((acc, issue) => {
     const utpId = issue.UTP?.Id;
     if (!utpId) return acc;
-    if (!acc[utpId]) acc[utpId] = [];
-    acc[utpId].push(issue.RiskCategory);
-    return acc;
-  }, {} as Record<number, string[]>);
 
-  // Step 3: Merge all RiskCategories into rawData
+    if (!acc[utpId]) {
+      acc[utpId] = { riskCategories: [], ebitdaValues: [], grossTaxExposures: [] };
+    }
+
+    acc[utpId].riskCategories.push(issue.RiskCategory);
+
+    // Push EBITDA if available
+    if (issue.RiskCategory === "Probable" && issue.EBITDA !== undefined && issue.EBITDA !== null) {
+      acc[utpId].ebitdaValues.push(issue.EBITDA);
+    }
+
+    // Push GrossTaxExposure if available
+    if (issue.RiskCategory === "Probable" && issue.GrossTaxExposure !== undefined && issue.GrossTaxExposure !== null) {
+  acc[utpId].grossTaxExposures.push(issue.GrossTaxExposure);
+}
+
+    return acc;
+  }, {} as Record<number, { riskCategories: string[]; ebitdaValues: number[]; grossTaxExposures: number[] }>);
+
+  // Step 3: Merge RiskCategories, EBITDA & GrossTaxExposure into rawData
   const merged = rawData.map((r) => {
-    const riskCategories = riskMap[r.Id] || [];
+    const { riskCategories = [], ebitdaValues = [], grossTaxExposures = [] } = riskMap[r.Id] || {};
     const d = r.UTPDate ? new Date(r.UTPDate) : null;
 
     return {
       ...r,
-      RiskCategories: riskCategories, // array of all categories
-      hasProbable: riskCategories.includes("Probable"), // flag for filtering
+      RiskCategories: riskCategories,
+      EBITDA: ebitdaValues,
+      GrossTaxExposure: grossTaxExposures,
+      hasProbable: riskCategories.includes("Probable"),
       month: d ? d.getMonth() : null,
       year: d ? d.getFullYear() : null,
     };
   });
 
-
   // Step 4: Filter only those having at least one "Probable" RiskCategory
   const filtered = merged.filter((r) => r.hasProbable);
 
-  // Step 5: Group by provision type & GL code
+  // Step 5: Utility function for grouping
   const groupBy = (arr: any[], keyFn: (r: any) => string) =>
     arr.reduce((acc, r) => {
       const key = keyFn(r);
@@ -556,48 +572,57 @@ case "Provisions1": {
       return acc;
     }, {} as Record<string, any[]>);
 
+  // Step 6: Get current and previous month details
   const now = new Date();
-  const currentMonth = now.getMonth(); // 0 = Jan
+  const currentMonth = now.getMonth();
   const year = now.getFullYear();
 
   const prevDate = new Date(year, currentMonth - 1, 1);
   const prevMonth = prevDate.getMonth();
 
-  const segregated = groupBy(filtered, (r) => r.TaxType);
+  // Step 7: Segregate by TaxType
+  const segregated = groupBy(filtered, (r) => r.EBITDA);
 
   const exportData: any[] = [];
-  console.log(segregated, filtered, "hhh");
-
+ 
+  // Step 8: Prepare export data grouped by GL Code
   Object.entries(segregated).forEach(([TaxType, rows]) => {
-    const byGL = groupBy(rows as any[], (r) => r.ProvisionGLCode||"");
+    const byGL = groupBy(rows as any[], (r) => r.ProvisionGLCode || "");
 
     let subtotalCurr = 0;
     let subtotalPrev = 0;
 
-   Object.entries(byGL).forEach(([ProvisionGLCode, records]) => {
-  (records as any[]).forEach((r: any) => {
-    const curr =
-      r.month === currentMonth && r.year === year ? r.GrossExposure || 0 : 0;
-    const prev =
-      r.month === prevMonth && r.year === year ? r.GrossExposure || 0 : 0;
+    Object.entries(byGL).forEach(([ProvisionGLCode, records]) => {
+      (records as any[]).forEach((r: any) => {
+        // Use GrossTaxExposure instead of GrossExposure
+        const curr =
+          r.month === currentMonth && r.year === year
+            ? r.GrossTaxExposure?.reduce((sum: number, val: number) => sum + val, 0) || 0
+            : 0;
+        const prev =
+          r.month === prevMonth && r.year === year
+            ? r.GrossTaxExposure?.reduce((sum: number, val: number) => sum + val, 0) || 0
+            : 0;
 
-    subtotalCurr += curr;
-    subtotalPrev += prev;
+        subtotalCurr += curr;
+        subtotalPrev += prev;
 
-    exportData.push({
-      glCode: ProvisionGLCode || "",
-      taxType: r?.CaseNumber?.CorrespondenceType || "",
-      provisionType: r?.CaseNumber?.TaxType === "Income Tax" ? "Above Ebitda" : "Below Ebitda",
-      entity: r?.CaseNumber?.Entity || "",
-      currentMonthAmount: formatAmount(curr),
-      previousMonthAmount: formatAmount(prev),
-      variance: formatAmount(( Number((curr + "").replace(/,/g, "")) )-( Number((prev + "").replace(/,/g, "")) )),
+        exportData.push({
+          glCode: ProvisionGLCode || "",
+          taxType: r?.CaseNumber?.CorrespondenceType || "",
+          provisionType: r?.EBITDA?.length ? r.EBITDA[0] : "",
+          entity: r?.CaseNumber?.Entity || "",
+          currentMonthAmount: formatAmount(curr),
+          previousMonthAmount: formatAmount(prev),
+          variance: formatAmount(
+            Number((curr + "").replace(/,/g, "")) -
+              Number((prev + "").replace(/,/g, ""))
+          ),
+        });
+      });
     });
-  });
-});
 
-
-    // Subtotal row
+    // Step 9: Subtotal row
     exportData.push({
       glCode: "",
       taxType: "",
@@ -605,18 +630,29 @@ case "Provisions1": {
       entity: "Sub Total",
       currentMonthAmount: formatAmount(subtotalCurr),
       previousMonthAmount: formatAmount(subtotalPrev),
-      variance: formatAmount(( Number((subtotalCurr + "").replace(/,/g, "")))  - ( Number((subtotalPrev + "").replace(/,/g, "")) ) ),
+      variance: formatAmount(
+        Number((subtotalCurr + "").replace(/,/g, "")) -
+          Number((subtotalPrev + "").replace(/,/g, ""))
+      ),
     });
   });
 
-  // Grand total row
+  // Step 10: Grand total row
   const totalCurr = exportData
     .filter((r) => r.entity === "Sub Total")
-    .reduce((sum, r) => sum + ( Number((r.currentMonthAmount + "").replace(/,/g, "")) || 0), 0);
+    .reduce(
+      (sum, r) =>
+        sum + (Number((r.currentMonthAmount + "").replace(/,/g, "")) || 0),
+      0
+    );
 
   const totalPrev = exportData
     .filter((r) => r.entity === "Sub Total")
-    .reduce((sum, r) => sum + ( Number((r.previousMonthAmount + "").replace(/,/g, "")) || 0), 0);
+    .reduce(
+      (sum, r) =>
+        sum + (Number((r.previousMonthAmount + "").replace(/,/g, "")) || 0),
+      0
+    );
 
   exportData.push({
     glCode: "",
@@ -625,7 +661,10 @@ case "Provisions1": {
     entity: "Grand Total",
     currentMonthAmount: formatAmount(totalCurr),
     previousMonthAmount: formatAmount(totalPrev),
-    variance: formatAmount(( Number((totalCurr + "").replace(/,/g, "")))  - ( Number((totalPrev + "").replace(/,/g, "")) )),
+    variance: formatAmount(
+      Number((totalCurr + "").replace(/,/g, "")) -
+        Number((totalPrev + "").replace(/,/g, ""))
+    ),
   });
 
   return exportData;
@@ -774,85 +813,105 @@ const paymentsAdCurr = filtered3
 
   return results3;
 
-    case "Provisions2": {
+   case "Provisions2": {
   const sp = spfi().using(SPFx(SpfxContext));
 
-  // ✅ Step 1: Get Risk Categories from UTP Tax Issue
+  // ✅ Step 1: Get Risk Categories + GrossTaxExposure from UTP Tax Issue
   const utpIssues = await sp.web.lists
     .getByTitle("UTP Tax Issue")
-    .items.select("Id", "RiskCategory", "UTP/Id")
+    .items.select("Id", "RiskCategory", "GrossTaxExposure", "UTP/Id")
     .expand("UTP")();
 
   // ✅ Step 2: Group multiple risk categories by UTP Id
   const riskMap = utpIssues.reduce((acc, issue) => {
     const utpId = issue.UTP?.Id;
     if (!utpId) return acc;
-    if (!acc[utpId]) acc[utpId] = [];
-    acc[utpId].push(issue.RiskCategory);
+
+    if (!acc[utpId]) {
+      acc[utpId] = { riskCategories: [], grossTaxExposures: [] };
+    }
+
+    // ✅ Corrected: push to the riskCategories array
+    acc[utpId].riskCategories.push(issue.RiskCategory);
+
+    // ✅ Add only Probable GrossTaxExposure
+    if (
+      issue.RiskCategory === "Probable" &&
+      issue.GrossTaxExposure !== undefined &&
+      issue.GrossTaxExposure !== null
+    ) {
+      acc[utpId].grossTaxExposures.push(issue.GrossTaxExposure);
+    }
+
     return acc;
-  }, {} as Record<number, string[]>);
+  }, {} as Record<number, { riskCategories: string[]; grossTaxExposures: number[] }>);
 
   // ✅ Step 3: Merge RiskCategories into rawData
   const rawDataWithRisk = rawData.map((r) => {
-    const riskCategories = riskMap[r.Id] || [];
+    const { riskCategories = [], grossTaxExposures = [] } = riskMap[r.Id] || {};
+
     return {
       ...r,
       RiskCategories: riskCategories,
+      GrossTaxExposure: grossTaxExposures,
       hasProbable: riskCategories.includes("Probable"),
     };
   });
 
-  // ✅ Step 4: Use only Probable risk categories for current month
+  // ✅ Step 4: Filter only Probable risk categories for current month
   const currentMonthData: any = filterCurrentMonth(rawDataWithRisk).filter(
     (r: any) => r.hasProbable
   );
 
- // ✅ Step 5: Group & sum by GRS Code
-const summarized = Object.values(
-  currentMonthData.reduce((acc: any, item: any) => {
-    const grsCode = item.GRSCode || "";
-    const exposure = Number(String(item.GrossExposure || "0").replace(/,/g, "")); // ✅ numeric value only
+  // ✅ Step 5: Group & sum by GRS Code
+  const summarized = Object.values(
+    currentMonthData.reduce((acc: any, item: any) => {
+      const grsCode = item.GRSCode || "";
+      const exposure = (item.GrossTaxExposure || []).reduce(
+        (sum: number, val: number) => sum + Number(val || 0),
+        0
+      );
 
-    if (!acc[grsCode]) {
-      acc[grsCode] = {
-        GRSCode: grsCode,
-        entity: item?.CaseNumber?.Entity || "",
-        taxMatter: item?.CaseNumber?.CorrespondenceType || "",
-        taxType: item?.CaseNumber?.TaxType || "",
-        GrossExposure: 0,
-        RiskCategories: item.RiskCategories || [],
-      };
-    }
+      if (!acc[grsCode]) {
+        acc[grsCode] = {
+          GRSCode: grsCode,
+          entity: item?.CaseNumber?.Entity || "",
+          taxMatter: item?.CaseNumber?.CorrespondenceType || "",
+          taxType: item?.CaseNumber?.TaxType || "",
+          GrossExposure: 0,
+          RiskCategories: item.RiskCategories || [],
+        };
+      }
 
-    acc[grsCode].GrossExposure += exposure; // ✅ numeric addition only
-    return acc;
-  }, {})
-);
+      acc[grsCode].GrossExposure += exposure;
+      return acc;
+    }, {})
+  );
 
-// ✅ Step 6: Subtotal
-const total :any= summarized.reduce(
-  (sum: number, r: any) => sum + (Number(String(r.GrossExposure || "0").replace(/,/g, "")) || 0),
-  0
-);
+  // ✅ Step 6: Subtotal
+  const total: any = summarized.reduce(
+    (sum: number, r: any) => sum + (Number(String(r.GrossExposure || "0").replace(/,/g, "")) || 0),
+    0
+  );
 
-// ✅ Step 7: Format for output
-const formattedSummary = summarized.map((r: any) => ({
-  ...r,
-  GrossExposure: formatAmount(r.GrossExposure), // ✅ format only at the end
-}));
+  // ✅ Step 7: Format for output
+  const formattedSummary = summarized.map((r: any) => ({
+    ...r,
+    GrossExposure: formatAmount(r.GrossExposure),
+  }));
 
-// ✅ Step 8: Add subtotal row
-formattedSummary.push({
-  GRSCode: "",
-  taxMatter: "",
-  entity: "Sub Total",
-  taxType: "",
-  GrossExposure: formatAmount(total),
-});
+  // ✅ Step 8: Add subtotal row
+  formattedSummary.push({
+    GRSCode: "",
+    taxMatter: "",
+    entity: "Sub Total",
+    taxType: "",
+    GrossExposure: formatAmount(total),
+  });
 
-return formattedSummary;
-
+  return formattedSummary;
 }
+
 
       case "Contingencies":
         // helper: group by GLCode
@@ -977,11 +1036,17 @@ return formattedSummary;
             utpIdDisplay: utp.Id,
             utpIssue: "",
             ermCategory:utp.ERMCategory??"",
-            cashFlowExposurePKR:formatAmount(utp.CashFlowExposure)??"",
-
-            plExposurePKR:formatAmount(utp.PLExposure)??"",
-
-            ebitdaExposurePKR:formatAmount(utp.EBITDAExposure)??"",
+             plExposurePKR: formatAmount(
+      utp.RiskCategory === "Probable" ? 0 : utp.GrossExposure || 0
+    ),
+    ebitdaExposurePKR: formatAmount(
+      utp.CaseNumber?.TaxType === "Income Tax" ? 0 : 
+      (utp.RiskCategory === "Probable" ? 0 : utp.GrossExposure || 0)
+    ),
+    cashFlowExposurePKR: formatAmount(
+      (utp.GrossExposure || 0) -
+      (utp.PaymentType === "Payment under protest" ? utp.Amount || 0 : 0)
+    ),
 
             ermUniqueNumbering:utp.ERMUniqueNumbering??"",
           };
@@ -999,7 +1064,7 @@ return formattedSummary;
             pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
             type: utp.PaymentType, // exists but null
             grossExposureJul: utp.GrossExposure, // only one field, reusing
-            grossExposureJun: formatAmount(issue.GrossTaxExposure) ?? utp.GrossExposure?.toFixed(2),
+            grossExposureJun: formatAmount(issue.GrossTaxExposure) ?? 0,
             UTPDate: utp.UTPDate,
            category: issue.RiskCategory, // exists
             fy: utp?.CaseNumber?.FinancialYear, // exists but null
@@ -1018,8 +1083,8 @@ return formattedSummary;
             briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
             provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
             provisionGrsCode: utp.GRSCode, // exists
-            paymentUnderProtest: utp.PaymentType=="Payment under Protest"? formatAmount(utp.Amount):"", // exists but null (note lowercase "u")
-            admittedTax:utp.PaymentType=="Admitted Tax"? formatAmount(utp.Amount):"", // exists but null (note lowercase "u")
+            paymentUnderProtest: issue.PaymentType=="Payment under Protest"? formatAmount(issue.Amount):"", // exists but null (note lowercase "u")
+            admittedTax:issue.PaymentType=="Admitted Tax"? formatAmount(issue.Amount):"", // exists but null (note lowercase "u")
              // exists but null (note lowercase "u")
             paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
             utpPaperCategory: utp.UTPCategory, // exists but null
@@ -1029,16 +1094,23 @@ return formattedSummary;
             amtContested:formatAmount(issue.AmountContested) ?? "",
             rate:issue.Rate ?? "",
             ermCategory:utp.ERMCategory??"",
-            cashFlowExposurePKR:formatAmount(utp.CashFlowExposure)??"",
-
-            plExposurePKR:formatAmount(utp.PLExposure)??"",
-
-            ebitdaExposurePKR:formatAmount(utp.EBITDAExposure)??"",
+              plExposurePKR: formatAmount(
+      issue.RiskCategory === "Probable" ? 0 : issue.GrossTaxExposure || 0
+    ),
+    ebitdaExposurePKR: formatAmount(
+      utp.CaseNumber?.TaxType === "Income Tax" ? 0 : 
+      (issue.RiskCategory === "Probable" ? 0 : issue.GrossTaxExposure || 0)
+    ),
+    cashFlowExposurePKR: formatAmount(
+      (issue.GrossTaxExposure || 0) -
+      (issue.PaymentType === "Payment under Protest" ? issue.Amount || 0 : 0)
+    ),
 
             ermUniqueNumbering:utp.ERMUniqueNumbering??"",
 
 
           }));
+console.log(merged,relatedIssues,"jjj");
 
           // return [mainRow, ...issueRows];
           return [...issueRows];
