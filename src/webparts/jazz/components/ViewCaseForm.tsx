@@ -129,7 +129,7 @@ const ViewCaseOffcanvas: React.FC<{
             <td>
               <strong>Date of Document:</strong>
             </td>
-            <td>{data.DateofDocument?.split("T")[0]}</td>
+            <td>{data.Dateofdocument?.split("T")[0]}</td>
             <td>
               <strong>Date Received:</strong>
             </td>

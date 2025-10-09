@@ -282,6 +282,7 @@ const TabbedTables: React.FC<{
           "TaxType",
           "TaxAuthority",
           "Hearingdate",
+          "GrossExposure",
           "GrossTaxDemanded",
           "CaseStatus",
           "Author/Title",

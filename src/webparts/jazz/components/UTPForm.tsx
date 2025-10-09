@@ -725,7 +725,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                   label="Tax Type"
                   onChange={(_, option) => {
                     if (f.value === option?.key) {
-                      f.onChange(undefined); // deselect when clicking same value
+                      f.onChange(undefined);
                     } else {
                       f.onChange(option?.key as string);
                     }

@@ -37,7 +37,7 @@ const RoleDetailsDrawer: React.FC<Props> = ({
         .items.getById(roleData.ItemId)
         .delete();
 
-      reloadRoles(); // reload data in ManageRole
+      reloadRoles();
       onHide();
       alert("Role deleted successfully.");
     } catch (err) {
