@@ -1784,7 +1784,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           <Dropdown
             label="Category"
             placeholder="Select Category"
-            options={lovOptions["Risk Categoy"] || []}
+            options={lovOptions["Risk Category"] || []}
             selectedKey={filters.category || null}
             onChange={(_, option) =>
               handleFilterChange("category", option?.key as string)
