@@ -780,8 +780,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         );
 
         // 💸 Cashflow Exposure = Total Exposure - Payments
-        const cashflowCurr = totalExposureCurr - (paymentsUnderProtestCurr);
-        const cashflowPrev = totalExposurePrev - (paymentsUnderProtestPrev);
+        const cashflowCurr = totalExposureCurr - (paymentsUnderProtestCurr)- (admittedTaxCurr);
+        const cashflowPrev = totalExposurePrev - (paymentsUnderProtestPrev) - (admittedTaxPrev);
 
         // 📊 P&L and EBITDA Exposure
         const plCurr = merged3
