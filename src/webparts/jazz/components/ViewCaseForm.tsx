@@ -112,9 +112,13 @@ const ViewCaseOffcanvas: React.FC<{
 
           <tr>
             <td>
-              <strong>Correspondence Type:</strong>
+              <strong>Notice/Order Type:</strong>
             </td>
             <td>{data.CorrespondenceType}</td>
+            <td>
+              <strong>Tax Type:</strong>
+            </td>
+            <td>{data.TaxType}</td>
             <td>
               <strong>Tax Consultant:</strong>
             </td>
@@ -281,6 +285,48 @@ const ViewCaseOffcanvas: React.FC<{
             <p>No attachments found.</p>
           )}
         </div>
+      </div>
+      <div className={styles.approvalSection}>
+        <table className={styles.detailTable}>
+          <tbody>
+            <tr>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Entered by
+              </td>
+              <td>{data.Author?.Title || "—"}</td>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Created on
+              </td>
+              <td>
+                {data.Created
+                  ? new Date(data.Created).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })
+                  : "—"}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Approved by
+              </td>
+              <td>{data.ApprovedBy || "—"}</td>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Approved on
+              </td>
+              <td>
+                {data.ApprovedDate
+                  ? new Date(data.ApprovedDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })
+                  : "—"}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );

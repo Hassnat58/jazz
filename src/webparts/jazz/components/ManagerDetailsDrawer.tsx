@@ -41,17 +41,31 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
 
     try {
       const listName = caseData.type === "utp" ? "UTPData" : "Cases";
-
       const statusValue = decision === "Approved" ? "Active" : "Inactive";
+
+      // ✅ Get current user information
+      const currentUser = await sp.web.currentUser();
+
+      const updateData: any = {
+        ApprovalStatus: decision,
+        [caseData.type === "utp" ? "Status" : "CaseStatus"]: statusValue,
+        [caseData.type === "utp" ? "Description" : "Comments"]: comments,
+      };
+
+      // ✅ Add ApprovedBy and ApprovedDate only when Approved
+      if (decision === "Approved") {
+        updateData.ApprovedBy = currentUser.Title; // current user's display name
+        updateData.ApprovedDate = new Date(); // current date/time
+      } else {
+        // Optional: clear these fields when rejected
+        updateData.ApprovedBy = "";
+        updateData.ApprovedDate = null;
+      }
 
       await sp.web.lists
         .getByTitle(listName)
         .items.getById(caseData.id)
-        .update({
-          ApprovalStatus: decision,
-          [caseData.type === "utp" ? "Status" : "CaseStatus"]: statusValue,
-          [caseData.type === "utp" ? "Description" : "Comments"]: comments,
-        });
+        .update(updateData);
 
       loadCasesData();
       onHide();
@@ -68,6 +82,7 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
       alert("Error updating the record.");
     }
   };
+
   const fetchAttachments = async (
     itemId: number,
     type: "case" | "correspondenceOut" | "UTP"

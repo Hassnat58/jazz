@@ -156,6 +156,30 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
           )}
         </div>
       </div>
+      <div className={styles.approvalSection}>
+        <table className={styles.detailTable}>
+          <tbody>
+            <tr>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Entered by
+              </td>
+              <td>{data.Author?.Title || "—"}</td>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Created on
+              </td>
+              <td>
+                {data.Created
+                  ? new Date(data.Created).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })
+                  : "—"}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

@@ -66,7 +66,7 @@ const reportConfig: Record<
       { header: "Tax Authority", field: "taxAuthority" },
       { header: "Pending Authority", field: "pendingAuthority" },
       { header: "Entity", field: "entity" },
-      { header: "Type", field: "taxType" },
+      { header: "TaxType", field: "taxType" },
       { header: "Financial Year", field: "fy" },
       { header: "Tax Year", field: "taxYear" },
       { header: "UTP Issue", field: "utpIssue" },

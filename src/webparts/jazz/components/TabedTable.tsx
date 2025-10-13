@@ -255,7 +255,9 @@ const TabbedTables: React.FC<{
           "CaseNumber/TaxType",
           "CaseNumber/TaxAuthority",
           "CaseNumber/Entity",
-          "CaseNumber/TaxYear"
+          "CaseNumber/TaxYear",
+          "Created",
+          "Modified"
         )
         .top(5000)
         .expand("CaseNumber", "Author", "Editor")
@@ -308,7 +310,10 @@ const TabbedTables: React.FC<{
           "LawyerAssigned0",
           "LawyerEmail",
           "ApprovalStatus",
-          "TaxExposure"
+          "TaxExposure",
+          "ApprovedBy",
+          "ApprovedDate",
+          "Created"
         )
         .top(5000)
         .expand("Author", "Editor", "ParentCase")
@@ -354,7 +359,10 @@ const TabbedTables: React.FC<{
           "Modified",
           "Amount",
           "PaymentGLCode",
-          "ProvisionGLCode"
+          "ProvisionGLCode",
+          "ApprovedBy",
+          "ApprovedDate",
+          "Created"
         )
         .top(5000)
         .orderBy("ID", false)
@@ -1438,7 +1446,7 @@ const TabbedTables: React.FC<{
               <th>ERM Unique Numbering</th>
               <th>Gross Exposure</th>
               <th>Tax Type</th>
-              <th>Status</th>
+              <th>Approval Status</th>
               <th>Actions</th>
             </tr>
           </thead>

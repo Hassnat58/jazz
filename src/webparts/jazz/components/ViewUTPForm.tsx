@@ -20,6 +20,7 @@ const ViewUTPForm: React.FC<{
 }> = ({ show, onClose, utpData: data, attachments, SpfxContext }) => {
   if (!data) return null;
   const [utpTaxIssueEntries, setUtpTaxIssueEntries] = React.useState<any[]>([]);
+  const [cashflowExposure, setCashflowExposure] = React.useState<number>(0);
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -57,7 +58,15 @@ const ViewUTPForm: React.FC<{
           amount: item.Amount,
           ebitda: item.EBITDA,
         }));
-
+        const totalUnderProtest = mappedIssues
+          .filter(
+            (i) => i.paymentType?.toLowerCase() === "payment under protest"
+          )
+          .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+        const calculatedCashflowExposure =
+          (Number(data.GrossExposure) || 0) - totalUnderProtest;
+        setUtpTaxIssueEntries(mappedIssues);
+        setCashflowExposure(calculatedCashflowExposure);
         setUtpTaxIssueEntries(mappedIssues);
       } catch (error) {
         console.error("Error fetching UTP Tax Issues:", error);
@@ -134,11 +143,21 @@ const ViewUTPForm: React.FC<{
             <td>
               <strong>Gross Exposure:</strong>
             </td>
-            <td>{data.GrossExposure}</td>
+            <td>
+              {data.GrossExposure.toLocaleString("en-US", { style: "decimal" })}
+            </td>
             <td>
               <strong>EBITDA Exposure Exist:</strong>
             </td>
             <td>{data.EBITDAExposureExists ? "Yes" : "No"}</td>
+            <td>
+              <strong>Cashflow Exposure:</strong>
+            </td>
+            <td colSpan={5}>
+              {cashflowExposure
+                ? cashflowExposure.toLocaleString("en-US", { style: "decimal" })
+                : "—"}
+            </td>
           </tr>
 
           <tr>
@@ -294,6 +313,48 @@ const ViewUTPForm: React.FC<{
             <p>No attachments found.</p>
           )}
         </div>
+      </div>
+      <div className={styles.approvalSection}>
+        <table className={styles.detailTable}>
+          <tbody>
+            <tr>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Entered by
+              </td>
+              <td>{data.Author?.Title || "—"}</td>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Created on
+              </td>
+              <td>
+                {data.Created
+                  ? new Date(data.Created).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })
+                  : "—"}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Approved by
+              </td>
+              <td>{data.ApprovedBy || "—"}</td>
+              <td style={{ backgroundColor: "#d9d9d9", fontWeight: "bold" }}>
+                Approved on
+              </td>
+              <td>
+                {data.ApprovedDate
+                  ? new Date(data.ApprovedDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })
+                  : "—"}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
