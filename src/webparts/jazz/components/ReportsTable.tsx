@@ -134,10 +134,10 @@ const reportConfig: Record<
       { header: "Tax Year/Tax Period", field: "taxYear" },
       { header: "Type of order", field: "type" },
       { header: "Nature of order", field: "briefDescription" },
-      { header: "Tax demand (PKR)", field: "amount" },
+      { header: "Tax demand (PKR)", field: "grossExp" },
       { header: "Date of receipt of notice/order", field: "dateReceived" },
       { header: "Compliance Date", field: "complianceDate" },
-      // { header: "Cut-off date to seek stay", field: "stayExpiringOn" },
+      // { header: "Cut-off date to seek stay", field: "stayExpiringOn" }
       // { header: "Forum to file appeal", field: "nextForum" },
       // { header: "Forum to file stay application", field: "pendingAuthority" },
       { header: "Description", field: "briefDescription" },
@@ -1393,7 +1393,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     const fetchLOVs = async () => {
       const items = await sp.web.lists
         .getByTitle("LOVData1")
-        .items.select("Id", "Title", "Value", "Status")();
+        .items.select("Id", "Title", "Value", "Status")
+        .top(5000)();
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
@@ -1411,8 +1412,6 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   const handleFilterChange = async (key: string, value: string) => {
     const updatedFilters = { ...filters, [key]: value };
     setFilters(updatedFilters);
-
-    // Normalize start/end dates to midnight to avoid timezone issues
     const normalizeDate = (date: Date) => {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);

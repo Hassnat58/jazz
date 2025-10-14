@@ -120,10 +120,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           .items.select("Id", "Title", "Value", "Status")
           .top(5000)(),
       ]);
-
       setAllCases(cases);
-
-      // LOV grouped options
       const activeLOVs = lovs.filter((item) => item.Status === "Active");
       const groupedLOVs: { [key: string]: IDropdownOption[] } = {};
       activeLOVs.forEach(({ Title, Value }) => {

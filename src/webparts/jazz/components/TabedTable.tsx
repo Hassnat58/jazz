@@ -88,6 +88,9 @@ const TabbedTables: React.FC<{
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [casesData, setCasesData] = useState<any[]>([]);
+  const [caseOptions, setCaseOptions] = useState<
+    { key: number; text: string }[]
+  >([]);
   const [selectedCase, setSelectedCase] = useState<any>(null);
   const [notiID, setNotiID] = useState<any>(null);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
@@ -180,6 +183,40 @@ const TabbedTables: React.FC<{
       loadUTPData();
     }
   }, [activeTab]);
+  useEffect(() => {
+    const fetchCases = async () => {
+      try {
+        const cases = await sp.web.lists
+          .getByTitle("Cases")
+          .items.select(
+            "Id",
+            "Title",
+            "TaxType",
+            "TaxAuthority",
+            "ApprovalStatus"
+          )
+          .filter("ApprovalStatus eq 'Approved'")
+          .top(5000)();
+
+        const formatted = cases.map((c: any) => {
+          // // let prefix = "CN";
+          // if (c.TaxType === "Income Tax") prefix = "IT";
+          // if (c.TaxType === "Sales Tax") prefix = "ST";
+          // const taxAuth = c.TaxAuthority || "";
+          return {
+            key: c.Id,
+            text: c.Title,
+          };
+        });
+
+        setCaseOptions(formatted);
+      } catch (error) {
+        console.error("Error fetching cases:", error);
+      }
+    };
+
+    fetchCases();
+  }, []);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -489,7 +526,8 @@ const TabbedTables: React.FC<{
     const fetchLOVs = async () => {
       const items = await sp.web.lists
         .getByTitle("LOVData1")
-        .items.select("Id", "Title", "Value", "Status")();
+        .items.select("Id", "Title", "Value", "Status")
+        .top(5000)();
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
@@ -966,15 +1004,9 @@ const TabbedTables: React.FC<{
             allowFreeform
             autoComplete="on"
             useComboBoxAsMenuWidth
-            options={correspondenceOutData
-              .filter((i) => i.CaseNumber)
-              .map((i) => ({
-                key: i.CaseNumber.Id,
-                text: getFormattedCaseNumber(i.CaseNumber),
-              }))}
+            options={caseOptions}
             text={correspondenceFilters.caseNumber || ""}
             onInputValueChange={(newText) => {
-              // update filters live while typing
               handleCorrespondenceFilterChange("caseNumber", newText);
             }}
             onChange={(_, option, __, value) => {
@@ -996,6 +1028,7 @@ const TabbedTables: React.FC<{
               input: { width: "100%" },
             }}
           />
+
           <div style={{ position: "relative", display: "inline-block" }}>
             <ComboBox
               label="Tax Type"

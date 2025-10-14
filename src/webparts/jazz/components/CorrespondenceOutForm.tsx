@@ -87,17 +87,17 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
   const [allCases, setAllCases] = useState<IComboBoxOption[]>([]);
   const [caseOptions, setCaseOptions] = useState<IComboBoxOption[]>([]);
 
-  const getFormattedCaseNumber = (item: any) => {
-    // default CN
-    let prefix = "CN";
-    if (item.TaxType === "Income Tax") prefix = "IT";
-    if (item.TaxType === "Sales Tax") prefix = "ST";
+  // const getFormattedCaseNumber = (item: any) => {
+  //   // default CN
+  //   let prefix = "CN";
+  //   if (item.TaxType === "Income Tax") prefix = "IT";
+  //   if (item.TaxType === "Sales Tax") prefix = "ST";
 
-    // TaxAuthority can be lookup or string
-    const taxAuth = item.TaxAuthority?.Title || item.TaxAuthority || "N/A";
+  //   // TaxAuthority can be lookup or string
+  //   const taxAuth = item.TaxAuthority?.Title || item.TaxAuthority || "N/A";
 
-    return `${prefix}-${taxAuth}-${item.Id}`;
-  };
+  //   return `${prefix}-${taxAuth}-${item.Id}`;
+  // };
 
   // Helper function to get file extension
   const getFileExtension = (filename: string): string => {
@@ -196,7 +196,8 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
         })
         .map((item) => ({
           key: item.Id,
-          text: getFormattedCaseNumber(item),
+          // text: getFormattedCaseNumber(item),
+          text: item.Title,
           data: item,
         }));
       // Debug filtered results
@@ -208,7 +209,8 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
     const fetchLOVs = async () => {
       const items = await sp.web.lists
         .getByTitle("LOVData1")
-        .items.select("Id", "Title", "Value", "Status")();
+        .items.select("Id", "Title", "Value", "Status")
+        .top(5000)();
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {

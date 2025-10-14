@@ -50,6 +50,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
           "FileLeafRef",
           "File/Name",
           "File/ServerRelativeUrl",
+          "File/UniqueId",
           "File/Length",
           "File/TimeCreated",
           "File/TimeLastModified",
@@ -297,15 +298,53 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
             </p>
             <div className={styles.actions}>
               <Button
-                href={item.File?.ServerRelativeUrl}
-                target="_blank"
-                rel="noreferrer"
                 title="View"
                 variant="outline-warning"
                 size="sm"
+                onClick={() => {
+                  const file = item.File;
+                  if (!file || !file.ServerRelativeUrl) return;
+
+                  const siteUrl = SpfxContext.pageContext.site.absoluteUrl;
+                  const tenantUrl =
+                    SpfxContext.pageContext.web.absoluteUrl.split("/sites/")[0];
+                  const fileName = file.Name?.toLowerCase() || "";
+
+                  // ✅ Build correct full URL (no double /sites/)
+                  const fileUrl = `${tenantUrl}${file.ServerRelativeUrl}`;
+
+                  // Identify file types
+                  const isOfficeDoc =
+                    fileName.endsWith(".doc") ||
+                    fileName.endsWith(".docx") ||
+                    fileName.endsWith(".xls") ||
+                    fileName.endsWith(".xlsx") ||
+                    fileName.endsWith(".ppt") ||
+                    fileName.endsWith(".pptx");
+
+                  const isDirectOpen =
+                    fileName.endsWith(".pdf") ||
+                    fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/) ||
+                    fileName.endsWith(".tsx") ||
+                    fileName.endsWith(".txt") ||
+                    fileName.endsWith(".json");
+
+                  if (isOfficeDoc) {
+                    // ✅ Use WOPI viewer for Word, Excel, PowerPoint
+                    const wopiUrl = `${siteUrl}/_layouts/15/WopiFrame.aspx?sourcedoc=%7B${file.UniqueId}%7D&action=interactiveview`;
+                    window.open(wopiUrl, "_blank");
+                  } else if (isDirectOpen) {
+                    // ✅ Open PDFs, images, and code/text directly
+                    window.open(fileUrl, "_blank");
+                  } else {
+                    // ✅ Fallback for other file types
+                    window.open(fileUrl, "_blank");
+                  }
+                }}
               >
                 👁
               </Button>
+
               <a
                 href={item.File?.ServerRelativeUrl}
                 download

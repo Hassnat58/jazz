@@ -331,7 +331,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
     const fetchLOVs = async () => {
       const items = await sp.web.lists
         .getByTitle("LOVData1")
-        .items.select("Id", "Title", "Value", "Status")();
+        .items.select("Id", "Title", "Value", "Status")
+        .top(5000)();
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
@@ -373,8 +374,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
         setCasesOptions(options);
       });
   }, []);
-
-  // filter by Tax Type
   const filteredCaseOptions = React.useMemo(() => {
     let filtered = casesOptions;
 
