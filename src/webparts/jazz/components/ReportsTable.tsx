@@ -1221,9 +1221,13 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             ),
             cashFlowExposurePKR: formatAmount(
               (issue.GrossTaxExposure || 0) -
+<<<<<<< HEAD
                 (issue.PaymentType === "Payment under Protest"
                   ? issue.Amount || 0
                   : 0)
+=======
+              ( issue.Amount || 0)
+>>>>>>> 7c4a369de37ba0642a3224d3b0ee29c02aaf3d91
             ),
 
             ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
