@@ -1316,8 +1316,6 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             .getByTitle("UTP Tax Issue")
             .items.select("Id", "UTP/Id", "RiskCategory")
             .expand("UTP")();
-
-          // ✅ 7️⃣ Group risk categories by UTP Id
           const riskMap = utpTaxIssues.reduce((acc, issue) => {
             const utpId = issue?.UTP?.Id;
             if (!utpId) return acc;
