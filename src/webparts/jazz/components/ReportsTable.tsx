@@ -1689,7 +1689,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
   return (
     <>
-       {reportType == "Provisions3"&&<div className={styles.filtersRow}>
+       {reportType !== "Provisions3"&&<div className={styles.filtersRow}>
         {/* Date Range */}
         {/* <input
           type="date"
