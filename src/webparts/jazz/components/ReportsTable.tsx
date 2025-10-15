@@ -1690,7 +1690,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
   return (
     <>
-      <div className={styles.filtersRow}>
+       {reportType !== "Provisions3"&&<div className={styles.filtersRow}>
         {/* Date Range */}
         {/* <input
           type="date"
@@ -1990,7 +1990,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             ⟳
           </button>
         </div>
-      </div>
+      </div>}
 
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
