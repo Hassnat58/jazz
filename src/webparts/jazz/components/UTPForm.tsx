@@ -132,48 +132,45 @@ const UTPForm: React.FC<UTPFormProps> = ({
   }, []);
 
   useEffect(() => {
-    const activeCases = allCases.filter((item) => {
+    // Step 1: Filter cases that are both Active and Approved
+    const approvedCases = allCases.filter((item) => {
       if (!item.TaxType) return false;
-
-      // Handle null/undefined values safely
       const caseStatus = (item.CaseStatus || "").toLowerCase().trim();
       const approvalStatus = (item.ApprovalStatus || "").toLowerCase().trim();
-
-      const isActive = caseStatus === "active";
-      const isApproved = approvalStatus === "approved";
-
-      return isActive && isApproved;
+      return caseStatus === "active" && approvalStatus === "approved";
     });
-    // Debug log
 
-    if (selectedTaxType) {
-      const filtered = activeCases.filter(
-        (item) => item.TaxType === selectedTaxType
-      );
+    // Step 2: Group cases by Title and keep only the latest (highest ID)
+    const latestCasesMap = new Map<string, any>();
 
-      const prefix = selectedTaxType === "Income Tax" ? "IT" : "ST";
+    approvedCases.forEach((item) => {
+      const existing = latestCasesMap.get(item.Title);
+      if (!existing || item.Id > existing.Id) {
+        latestCasesMap.set(item.Title, item);
+      }
+    });
 
-      setCaseOptions(
-        filtered.map((item) => {
-          const taxAuth = item.TaxAuthority || "N/A";
-          const caseNumberText = `${prefix}-${taxAuth}-${item.Id}`;
-          return { key: item.Id, text: caseNumberText, data: item };
-        })
-      );
-    } else {
-      setCaseOptions(
-        activeCases.map((item) => {
-          const taxAuth = item.TaxAuthority || "N/A";
-          const taxtype = item.TaxType === "Income Tax" ? "IT" : "ST";
-          return {
-            key: item.Id,
-            text: `${taxtype}-${taxAuth}-${item.Id}`,
-            data: item,
-          };
-        })
-      );
-    }
+    const latestCases = Array.from(latestCasesMap.values());
+
+    // Step 3: Filter by selected TaxType if any
+    const filteredCases = selectedTaxType
+      ? latestCases.filter((item) => item.TaxType === selectedTaxType)
+      : latestCases;
+
+    // Step 4: Build dropdown options
+    const caseDropdownOptions = filteredCases.map((item) => {
+      // const taxAuth = item.TaxAuthority || "N/A";
+      // const prefix = item.TaxType === "Income Tax" ? "IT" : "ST";
+      return {
+        key: item.Id,
+        text: item.Title,
+        data: item,
+      };
+    });
+
+    setCaseOptions(caseDropdownOptions);
   }, [selectedTaxType, allCases]);
+
   const selectedCaseNumberId = watch("CaseNumber");
   let cachedNextId: number | null = null;
 
@@ -793,15 +790,15 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       const filtered = activeCases.filter(
                         (item) => item.TaxType === selectedTaxType
                       );
-                      const prefix =
-                        selectedTaxType === "Income Tax" ? "IT" : "ST";
+                      // const prefix =
+                      // selectedTaxType === "Income Tax" ? "IT" : "ST";
                       setCaseOptions(
                         filtered.map((item) => {
-                          const taxAuth = item.TaxAuthority || "N/A";
-                          const caseNumberText = `${prefix}-${taxAuth}-${item.Id}`;
+                          // const taxAuth = item.TaxAuthority || "N/A";
+                          // const caseNumberText = `${prefix}-${taxAuth}-${item.Id}`;
                           return {
                             key: item.Id,
-                            text: caseNumberText,
+                            text: item.Title,
                             data: item,
                           };
                         })

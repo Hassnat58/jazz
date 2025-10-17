@@ -693,9 +693,9 @@ const CaseForm: React.FC<CaseFormProps> = ({
         const currentId =
           selectedCase &&
           (selectedCase.ID || selectedCase.Id || selectedCase.id)
-            ? (selectedCase.ID || selectedCase.Id || selectedCase.id).toString()
+            ? selectedCase.Title
             : nextCaseNumber?.toString() || "0";
-        finalTitle = `${prefix}${currentId}`;
+        finalTitle = `${currentId}`;
       }
     } else {
       // New case

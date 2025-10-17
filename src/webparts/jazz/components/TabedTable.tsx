@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /* eslint-disable no-debugger */
 /* eslint-disable dot-notation */
 /* eslint-disable eqeqeq */
@@ -109,6 +110,7 @@ const TabbedTables: React.FC<{
     taxYear: "",
     taxType: "",
     taxAuthority: "",
+    caseNumber: "",
   });
   const [correspondenceFilters, setCorrespondenceFilters] = useState({
     caseNumber: "",
@@ -128,6 +130,7 @@ const TabbedTables: React.FC<{
     taxYear: "",
     taxType: "",
     taxAuthority: "",
+    caseNumber: "",
   });
   const [filteredUtpData, setFilteredUtpData] = useState<any[]>([]);
   const [activeFormType, setActiveFormType] = useState<
@@ -198,18 +201,17 @@ const TabbedTables: React.FC<{
           .filter("ApprovalStatus eq 'Approved'")
           .top(5000)();
 
-        const formatted = cases.map((c: any) => {
-          // // let prefix = "CN";
-          // if (c.TaxType === "Income Tax") prefix = "IT";
-          // if (c.TaxType === "Sales Tax") prefix = "ST";
-          // const taxAuth = c.TaxAuthority || "";
-          return {
-            key: c.Id,
-            text: c.Title,
-          };
+        // Format and remove duplicate titles
+        const uniqueTitles = new Map<string, { key: number; text: string }>();
+
+        cases.forEach((c: any) => {
+          const title = c.Title?.trim();
+          if (title && !uniqueTitles.has(title)) {
+            uniqueTitles.set(title, { key: c.Id, text: title });
+          }
         });
 
-        setCaseOptions(formatted);
+        setCaseOptions(Array.from(uniqueTitles.values()));
       } catch (error) {
         console.error("Error fetching cases:", error);
       }
@@ -582,6 +584,7 @@ const TabbedTables: React.FC<{
       taxYear: "",
       taxType: "",
       taxAuthority: "",
+      caseNumber: "",
     });
     setCorrespondenceFilters({
       caseNumber: "",
@@ -595,6 +598,7 @@ const TabbedTables: React.FC<{
       taxYear: "",
       taxType: "",
       taxAuthority: "",
+      caseNumber: "",
     });
   }, [activeTab]);
 
@@ -609,7 +613,19 @@ const TabbedTables: React.FC<{
       setFilters(updatedFilters);
 
       const filtered = casesData.filter((item) => {
+        const caseNum = item.ParentCase
+          ? getFormattedCaseNumber(
+              item.TaxType,
+              item.TaxAuthority,
+              item.ParentCase.Id
+            )
+          : item.Title;
+
         return (
+          (!updatedFilters.caseNumber ||
+            caseNum
+              .toLowerCase()
+              .includes(updatedFilters.caseNumber.toLowerCase())) &&
           (!updatedFilters.financialYear ||
             item.FinancialYear === updatedFilters.financialYear) &&
           (!updatedFilters.taxYear ||
@@ -641,6 +657,67 @@ const TabbedTables: React.FC<{
     return (
       <>
         <div className={styles.filtersRow}>
+          {/* Case Number Filter */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <ComboBox
+              label="Case Number"
+              placeholder="Select or type Case Number"
+              allowFreeform
+              autoComplete="on"
+              useComboBoxAsMenuWidth
+              options={caseOptions}
+              selectedKey={
+                caseOptions.find(
+                  (opt) =>
+                    opt.text.toLowerCase() ===
+                    (filters.caseNumber || "").toLowerCase()
+                )?.key
+              }
+              text={filters.caseNumber || ""}
+              onInputValueChange={(newText) => {
+                handleFilterChange("caseNumber", newText);
+              }}
+              onChange={(_, option, __, value) => {
+                const newValue = option ? (option.text as string) : value || "";
+                handleFilterChange("caseNumber", newValue);
+              }}
+              styles={{
+                root: { width: "200px" },
+                container: { width: "200px" },
+                callout: {
+                  width: "100%",
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                optionsContainerWrapper: {
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                input: { width: "100%" },
+              }}
+            />
+
+            {filters.caseNumber && (
+              <button
+                type="button"
+                onClick={() => handleFilterChange("caseNumber", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
+
           {/* Entity */}
           <div style={{ position: "relative", display: "inline-block" }}>
             <Dropdown
@@ -843,6 +920,7 @@ const TabbedTables: React.FC<{
                 taxYear: "",
                 taxType: "",
                 taxAuthority: "",
+                caseNumber: "",
               });
               setFilteredData(casesData);
               setCasesPage(1);
@@ -1204,7 +1282,15 @@ const TabbedTables: React.FC<{
       setUtpFilters(updatedFilters);
 
       const filtered = utpData.filter((item) => {
+        const caseNum = item.CaseNumber?.Title
+          ? item.CaseNumber.Title
+          : item.Title || "";
+
         return (
+          (!updatedFilters.caseNumber ||
+            caseNum
+              .toLowerCase()
+              .includes(updatedFilters.caseNumber.toLowerCase())) &&
           (!updatedFilters.category ||
             item.Category === updatedFilters.category) &&
           (!updatedFilters.financialYear ||
@@ -1225,6 +1311,59 @@ const TabbedTables: React.FC<{
     return (
       <>
         <div className={styles.filtersRow}>
+          {/* Case Number Filter */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <ComboBox
+              label="Case Number"
+              placeholder="Select or type Case Number"
+              allowFreeform
+              autoComplete="on"
+              useComboBoxAsMenuWidth
+              options={caseOptions}
+              text={utpFilters.caseNumber || ""}
+              onInputValueChange={(newText) => {
+                handleUtpFilterChange("caseNumber", newText);
+              }}
+              onChange={(_, option, __, value) => {
+                const newValue = option ? (option.text as string) : value || "";
+                handleUtpFilterChange("caseNumber", newValue);
+              }}
+              styles={{
+                root: { width: "200px" },
+                container: { width: "200px" },
+                callout: {
+                  width: "100%",
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                optionsContainerWrapper: {
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                input: { width: "100%" },
+              }}
+            />
+            {utpFilters.caseNumber && (
+              <button
+                type="button"
+                onClick={() => handleUtpFilterChange("caseNumber", undefined)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "75%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
+
           {/* Entity */}
           <div style={{ position: "relative", display: "inline-block" }}>
             <Dropdown
@@ -1462,6 +1601,7 @@ const TabbedTables: React.FC<{
                 taxYear: "",
                 taxType: "",
                 taxAuthority: "",
+                caseNumber: "",
               });
               setFilteredUtpData(utpData);
               setUtpPage(1);
@@ -1647,10 +1787,6 @@ const TabbedTables: React.FC<{
 
   return (
     <>
-      {/* <div className={styles.leftSection}>
-        <img src={logo} alt="Jazz Logo" className={styles.logo} />
-        <h1 className={styles.lmsHeading}>LMS</h1>
-      </div> */}
       <div className={styles.tabs}>
         <div className={styles.leftSection}>
           <img src={logo} alt="Jazz Logo" className={styles.logo} />
@@ -1686,6 +1822,7 @@ const TabbedTables: React.FC<{
                 taxYear: "",
                 financialYear: "",
                 category: "",
+                caseNumber: "",
               });
               setCorrespondenceFilters({
                 caseNumber: "",
@@ -1699,6 +1836,7 @@ const TabbedTables: React.FC<{
                 taxYear: "",
                 financialYear: "",
                 category: "",
+                caseNumber: "",
               });
             }}
           >

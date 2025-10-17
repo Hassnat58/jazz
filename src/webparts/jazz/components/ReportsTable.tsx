@@ -1690,197 +1690,198 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
   return (
     <>
-       {reportType !== "Provisions3"&&<div className={styles.filtersRow}>
-        {/* Date Range */}
-        {/* <input
+      {reportType !== "Provisions3" && (
+        <div className={styles.filtersRow}>
+          {/* Date Range */}
+          {/* <input
           type="date"
           value={filters.dateStart}
           onChange={(e) => handleFilterChange("dateStart", e.target.value)}
           className={styles.filterInput}
         /> */}
-        {/* <input
+          {/* <input
     type="date"
     value={filters.dateEnd}
     onChange={(e) => handleFilterChange("dateEnd", e.target.value)}
     className={styles.filterInput}
   /> */}
-        <div className={styles.filterField}>
-          {" "}
-          <label className={styles.filterLabel}>Date Range</label>
-          <DatePicker
-            selectsRange
-            startDate={startDate}
-            endDate={endDate}
-            onChange={(update: [Date | null, Date | null]) => {
-              setDateRange(update);
+          <div className={styles.filterField}>
+            {" "}
+            <label className={styles.filterLabel}>Date Range</label>
+            <DatePicker
+              selectsRange
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(update: [Date | null, Date | null]) => {
+                setDateRange(update);
 
-              const newStart = update[0]
-                ? update[0].toISOString().split("T")[0]
-                : "";
-              const newEnd = update[1]
-                ? update[1].toISOString().split("T")[0]
-                : "";
+                const newStart = update[0]
+                  ? update[0].toISOString().split("T")[0]
+                  : "";
+                const newEnd = update[1]
+                  ? update[1].toISOString().split("T")[0]
+                  : "";
 
-              // Update state
-              setFilters((prev) => ({
-                ...prev,
-                dateRangeStart: newStart,
-                dateRangeEnd: newEnd,
-                dateStart: "",
-                dateEnd: "",
-              }));
-              setSelectedDate(null);
-              // Only apply filters that actually exist
-              if (update[0]) handleFilterChange("dateRangeStart", newStart);
-              if (update[1]) handleFilterChange("dateRangeEnd", newEnd);
+                // Update state
+                setFilters((prev) => ({
+                  ...prev,
+                  dateRangeStart: newStart,
+                  dateRangeEnd: newEnd,
+                  dateStart: "",
+                  dateEnd: "",
+                }));
+                setSelectedDate(null);
+                // Only apply filters that actually exist
+                if (update[0]) handleFilterChange("dateRangeStart", newStart);
+                if (update[1]) handleFilterChange("dateRangeEnd", newEnd);
 
-              // If both are cleared
-              if (!update[0] && !update[1]) {
-                handleFilterChange("dateRangeStart", "");
-                handleFilterChange("dateRangeEnd", "");
+                // If both are cleared
+                if (!update[0] && !update[1]) {
+                  handleFilterChange("dateRangeStart", "");
+                  handleFilterChange("dateRangeEnd", "");
+                }
+              }}
+              // isClearable
+              placeholderText="Select date range"
+              className={styles.datePickerInput} // ✅ custom height class
+              calendarClassName={styles.customCalendar}
+              dayClassName={(date) =>
+                startDate && endDate && date >= startDate && date <= endDate
+                  ? `${styles.customDay} ${styles.inRange}`
+                  : styles.customDay
               }
-            }}
-            // isClearable
-            placeholderText="Select date range"
-            className={styles.datePickerInput} // ✅ custom height class
-            calendarClassName={styles.customCalendar}
-            dayClassName={(date) =>
-              startDate && endDate && date >= startDate && date <= endDate
-                ? `${styles.customDay} ${styles.inRange}`
-                : styles.customDay
-            }
-            isClearable={false}
-          />
-        </div>
+              isClearable={false}
+            />
+          </div>
 
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel}> Month and Year</label>
-          <DatePicker
-            selected={selectedDate}
-            onChange={(date: Date | null) => {
-              setSelectedDate(date);
-              if (date) {
-                const updatedFilters = {
-                  ...filters,
-                  dateRangeStart: "",
-                  dateRangeEnd: "",
-                };
-                setFilters(updatedFilters);
-                setDateRange([null, null]);
-                const startUTC = new Date(
-                  Date.UTC(date.getFullYear(), date.getMonth(), 1)
-                );
-                const endUTC = new Date(
-                  Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)
-                );
-                const newStart = startUTC.toISOString().split("T")[0];
-                const newEnd = endUTC.toISOString().split("T")[0];
+          <div className={styles.filterField}>
+            <label className={styles.filterLabel}> Month and Year</label>
+            <DatePicker
+              selected={selectedDate}
+              onChange={(date: Date | null) => {
+                setSelectedDate(date);
+                if (date) {
+                  const updatedFilters = {
+                    ...filters,
+                    dateRangeStart: "",
+                    dateRangeEnd: "",
+                  };
+                  setFilters(updatedFilters);
+                  setDateRange([null, null]);
+                  const startUTC = new Date(
+                    Date.UTC(date.getFullYear(), date.getMonth(), 1)
+                  );
+                  const endUTC = new Date(
+                    Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)
+                  );
+                  const newStart = startUTC.toISOString().split("T")[0];
+                  const newEnd = endUTC.toISOString().split("T")[0];
 
-                handleFilterChangeDate(newStart, newEnd);
-              } else {
-                handleFilterChangeDate("", "");
-              }
-            }}
-            dateFormat="MM/yyyy"
-            showMonthYearPicker
-            className={styles.datePickerInput}
-            placeholderText="Select month and year"
-          />
-        </div>
-        <Dropdown
-          label="Entity"
-          placeholder="Select Entity"
-          options={lovOptions.Entity || []}
-          selectedKey={filters.entity || null}
-          onChange={(_, option) =>
-            handleFilterChange("entity", option?.key as string)
-          }
-          styles={{ root: { minWidth: 160 } }}
-        />
-
-        <Dropdown
-          label="Tax Type"
-          placeholder="Select Tax Type"
-          options={lovOptions["Tax Type"] || []}
-          selectedKey={filters.taxType || null}
-          onChange={(_, option) =>
-            handleFilterChange("taxType", option?.key as string)
-          }
-          styles={{ root: { minWidth: 160 } }}
-        />
-        {(reportType == "Litigation" || reportType == "ActiveCases") && (
+                  handleFilterChangeDate(newStart, newEnd);
+                } else {
+                  handleFilterChangeDate("", "");
+                }
+              }}
+              dateFormat="MM/yyyy"
+              showMonthYearPicker
+              className={styles.datePickerInput}
+              placeholderText="Select month and year"
+            />
+          </div>
           <Dropdown
-            label="Tax Authority"
-            placeholder="Select Tax Authority"
-            options={lovOptions["Tax Authority"] || []}
-            selectedKey={filters.taxAuthority || null}
+            label="Entity"
+            placeholder="Select Entity"
+            options={lovOptions.Entity || []}
+            selectedKey={filters.entity || null}
             onChange={(_, option) =>
-              handleFilterChange("taxAuthority", option?.key as string)
+              handleFilterChange("entity", option?.key as string)
             }
             styles={{ root: { minWidth: 160 } }}
           />
-        )}
 
-        <ComboBox
-          label="Tax Year"
-          placeholder="Select Tax Year"
-          options={getYearOptions() || []} // should return IComboBoxOption[]
-          selectedKey={filters.taxYear || null}
-          onChange={(_, option) =>
-            handleFilterChange("taxYear", option?.key as string)
-          }
-          allowFreeform={false}
-          autoComplete="on" // ✅ enables suggestions while typing
-          styles={{
-            root: { minWidth: 160 },
-            callout: {
-              maxHeight: "30vh",
-              overflowY: "auto",
-              directionalHintFixed: true,
-              directionalHint: 6,
-            },
-            optionsContainerWrapper: {
-              minWidth: 160,
-            },
-          }}
-        />
-
-        <ComboBox
-          label="Financial Year"
-          placeholder="Select Financial Year"
-          options={getYearOptionsFY() || []}
-          selectedKey={filters.financialYear || null}
-          onChange={(_, option) =>
-            handleFilterChange("financialYear", option?.key as string)
-          }
-          allowFreeform={false}
-          autoComplete="on"
-          styles={{
-            root: { minWidth: 160 },
-            callout: {
-              maxHeight: "30vh",
-              overflowY: "auto",
-              directionalHintFixed: true,
-              directionalHint: 6,
-            },
-            optionsContainerWrapper: {
-              minWidth: 160,
-            },
-          }}
-        />
-        {reportType == "UTP" && (
           <Dropdown
-            label="Category"
-            placeholder="Select Category"
-            options={lovOptions["Risk Category"] || []}
-            selectedKey={filters.category || null}
+            label="Tax Type"
+            placeholder="Select Tax Type"
+            options={lovOptions["Tax Type"] || []}
+            selectedKey={filters.taxType || null}
             onChange={(_, option) =>
-              handleFilterChange("category", option?.key as string)
+              handleFilterChange("taxType", option?.key as string)
             }
             styles={{ root: { minWidth: 160 } }}
           />
-        )}
-        {/* <Dropdown
+          {(reportType == "Litigation" || reportType == "ActiveCases") && (
+            <Dropdown
+              label="Tax Authority"
+              placeholder="Select Tax Authority"
+              options={lovOptions["Tax Authority"] || []}
+              selectedKey={filters.taxAuthority || null}
+              onChange={(_, option) =>
+                handleFilterChange("taxAuthority", option?.key as string)
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+          )}
+
+          <ComboBox
+            label="Tax Year"
+            placeholder="Select Tax Year"
+            options={getYearOptions() || []} // should return IComboBoxOption[]
+            selectedKey={filters.taxYear || null}
+            onChange={(_, option) =>
+              handleFilterChange("taxYear", option?.key as string)
+            }
+            allowFreeform={false}
+            autoComplete="on" // ✅ enables suggestions while typing
+            styles={{
+              root: { minWidth: 160 },
+              callout: {
+                maxHeight: "30vh",
+                overflowY: "auto",
+                directionalHintFixed: true,
+                directionalHint: 6,
+              },
+              optionsContainerWrapper: {
+                minWidth: 160,
+              },
+            }}
+          />
+
+          <ComboBox
+            label="Financial Year"
+            placeholder="Select Financial Year"
+            options={getYearOptionsFY() || []}
+            selectedKey={filters.financialYear || null}
+            onChange={(_, option) =>
+              handleFilterChange("financialYear", option?.key as string)
+            }
+            allowFreeform={false}
+            autoComplete="on"
+            styles={{
+              root: { minWidth: 160 },
+              callout: {
+                maxHeight: "30vh",
+                overflowY: "auto",
+                directionalHintFixed: true,
+                directionalHint: 6,
+              },
+              optionsContainerWrapper: {
+                minWidth: 160,
+              },
+            }}
+          />
+          {reportType == "UTP" && (
+            <Dropdown
+              label="Category"
+              placeholder="Select Category"
+              options={lovOptions["Risk Category"] || []}
+              selectedKey={filters.category || null}
+              onChange={(_, option) =>
+                handleFilterChange("category", option?.key as string)
+              }
+              styles={{ root: { minWidth: 160 } }}
+            />
+          )}
+          {/* <Dropdown
   label="Report Type"
   options={[
     { key: "UTP", text: "UTP Report" },
@@ -1895,102 +1896,103 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   onChange={(_, option) => setReportType(option?.key as ReportType)}
 /> */}
 
-        <div
-          className={styles.buttonGroup}
-          ref={exportRef}
-          style={{ position: "relative" }}
-        >
-          <button
-            className={styles.clearButton}
-            onClick={async () => {
-              const reset = {
-                dateStart: "",
-                dateEnd: "",
-                dateRangeStart: "",
-                dateRangeEnd: "",
-                category: "",
-                financialYear: "",
-                taxYear: "",
-                taxType: "",
-                taxAuthority: "",
-                entity: "",
-              };
-              setDateRange([null, null]);
-              setSelectedDate(null);
-              setFilters(reset);
-              setLoading(true);
-              const dataf = await normalizeData(reportType, data, "");
-
-              setFilteredData(dataf);
-              setLoading(false);
-            }}
+          <div
+            className={styles.buttonGroup}
+            ref={exportRef}
+            style={{ position: "relative" }}
           >
-            Clear Filters
-          </button>
-          <button
-            type="button"
-            className={styles.exportButton}
-            onClick={() => setShowExportOptions((s) => !s)}
-            aria-haspopup="menu"
-            aria-expanded={showExportOptions}
-          >
-            Export {reportType} Report ▾
-          </button>
+            <button
+              className={styles.clearButton}
+              onClick={async () => {
+                const reset = {
+                  dateStart: "",
+                  dateEnd: "",
+                  dateRangeStart: "",
+                  dateRangeEnd: "",
+                  category: "",
+                  financialYear: "",
+                  taxYear: "",
+                  taxType: "",
+                  taxAuthority: "",
+                  entity: "",
+                };
+                setDateRange([null, null]);
+                setSelectedDate(null);
+                setFilters(reset);
+                setLoading(true);
+                const dataf = await normalizeData(reportType, data, "");
 
-          {/* Dropdown menu */}
-          {showExportOptions && (
-            <div
-              className={styles.exportOptionsDropdown}
-              role="menu"
-              aria-label="Export options"
+                setFilteredData(dataf);
+                setLoading(false);
+              }}
             >
-              <button
-                role="menuitem"
-                onClick={() => {
-                  exportReportPDF(reportType, filteredData);
-                  setShowExportOptions(false);
-                }}
-              >
-                Download as PDF
-              </button>
-              <button
-                role="menuitem"
-                onClick={() => {
-                  exportReport(reportType, filteredData);
-                  setShowExportOptions(false);
-                }}
-              >
-                Download as Excel
-              </button>
-            </div>
-          )}
+              Clear Filters
+            </button>
+            <button
+              type="button"
+              className={styles.exportButton}
+              onClick={() => setShowExportOptions((s) => !s)}
+              aria-haspopup="menu"
+              aria-expanded={showExportOptions}
+            >
+              Export {reportType} Report ▾
+            </button>
 
-          <button
-            className={styles.refreshButton}
-            onClick={() => {
-              const reset = {
-                dateStart: "",
-                dateEnd: "",
-                dateRangeStart: "",
-                dateRangeEnd: "",
-                category: "",
-                financialYear: "",
-                taxYear: "",
-                taxType: "",
-                taxAuthority: "",
-                entity: "",
-              };
-              setDateRange([null, null]);
-              setSelectedDate(null);
-              setFilters(reset);
-              fetchData();
-              // setFilteredData(dummyData);
-            }}
-          >
-            ⟳
-          </button>
+            {/* Dropdown menu */}
+            {showExportOptions && (
+              <div
+                className={styles.exportOptionsDropdown}
+                role="menu"
+                aria-label="Export options"
+              >
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    exportReportPDF(reportType, filteredData);
+                    setShowExportOptions(false);
+                  }}
+                >
+                  Download as PDF
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    exportReport(reportType, filteredData);
+                    setShowExportOptions(false);
+                  }}
+                >
+                  Download as Excel
+                </button>
+              </div>
+            )}
+
+            <button
+              className={styles.refreshButton}
+              onClick={() => {
+                const reset = {
+                  dateStart: "",
+                  dateEnd: "",
+                  dateRangeStart: "",
+                  dateRangeEnd: "",
+                  category: "",
+                  financialYear: "",
+                  taxYear: "",
+                  taxType: "",
+                  taxAuthority: "",
+                  entity: "",
+                };
+                setDateRange([null, null]);
+                setSelectedDate(null);
+                setFilters(reset);
+                fetchData();
+                // setFilteredData(dummyData);
+              }}
+            >
+              ⟳
+            </button>
+          </div>
         </div>
-      </div>}
+      )}
 
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
