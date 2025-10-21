@@ -344,3 +344,34 @@
   color: black;
   border: 1px solid #ccc;
 }
+.react-datepicker__month-wrapper {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important; /* 3 columns layout */
+  gap: 6px !important; /* spacing between months */
+  justify-items: center;
+}
+
+.react-datepicker__month-text {
+  width: 60px !important; /* make each month button uniform */
+  padding: 6px 0 !important;
+  text-align: center !important;
+}
+
+.react-datepicker__month-text:hover {
+  background-color: #f0f0f0 !important;
+  border-radius: 4px !important;
+}
+.datePickerInput {
+  width: 160px !important; /* same width as dropdowns */
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid #000;
+  font-size: 14px;
+  margin-top: 9px;
+  box-sizing: border-box;
+}
+
+.datePickerInput:focus {
+  /* SharePoint blue focus */
+  outline: none;
+}

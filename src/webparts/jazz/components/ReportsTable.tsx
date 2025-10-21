@@ -525,7 +525,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             "RiskCategory",
             "EBITDA",
             "GrossTaxExposure",
-            "UTP/Id"
+            "UTP/Id",
+            "ContingencyNote"
           )
           .expand("UTP")();
 

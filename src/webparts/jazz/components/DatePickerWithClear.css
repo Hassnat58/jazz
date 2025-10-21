@@ -18,3 +18,20 @@
 .date-clear-btn[disabled] {
   display: none;
 }
+.react-datepicker__month-wrapper {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+  justify-items: center !important;
+}
+
+.react-datepicker__month-text {
+  width: 60px !important;
+  padding: 6px 0 !important;
+  text-align: center !important;
+}
+
+.react-datepicker__month-text:hover {
+  background-color: #f0f0f0 !important;
+  border-radius: 4px !important;
+}

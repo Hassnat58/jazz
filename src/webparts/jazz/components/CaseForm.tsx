@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /* eslint-disable no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @typescript-eslint/no-use-before-define */
@@ -27,6 +28,8 @@ import styles from "./CaseForm.module.scss";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./DatePickerWithClear.css";
+import ReactDatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 // import {
 //   PeoplePicker,
 //   PrincipalType,
@@ -1136,95 +1139,235 @@ const CaseForm: React.FC<CaseFormProps> = ({
             if (field.type === "dropdown") {
               const internalName = fieldMapping[field.label];
               if (field.label === "Financial Year") {
-                return (
-                  <Controller
-                    key={field.label}
-                    name={internalName}
-                    control={control}
-                    render={({ field: f }) => (
-                      <ComboBox
-                        key={f.value ?? "empty"}
-                        label={field.label}
-                        options={financialYearOptions}
-                        selectedKey={f.value ?? undefined}
-                        componentRef={financialComboRef}
-                        onClick={() => financialComboRef.current?.focus(true)}
-                        onChange={(_, option) => {
-                          // if already selected and user clicks same option again → clear
-                          if (f.value === option?.key) {
-                            f.onChange(undefined);
-                          } else {
-                            f.onChange(option?.key as string);
-                          }
-                        }}
-                        // onChange={(_, o) => f.onChange(o?.text)}
-                        placeholder="Select Year"
-                        allowFreeform={true}
-                        autoComplete="on"
-                        useComboBoxAsMenuWidth
-                        onInputValueChange={handleFinancialYearInputChange}
-                        styles={{
-                          root: { width: "100%" },
-                          container: { width: "100%" },
-                          callout: {
-                            width: "100%",
-                            maxHeight: 5 * 36,
-                            overflowY: "auto",
-                          },
-                          optionsContainerWrapper: {
-                            maxHeight: 5 * 36,
-                            overflowY: "auto",
-                          },
-                          input: { width: "100%" },
-                        }}
-                      />
-                    )}
-                  />
-                );
+                if (taxType === "Sales Tax") {
+                  return (
+                    <Controller
+                      key={field.label}
+                      name={internalName}
+                      control={control}
+                      render={({ field: f }) => (
+                        <div>
+                          <label style={{ fontWeight: "600" }}>
+                            {field.label}
+                          </label>
+                          <ReactDatePicker
+                            selected={
+                              f.value
+                                ? (() => {
+                                    try {
+                                      // Handle common formats stored as plain text in SharePoint
+                                      if (/^\d{2}\/\d{4}$/.test(f.value)) {
+                                        // Format: MM/yyyy → convert to yyyy-MM-01
+                                        const [month, year] =
+                                          f.value.split("/");
+                                        return new Date(
+                                          Number(year),
+                                          Number(month) - 1,
+                                          1
+                                        );
+                                      } else if (
+                                        /^\d{4}-\d{2}$/.test(f.value)
+                                      ) {
+                                        // Format: yyyy-MM → convert to yyyy-MM-01
+                                        const [year, month] =
+                                          f.value.split("-");
+                                        return new Date(
+                                          Number(year),
+                                          Number(month) - 1,
+                                          1
+                                        );
+                                      } else if (!isNaN(Date.parse(f.value))) {
+                                        // If SharePoint stored ISO string (like 2025-10-01T00:00:00Z)
+                                        return new Date(f.value);
+                                      }
+                                      return null; // Unrecognized format
+                                    } catch {
+                                      return null;
+                                    }
+                                  })()
+                                : null
+                            }
+                            onChange={(date: Date | null) => {
+                              if (date) {
+                                // Save only MM/yyyy in your text field
+                                const formattedValue = `${String(
+                                  date.getMonth() + 1
+                                ).padStart(2, "0")}/${date.getFullYear()}`;
+                                f.onChange(formattedValue);
+                              } else {
+                                f.onChange(null);
+                              }
+                            }}
+                            dateFormat="MM/yyyy"
+                            showMonthYearPicker
+                            placeholderText="Select month and year"
+                            className="form-control"
+                          />
+                        </div>
+                      )}
+                    />
+                  );
+                } else {
+                  // Your existing Income Tax ComboBox
+                  return (
+                    <Controller
+                      key={field.label}
+                      name={internalName}
+                      control={control}
+                      render={({ field: f }) => (
+                        <ComboBox
+                          key={f.value ?? "empty"}
+                          label={field.label}
+                          options={financialYearOptions}
+                          selectedKey={f.value ?? undefined}
+                          componentRef={financialComboRef}
+                          onClick={() => financialComboRef.current?.focus(true)}
+                          onChange={(_, option) => {
+                            if (f.value === option?.key) {
+                              f.onChange(undefined);
+                            } else {
+                              f.onChange(option?.key as string);
+                            }
+                          }}
+                          placeholder="Select Year"
+                          allowFreeform
+                          autoComplete="on"
+                          useComboBoxAsMenuWidth
+                          onInputValueChange={handleFinancialYearInputChange}
+                          styles={{
+                            root: { width: "100%" },
+                            container: { width: "100%" },
+                            callout: {
+                              width: "100%",
+                              maxHeight: 5 * 36,
+                              overflowY: "auto",
+                            },
+                            optionsContainerWrapper: {
+                              maxHeight: 5 * 36,
+                              overflowY: "auto",
+                            },
+                            input: { width: "100%" },
+                          }}
+                        />
+                      )}
+                    />
+                  );
+                }
               }
+
               if (field.label === "Tax Year") {
-                return (
-                  <Controller
-                    key={field.label}
-                    name={internalName}
-                    control={control}
-                    render={({ field: f }) => (
-                      <ComboBox
-                        key={f.value ?? "empty"}
-                        label={field.label}
-                        options={taxYearOptions}
-                        selectedKey={f.value ?? undefined}
-                        componentRef={taxComboRef}
-                        onClick={() => taxComboRef.current?.focus(true)}
-                        allowFreeform={true}
-                        onInputValueChange={handleTaxYearInputChange}
-                        useComboBoxAsMenuWidth
-                        onChange={(_, option) => {
-                          if (f.value === option?.key) {
-                            f.onChange(undefined);
-                          } else {
-                            f.onChange(option?.key as string);
-                          }
-                        }}
-                        placeholder="Select Tax Year"
-                        styles={{
-                          root: { width: "100%" },
-                          container: { width: "100%" },
-                          callout: {
-                            width: "100%",
-                            maxHeight: 5 * 36,
-                            overflowY: "auto",
-                          },
-                          optionsContainerWrapper: {
-                            maxHeight: 5 * 36,
-                            overflowY: "auto",
-                          },
-                          input: { width: "100%" },
-                        }}
-                      />
-                    )}
-                  />
-                );
+                if (taxType === "Sales Tax") {
+                  return (
+                    <Controller
+                      key={field.label}
+                      name={internalName}
+                      control={control}
+                      render={({ field: f }) => (
+                        <div>
+                          <label style={{ fontWeight: "600" }}>
+                            {field.label}
+                          </label>
+                          <ReactDatePicker
+                            selected={
+                              f.value
+                                ? (() => {
+                                    try {
+                                      // Handle common formats stored as plain text in SharePoint
+                                      if (/^\d{2}\/\d{4}$/.test(f.value)) {
+                                        // Format: MM/yyyy → convert to yyyy-MM-01
+                                        const [month, year] =
+                                          f.value.split("/");
+                                        return new Date(
+                                          Number(year),
+                                          Number(month) - 1,
+                                          1
+                                        );
+                                      } else if (
+                                        /^\d{4}-\d{2}$/.test(f.value)
+                                      ) {
+                                        // Format: yyyy-MM → convert to yyyy-MM-01
+                                        const [year, month] =
+                                          f.value.split("-");
+                                        return new Date(
+                                          Number(year),
+                                          Number(month) - 1,
+                                          1
+                                        );
+                                      } else if (!isNaN(Date.parse(f.value))) {
+                                        // If SharePoint stored ISO string (like 2025-10-01T00:00:00Z)
+                                        return new Date(f.value);
+                                      }
+                                      return null; // Unrecognized format
+                                    } catch {
+                                      return null;
+                                    }
+                                  })()
+                                : null
+                            }
+                            onChange={(date: Date | null) => {
+                              if (date) {
+                                // Save only MM/yyyy in your text field
+                                const formattedValue = `${String(
+                                  date.getMonth() + 1
+                                ).padStart(2, "0")}/${date.getFullYear()}`;
+                                f.onChange(formattedValue);
+                              } else {
+                                f.onChange(null);
+                              }
+                            }}
+                            dateFormat="MM/yyyy"
+                            showMonthYearPicker
+                            placeholderText="Select month and year"
+                            className="form-control"
+                          />
+                        </div>
+                      )}
+                    />
+                  );
+                } else {
+                  return (
+                    <Controller
+                      key={field.label}
+                      name={internalName}
+                      control={control}
+                      render={({ field: f }) => (
+                        <ComboBox
+                          key={f.value ?? "empty"}
+                          label={field.label}
+                          options={taxYearOptions}
+                          selectedKey={f.value ?? undefined}
+                          componentRef={taxComboRef}
+                          onClick={() => taxComboRef.current?.focus(true)}
+                          allowFreeform={true}
+                          onInputValueChange={handleTaxYearInputChange}
+                          useComboBoxAsMenuWidth
+                          onChange={(_, option) => {
+                            if (f.value === option?.key) {
+                              f.onChange(undefined);
+                            } else {
+                              f.onChange(option?.key as string);
+                            }
+                          }}
+                          placeholder="Select Tax Year"
+                          styles={{
+                            root: { width: "100%" },
+                            container: { width: "100%" },
+                            callout: {
+                              width: "100%",
+                              maxHeight: 5 * 36,
+                              overflowY: "auto",
+                            },
+                            optionsContainerWrapper: {
+                              maxHeight: 5 * 36,
+                              overflowY: "auto",
+                            },
+                            input: { width: "100%" },
+                          }}
+                        />
+                      )}
+                    />
+                  );
+                }
               }
               if (field.label === "Tax Consultant Assigned") {
                 const internalName = fieldMapping[field.label];

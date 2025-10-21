@@ -36,6 +36,8 @@ import Lawyer from "./Lawyer";
 import logo from "../assets/jazz-logo.png";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCog, faUser } from "@fortawesome/free-solid-svg-icons";
+import ReactDatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const tabs = [
   "Dashboard",
@@ -298,7 +300,7 @@ const TabbedTables: React.FC<{
           "Created",
           "Modified"
         )
-        .top(5000)
+        .top(50000)
         .expand("CaseNumber", "Author", "Editor")
         .orderBy("ID", false)();
       setCorrespondenceOutData(items);
@@ -352,9 +354,10 @@ const TabbedTables: React.FC<{
           "TaxExposure",
           "ApprovedBy",
           "ApprovedDate",
-          "Created"
+          "Created",
+          "Modified"
         )
-        .top(5000)
+        .top(50000)
         .expand("Author", "Editor", "ParentCase")
         .orderBy("ID", false)();
       setCasesData(items);
@@ -403,7 +406,7 @@ const TabbedTables: React.FC<{
           "ApprovedDate",
           "Created"
         )
-        .top(5000)
+        .top(50000)
         .orderBy("ID", false)
         .expand("Author", "Editor", "CaseNumber")();
       setUtpData(items);
@@ -661,6 +664,7 @@ const TabbedTables: React.FC<{
           <div style={{ position: "relative", display: "inline-block" }}>
             <ComboBox
               label="Case Number"
+              key={filters.caseNumber}
               placeholder="Select or type Case Number"
               allowFreeform
               autoComplete="on"
@@ -818,30 +822,75 @@ const TabbedTables: React.FC<{
           </div>
 
           {/* Tax Year */}
-          <div style={{ position: "relative", display: "inline-block" }}>
-            <Dropdown
-              label="Tax Year"
-              placeholder="Select Tax Year"
-              options={getTaxYearOptions()}
-              selectedKey={filters.taxYear || null}
-              onChange={(_, option) =>
-                handleFilterChange("taxYear", option?.key as string)
-              }
-              styles={{
-                root: { width: "160px" },
-                dropdown: { width: "100%" },
-                callout: {
-                  width: "100%",
-                  maxHeight: 5 * 36,
-                  overflowY: "auto",
-                },
-                dropdownItems: {
-                  maxHeight: 5 * 36,
-                  overflowY: "auto",
-                },
-                title: { width: "160px" },
-              }}
-            />
+          <div
+            style={{
+              position: "relative",
+              display: "inline-block",
+            }}
+          >
+            {filters.taxType === "Sales Tax" ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <label style={{ fontWeight: "600" }}>Tax Year</label>
+                <ReactDatePicker
+                  selected={
+                    filters.taxYear
+                      ? (() => {
+                          try {
+                            if (/^\d{2}\/\d{4}$/.test(filters.taxYear)) {
+                              const [month, year] = filters.taxYear.split("/");
+                              return new Date(
+                                Number(year),
+                                Number(month) - 1,
+                                1
+                              );
+                            } else if (!isNaN(Date.parse(filters.taxYear))) {
+                              return new Date(filters.taxYear);
+                            }
+                            return null;
+                          } catch {
+                            return null;
+                          }
+                        })()
+                      : null
+                  }
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const formatted = `${String(date.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      )}/${date.getFullYear()}`;
+                      handleFilterChange("taxYear", formatted);
+                    } else {
+                      handleFilterChange("taxYear", "");
+                    }
+                  }}
+                  dateFormat="MM/yyyy"
+                  showMonthYearPicker
+                  placeholderText="Select month and year"
+                  className={styles.datePickerInput}
+                />
+              </div>
+            ) : (
+              <Dropdown
+                label="Tax Year"
+                placeholder="Select Tax Year"
+                options={getTaxYearOptions()}
+                selectedKey={filters.taxYear || null}
+                onChange={(_, option) =>
+                  handleFilterChange("taxYear", option?.key as string)
+                }
+                styles={{
+                  root: { width: "160px" },
+                  dropdown: { width: "100%" },
+                  callout: {
+                    width: "100%",
+                    maxHeight: 5 * 36,
+                    overflowY: "auto",
+                  },
+                  title: { width: "160px" },
+                }}
+              />
+            )}
             {filters.taxYear && (
               <button
                 type="button"
@@ -865,29 +914,74 @@ const TabbedTables: React.FC<{
 
           {/* Financial Year */}
           <div style={{ position: "relative", display: "inline-block" }}>
-            <Dropdown
-              label="Financial Year"
-              placeholder="Select Financial Year"
-              options={getFinancialYearOptions()}
-              selectedKey={filters.financialYear || null}
-              onChange={(_, option) =>
-                handleFilterChange("financialYear", option?.key as string)
-              }
-              styles={{
-                root: { width: "160px" },
-                dropdown: { width: "100%" },
-                callout: {
-                  width: "100%",
-                  maxHeight: 5 * 36,
-                  overflowY: "auto",
-                },
-                dropdownItems: {
-                  maxHeight: 5 * 36,
-                  overflowY: "auto",
-                },
-                title: { width: "160px" },
-              }}
-            />
+            {filters.taxType === "Sales Tax" ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <label style={{ fontWeight: "600", marginBottom: "0px" }}>
+                  Financial Year
+                </label>
+                <ReactDatePicker
+                  selected={
+                    filters.financialYear
+                      ? (() => {
+                          try {
+                            if (/^\d{2}\/\d{4}$/.test(filters.financialYear)) {
+                              const [month, year] =
+                                filters.financialYear.split("/");
+                              return new Date(
+                                Number(year),
+                                Number(month) - 1,
+                                1
+                              );
+                            } else if (
+                              !isNaN(Date.parse(filters.financialYear))
+                            ) {
+                              return new Date(filters.financialYear);
+                            }
+                            return null;
+                          } catch {
+                            return null;
+                          }
+                        })()
+                      : null
+                  }
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const formatted = `${String(date.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      )}/${date.getFullYear()}`;
+                      handleFilterChange("financialYear", formatted);
+                    } else {
+                      handleFilterChange("financialYear", "");
+                    }
+                  }}
+                  dateFormat="MM/yyyy"
+                  showMonthYearPicker
+                  placeholderText="Select month and year"
+                  className={styles.datePickerInput}
+                />
+              </div>
+            ) : (
+              <Dropdown
+                label="Financial Year"
+                placeholder="Select Financial Year"
+                options={getFinancialYearOptions()}
+                selectedKey={filters.financialYear || null}
+                onChange={(_, option) =>
+                  handleFilterChange("financialYear", option?.key as string)
+                }
+                styles={{
+                  root: { width: "160px" },
+                  dropdown: { width: "100%" },
+                  callout: {
+                    width: "100%",
+                    maxHeight: 5 * 36,
+                    overflowY: "auto",
+                  },
+                  title: { width: "160px" },
+                }}
+              />
+            )}
             {filters.financialYear && (
               <button
                 type="button"
@@ -1315,6 +1409,7 @@ const TabbedTables: React.FC<{
           <div style={{ position: "relative", display: "inline-block" }}>
             <ComboBox
               label="Case Number"
+              key={utpFilters.caseNumber}
               placeholder="Select or type Case Number"
               allowFreeform
               autoComplete="on"
@@ -1464,30 +1559,76 @@ const TabbedTables: React.FC<{
           </div>
 
           {/* Tax Year */}
-          <div style={{ position: "relative", display: "inline-block" }}>
-            <Dropdown
-              label="Tax Year"
-              placeholder="Select Tax Year"
-              options={getTaxYearOptions()}
-              selectedKey={utpFilters.taxYear || null}
-              onChange={(_, option) =>
-                handleUtpFilterChange("taxYear", option?.key as string)
-              }
-              styles={{
-                root: { width: "160px" },
-                dropdown: { width: "100%" },
-                callout: {
-                  width: "100%",
-                  maxHeight: 5 * 36,
-                  overflowY: "auto",
-                },
-                dropdownItems: {
-                  maxHeight: 5 * 36,
-                  overflowY: "auto",
-                },
-                title: { width: "160px" },
-              }}
-            />
+          <div
+            style={{
+              position: "relative",
+              display: "inline-block",
+            }}
+          >
+            {utpFilters.taxType === "Sales Tax" ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <label style={{ fontWeight: "600" }}>Tax Year</label>
+                <ReactDatePicker
+                  selected={
+                    utpFilters.taxYear
+                      ? (() => {
+                          try {
+                            if (/^\d{2}\/\d{4}$/.test(utpFilters.taxYear)) {
+                              const [month, year] =
+                                utpFilters.taxYear.split("/");
+                              return new Date(
+                                Number(year),
+                                Number(month) - 1,
+                                1
+                              );
+                            } else if (!isNaN(Date.parse(utpFilters.taxYear))) {
+                              return new Date(utpFilters.taxYear);
+                            }
+                            return null;
+                          } catch {
+                            return null;
+                          }
+                        })()
+                      : null
+                  }
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const formatted = `${String(date.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      )}/${date.getFullYear()}`;
+                      handleUtpFilterChange("taxYear", formatted);
+                    } else {
+                      handleUtpFilterChange("taxYear", "");
+                    }
+                  }}
+                  dateFormat="MM/yyyy"
+                  showMonthYearPicker
+                  placeholderText="Select month and year"
+                  className={styles.datePickerInput}
+                />
+              </div>
+            ) : (
+              <Dropdown
+                label="Tax Year"
+                placeholder="Select Tax Year"
+                options={getTaxYearOptions()}
+                selectedKey={utpFilters.taxYear || null}
+                onChange={(_, option) =>
+                  handleUtpFilterChange("taxYear", option?.key as string)
+                }
+                styles={{
+                  root: { width: "160px" },
+                  dropdown: { width: "100%" },
+                  callout: {
+                    width: "100%",
+                    maxHeight: 5 * 36,
+                    overflowY: "auto",
+                  },
+                  title: { width: "160px" },
+                }}
+              />
+            )}
             {utpFilters.taxYear && (
               <button
                 type="button"
@@ -1511,29 +1652,76 @@ const TabbedTables: React.FC<{
 
           {/* Financial Year */}
           <div style={{ position: "relative", display: "inline-block" }}>
-            <Dropdown
-              label="Financial Year"
-              placeholder="Select Financial Year"
-              options={getFinancialYearOptions()}
-              selectedKey={utpFilters.financialYear || null}
-              onChange={(_, option) =>
-                handleUtpFilterChange("financialYear", option?.key as string)
-              }
-              styles={{
-                root: { width: "160px" },
-                dropdown: { width: "100%" },
-                callout: {
-                  width: "100%",
-                  maxHeight: 5 * 36,
-                  overflowY: "auto",
-                },
-                dropdownItems: {
-                  maxHeight: 5 * 36,
-                  overflowY: "auto",
-                },
-                title: { width: "160px" },
-              }}
-            />
+            {utpFilters.taxType === "Sales Tax" ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <label style={{ fontWeight: "600", marginBottom: "0px" }}>
+                  Financial Year
+                </label>
+                <ReactDatePicker
+                  selected={
+                    utpFilters.financialYear
+                      ? (() => {
+                          try {
+                            if (
+                              /^\d{2}\/\d{4}$/.test(utpFilters.financialYear)
+                            ) {
+                              const [month, year] =
+                                utpFilters.financialYear.split("/");
+                              return new Date(
+                                Number(year),
+                                Number(month) - 1,
+                                1
+                              );
+                            } else if (
+                              !isNaN(Date.parse(utpFilters.financialYear))
+                            ) {
+                              return new Date(utpFilters.financialYear);
+                            }
+                            return null;
+                          } catch {
+                            return null;
+                          }
+                        })()
+                      : null
+                  }
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const formatted = `${String(date.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      )}/${date.getFullYear()}`;
+                      handleUtpFilterChange("financialYear", formatted);
+                    } else {
+                      handleUtpFilterChange("financialYear", "");
+                    }
+                  }}
+                  dateFormat="MM/yyyy"
+                  showMonthYearPicker
+                  placeholderText="Select month and year"
+                  className={styles.datePickerInput}
+                />
+              </div>
+            ) : (
+              <Dropdown
+                label="Financial Year"
+                placeholder="Select Financial Year"
+                options={getFinancialYearOptions()}
+                selectedKey={utpFilters.financialYear || null}
+                onChange={(_, option) =>
+                  handleUtpFilterChange("financialYear", option?.key as string)
+                }
+                styles={{
+                  root: { width: "160px" },
+                  dropdown: { width: "100%" },
+                  callout: {
+                    width: "100%",
+                    maxHeight: 5 * 36,
+                    overflowY: "auto",
+                  },
+                  title: { width: "160px" },
+                }}
+              />
+            )}
             {utpFilters.financialYear && (
               <button
                 type="button"
@@ -2023,7 +2211,9 @@ const TabbedTables: React.FC<{
         show={showOffcanvas}
         onHide={handleClose}
         placement="end"
-        style={{ width: "850px" }}
+        style={{
+          width: activeTab === "UTP Dashboard" ? "1280px" : "850px",
+        }}
       >
         <Offcanvas.Header closeButton>
           <Offcanvas.Title>View Case Details</Offcanvas.Title>

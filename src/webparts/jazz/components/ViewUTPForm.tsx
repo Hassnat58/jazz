@@ -42,7 +42,12 @@ const ViewUTPForm: React.FC<{
             "Rate",
             "PaymentType",
             "Amount",
-            "EBITDA"
+            "EBITDA",
+            "ProvisionGLCode",
+            "PaymentGLCode",
+            "UTPCategory",
+            "ERMCategory",
+            "GRSCode"
           )
           .orderBy("ID", true)();
 
@@ -57,6 +62,11 @@ const ViewUTPForm: React.FC<{
           paymentType: item.PaymentType,
           amount: item.Amount,
           ebitda: item.EBITDA,
+          grscode: item.GRSCode,
+          provisionGlCode: item.ProvisionGLCode,
+          paymentGlCode: item.PaymentGLCode,
+          UTPCategory: item.UTPCategory,
+          ERMCategory: item.ERMCategory,
         }));
         const totalUnderProtest = mappedIssues
           .filter(
@@ -192,6 +202,11 @@ const ViewUTPForm: React.FC<{
                 <th>Payment Type</th>
                 <th>Amount</th>
                 <th>EBITDA</th>
+                <th>GRS Code</th>
+                <th>Payment GL Code</th>
+                <th>Provision GL Code</th>
+                <th>UTP Category</th>
+                <th>ERM Category</th>
               </tr>
             </thead>
             <tbody>
@@ -222,6 +237,21 @@ const ViewUTPForm: React.FC<{
                     {issue.amount ? Number(issue.amount).toLocaleString() : "-"}
                   </td>
                   <td style={{ textAlign: "right" }}>{issue.ebitda || "-"}</td>
+                  <td style={{ textAlign: "center" }}>
+                    {issue.grscode || "-"}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    {issue.paymentGlCode || "-"}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    {issue.provisionGlCode || "-"}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    {issue.UTPCategory || "-"}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    {issue.ERMCategory || "-"}
+                  </td>
                 </tr>
               ))}
 

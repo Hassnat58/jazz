@@ -142,6 +142,10 @@ const ViewCaseOffcanvas: React.FC<{
               <strong>Financial Year:</strong>
             </td>
             <td>{data.FinancialYear}</td>
+            <td>
+              <strong>Tax Year:</strong>
+            </td>
+            <td>{data.TaxYear}</td>
           </tr>
 
           <tr>
