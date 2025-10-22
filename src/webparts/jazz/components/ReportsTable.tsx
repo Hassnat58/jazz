@@ -130,7 +130,7 @@ const reportConfig: Record<
 
   ActiveCases: {
     columns: [
-      { header: "No.", field: "caseNo" },
+      { header: "Case No.", field: "caseNo" },
       { header: "Entity", field: "entity" },
       { header: "Tax Authority", field: "taxAuthority" },
       { header: "Tax Year/Tax Period", field: "taxYear" },
