@@ -82,6 +82,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
   const [allCases, setAllCases] = useState<any[]>([]);
   const [showDialog, setShowDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [usedCaseNumbers, setUsedCaseNumbers] = React.useState<number[]>([]);
+  const [caseError, setCaseError] = React.useState<string>("");
   const [taxIssueEntries, setTaxIssueEntries] = useState<
     {
       id: any;
@@ -106,6 +108,26 @@ const UTPForm: React.FC<UTPFormProps> = ({
   const isEditMode = !!selectedCase;
 
   const selectedTaxType = watch("TaxType");
+  useEffect(() => {
+    (async () => {
+      try {
+        const utpItems = await sp.web.lists
+          .getByTitle("UTPData")
+          .items.select("Id", "CaseNumber/Id")
+          .expand("CaseNumber")
+          .top(5000)();
+
+        const caseIds = utpItems
+          .map((item) => item.CaseNumber?.Id)
+          .filter((id) => !!id);
+
+        setUsedCaseNumbers(caseIds);
+      } catch (error) {
+        console.error("Error fetching UTP items:", error);
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     (async () => {
       const [cases, lovs] = await Promise.all([
@@ -163,15 +185,13 @@ const UTPForm: React.FC<UTPFormProps> = ({
       : latestCases;
 
     // Step 4: Build dropdown options
-    const caseDropdownOptions = filteredCases.map((item) => {
-      // const taxAuth = item.TaxAuthority || "N/A";
-      // const prefix = item.TaxType === "Income Tax" ? "IT" : "ST";
-      return {
+    const caseDropdownOptions = filteredCases
+      .filter((item) => !usedCaseNumbers.includes(item.Id)) // 🚫 exclude already-used
+      .map((item) => ({
         key: item.Id,
         text: item.Title,
         data: item,
-      };
-    });
+      }));
 
     setCaseOptions(caseDropdownOptions);
   }, [selectedTaxType, allCases]);
@@ -792,7 +812,17 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 options={caseOptions}
                 disabled={isEditMode}
                 selectedKey={field.value ? Number(field.value) : undefined}
-                onChange={(_, option) => field.onChange(option?.key)}
+                onChange={(_, option) => {
+                  if (option && usedCaseNumbers.includes(Number(option.key))) {
+                    setCaseError(
+                      "A UTP has already been created with this Case Number."
+                    );
+                    field.onChange(undefined); // clear invalid selection
+                    return;
+                  }
+                  setCaseError("");
+                  field.onChange(option?.key);
+                }}
                 placeholder="Select Case Number"
                 allowFreeform
                 autoComplete="on"
@@ -864,7 +894,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                   },
                   input: { width: "100%" },
                 }}
-                errorMessage={error?.message}
+                errorMessage={error?.message || caseError}
               />
             )}
           />
@@ -1804,7 +1834,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
               }}
             >
-              {/* Grid container - 4 columns responsive */}
               <div
                 style={{
                   display: "grid",
@@ -1813,7 +1842,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                   alignItems: "end",
                 }}
               >
-                {/* Col 1 */}
+                {/* UTP Issue (no clear button) */}
                 <div>
                   <Dropdown
                     label="UTP Issue"
@@ -1829,17 +1858,13 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 </div>
 
                 {/* Risk Category */}
-                <div>
+                <div style={{ position: "relative" }}>
                   <Dropdown
                     label="Risk Category"
                     selectedKey={entry.RiskCategory}
                     placeholder="Select Risk Category"
                     required
-                    options={[
-                      { key: "Probable", text: "Probable" },
-                      { key: "Possible", text: "Possible" },
-                      { key: "Remote", text: "Remote" },
-                    ]}
+                    options={lovOptions["Risk Category"] || []}
                     onChange={(_, option) => {
                       const updated = [...taxIssueEntries];
                       updated[idx].RiskCategory = (option?.key as string) || "";
@@ -1849,9 +1874,31 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       setTaxIssueEntries(updated);
                     }}
                   />
+                  {entry.RiskCategory && (
+                    <span
+                      title="Clear selection"
+                      onClick={() => {
+                        const updated = [...taxIssueEntries];
+                        updated[idx].RiskCategory = "";
+                        updated[idx].contigencyNote = "";
+                        setTaxIssueEntries(updated);
+                      }}
+                      style={{
+                        position: "absolute",
+                        right: "25px",
+                        top: "30px",
+                        cursor: "pointer",
+                        color: "#888",
+                        fontSize: "18px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      ×
+                    </span>
+                  )}
                 </div>
 
-                {/* Contingency Note — only rendered if Possible */}
+                {/* Contingency Note */}
                 {entry.RiskCategory === "Possible" && (
                   <div>
                     <Controller
@@ -1880,12 +1927,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     placeholder="Enter Amount"
                     type="text"
                     value={
-                      entry.amountContested !== undefined &&
-                      entry.amountContested !== null
-                        ? new Intl.NumberFormat("en-US", {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 2,
-                          }).format(entry.amountContested)
+                      entry.amountContested
+                        ? new Intl.NumberFormat("en-US").format(
+                            entry.amountContested
+                          )
                         : ""
                     }
                     onChange={(_, v) => {
@@ -1903,7 +1948,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                   />
                 </div>
 
-                {/* Rate */}
+                {/* Rate (%) */}
                 <div>
                   <TextField
                     label="Rate (%)"
@@ -1928,26 +1973,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
                         ((isNaN(parsed) ? 0 : parsed) / 100);
                       setTaxIssueEntries(updated);
                     }}
-                    onBlur={() => {
-                      const parsed = parseFloat(rateInputs[idx]);
-                      if (!isNaN(parsed)) {
-                        const rounded = parsed.toFixed(2);
-                        setRateInputs((prev) => ({ ...prev, [idx]: rounded }));
-
-                        const updated = [...taxIssueEntries];
-                        updated[idx].rate = parseFloat(rounded);
-                        updated[idx].grossTaxExposure =
-                          (updated[idx].amountContested || 0) *
-                          (parseFloat(rounded) / 100);
-                        setTaxIssueEntries(updated);
-                      } else {
-                        setRateInputs((prev) => ({ ...prev, [idx]: "" }));
-                        const updated = [...taxIssueEntries];
-                        updated[idx].rate = 0;
-                        updated[idx].grossTaxExposure = 0;
-                        setTaxIssueEntries(updated);
-                      }
-                    }}
                   />
                 </div>
 
@@ -1957,19 +1982,17 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     label="Gross Tax Exposure"
                     readOnly
                     value={
-                      entry.grossTaxExposure !== undefined &&
-                      entry.grossTaxExposure !== null
-                        ? new Intl.NumberFormat("en-US", {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 2,
-                          }).format(entry.grossTaxExposure)
+                      entry.grossTaxExposure
+                        ? new Intl.NumberFormat("en-US").format(
+                            entry.grossTaxExposure
+                          )
                         : ""
                     }
                   />
                 </div>
 
                 {/* Payment Type */}
-                <div style={{ minWidth: 0 }}>
+                <div style={{ position: "relative", minWidth: 0 }}>
                   <Dropdown
                     label="Payment Type"
                     placeholder="Select Payment Type"
@@ -1984,37 +2007,32 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       setTaxIssueEntries(updated);
                     }}
                   />
-                </div>
-
-                {/* Payment Amount (conditional) */}
-                <div style={{ minWidth: 0 }}>
-                  {entry.PaymentType ? (
-                    <TextField
-                      label="Amount"
-                      placeholder="Enter Amount"
-                      type="text"
-                      value={
-                        entry.amount !== undefined && entry.amount !== null
-                          ? new Intl.NumberFormat("en-US").format(entry.amount)
-                          : ""
-                      }
-                      onChange={(_, v) => {
-                        const numericValue =
-                          v?.replace(/,/g, "").replace(/[^0-9.]/g, "") || "";
+                  {entry.PaymentType && (
+                    <span
+                      title="Clear selection"
+                      onClick={() => {
                         const updated = [...taxIssueEntries];
-                        updated[idx].amount = numericValue
-                          ? parseFloat(numericValue)
-                          : 0;
+                        updated[idx].PaymentType = "";
+                        updated[idx].amount = 0;
                         setTaxIssueEntries(updated);
                       }}
-                    />
-                  ) : (
-                    <div style={{ height: 38 }} />
+                      style={{
+                        position: "absolute",
+                        right: "25px",
+                        top: "30px",
+                        cursor: "pointer",
+                        color: "#888",
+                        fontSize: "18px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      ×
+                    </span>
                   )}
                 </div>
 
                 {/* EBITDA */}
-                <div style={{ minWidth: 0 }}>
+                <div style={{ position: "relative" }}>
                   <Dropdown
                     label="EBITDA"
                     placeholder="Select EBITDA"
@@ -2026,124 +2044,266 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       setTaxIssueEntries(updated);
                     }}
                   />
+                  {entry.EBITDA && (
+                    <span
+                      title="Clear selection"
+                      onClick={() => {
+                        const updated = [...taxIssueEntries];
+                        updated[idx].EBITDA = "";
+                        setTaxIssueEntries(updated);
+                      }}
+                      style={{
+                        position: "absolute",
+                        right: "25px",
+                        top: "30px",
+                        cursor: "pointer",
+                        color: "#888",
+                        fontSize: "18px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      ×
+                    </span>
+                  )}
                 </div>
 
-                {/* GRS Code */}
-                <div style={{ minWidth: 0 }}>
+                {/* GRS Code (already had ×) */}
+                <div style={{ position: "relative" }}>
                   <Controller
                     name={`GRSCode_${idx}`}
                     control={control}
                     render={({ field: f }) => (
-                      <Dropdown
-                        label="GRS Code"
-                        options={lovOptions["GRS Code"] || []}
-                        selectedKey={entry.GRSCode ?? undefined}
-                        onChange={(_, option) => {
-                          const updated = [...taxIssueEntries];
-                          updated[idx].GRSCode = (option?.key as string) || "";
-                          setTaxIssueEntries(updated);
-                          f.onChange(option?.key);
-                        }}
-                        placeholder="Select"
-                      />
+                      <>
+                        <Dropdown
+                          label="GRS Code"
+                          options={lovOptions["GRS Code"] || []}
+                          selectedKey={entry.GRSCode ?? undefined}
+                          onChange={(_, option) => {
+                            const updated = [...taxIssueEntries];
+                            updated[idx].GRSCode =
+                              (option?.key as string) || "";
+                            setTaxIssueEntries(updated);
+                            f.onChange(option?.key);
+                          }}
+                          placeholder="Select"
+                        />
+                        {entry.GRSCode && (
+                          <span
+                            title="Clear selection"
+                            onClick={() => {
+                              const updated = [...taxIssueEntries];
+                              updated[idx].GRSCode = "";
+                              setTaxIssueEntries(updated);
+                              f.onChange("");
+                            }}
+                            style={{
+                              position: "absolute",
+                              right: "25px",
+                              top: "30px",
+                              cursor: "pointer",
+                              color: "#888",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            ×
+                          </span>
+                        )}
+                      </>
                     )}
                   />
                 </div>
 
                 {/* Provision GL Code */}
-                <div style={{ minWidth: 0 }}>
+                <div style={{ position: "relative" }}>
                   <Controller
                     name={`ProvisionGLCode_${idx}`}
                     control={control}
                     render={({ field: f }) => (
-                      <Dropdown
-                        label="Provision GL Code"
-                        options={lovOptions["Provision GL Code"] || []}
-                        selectedKey={entry.ProvisionGLCode ?? undefined}
-                        onChange={(_, option) => {
-                          const updated = [...taxIssueEntries];
-                          updated[idx].ProvisionGLCode =
-                            (option?.key as string) || "";
-                          setTaxIssueEntries(updated);
-                          f.onChange(option?.key);
-                        }}
-                        placeholder="Select"
-                      />
+                      <>
+                        <Dropdown
+                          label="Provision GL Code"
+                          options={lovOptions["Provision GL Code"] || []}
+                          selectedKey={entry.ProvisionGLCode ?? undefined}
+                          onChange={(_, option) => {
+                            const updated = [...taxIssueEntries];
+                            updated[idx].ProvisionGLCode =
+                              (option?.key as string) || "";
+                            setTaxIssueEntries(updated);
+                            f.onChange(option?.key);
+                          }}
+                          placeholder="Select"
+                        />
+                        {entry.ProvisionGLCode && (
+                          <span
+                            title="Clear selection"
+                            onClick={() => {
+                              const updated = [...taxIssueEntries];
+                              updated[idx].ProvisionGLCode = "";
+                              setTaxIssueEntries(updated);
+                              f.onChange("");
+                            }}
+                            style={{
+                              position: "absolute",
+                              right: "25px",
+                              top: "30px",
+                              cursor: "pointer",
+                              color: "#888",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            ×
+                          </span>
+                        )}
+                      </>
                     )}
                   />
                 </div>
 
                 {/* UTP Category */}
-                <div style={{ minWidth: 0 }}>
+                <div style={{ position: "relative" }}>
                   <Controller
                     name={`UTPCategory_${idx}`}
                     control={control}
                     render={({ field: f }) => (
-                      <Dropdown
-                        label="UTP Category"
-                        options={lovOptions["UTP Category"] || []}
-                        selectedKey={entry.UTPCategory ?? undefined}
-                        onChange={(_, option) => {
-                          const updated = [...taxIssueEntries];
-                          updated[idx].UTPCategory =
-                            (option?.key as string) || "";
-                          setTaxIssueEntries(updated);
-                          f.onChange(option?.key);
-                        }}
-                        placeholder="Select"
-                      />
+                      <>
+                        <Dropdown
+                          label="UTP Category"
+                          options={lovOptions["UTP Category"] || []}
+                          selectedKey={entry.UTPCategory ?? undefined}
+                          onChange={(_, option) => {
+                            const updated = [...taxIssueEntries];
+                            updated[idx].UTPCategory =
+                              (option?.key as string) || "";
+                            setTaxIssueEntries(updated);
+                            f.onChange(option?.key);
+                          }}
+                          placeholder="Select"
+                        />
+                        {entry.UTPCategory && (
+                          <span
+                            title="Clear selection"
+                            onClick={() => {
+                              const updated = [...taxIssueEntries];
+                              updated[idx].UTPCategory = "";
+                              setTaxIssueEntries(updated);
+                              f.onChange("");
+                            }}
+                            style={{
+                              position: "absolute",
+                              right: "25px",
+                              top: "30px",
+                              cursor: "pointer",
+                              color: "#888",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            ×
+                          </span>
+                        )}
+                      </>
                     )}
                   />
                 </div>
 
                 {/* ERM Category */}
-                <div style={{ minWidth: 0 }}>
+                <div style={{ position: "relative" }}>
                   <Controller
                     name={`ERMCategory_${idx}`}
                     control={control}
                     render={({ field: f }) => (
-                      <Dropdown
-                        label="ERM Category"
-                        options={lovOptions["ERM Category"] || []}
-                        selectedKey={entry.ERMCategory ?? undefined}
-                        onChange={(_, option) => {
-                          const updated = [...taxIssueEntries];
-                          updated[idx].ERMCategory =
-                            (option?.key as string) || "";
-                          setTaxIssueEntries(updated);
-                          f.onChange(option?.key);
-                        }}
-                        placeholder="Select"
-                      />
+                      <>
+                        <Dropdown
+                          label="ERM Category"
+                          options={lovOptions["ERM Category"] || []}
+                          selectedKey={entry.ERMCategory ?? undefined}
+                          onChange={(_, option) => {
+                            const updated = [...taxIssueEntries];
+                            updated[idx].ERMCategory =
+                              (option?.key as string) || "";
+                            setTaxIssueEntries(updated);
+                            f.onChange(option?.key);
+                          }}
+                          placeholder="Select"
+                        />
+                        {entry.ERMCategory && (
+                          <span
+                            title="Clear selection"
+                            onClick={() => {
+                              const updated = [...taxIssueEntries];
+                              updated[idx].ERMCategory = "";
+                              setTaxIssueEntries(updated);
+                              f.onChange("");
+                            }}
+                            style={{
+                              position: "absolute",
+                              right: "25px",
+                              top: "30px",
+                              cursor: "pointer",
+                              color: "#888",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            ×
+                          </span>
+                        )}
+                      </>
                     )}
                   />
                 </div>
 
                 {/* Payment GL Code */}
-                <div style={{ minWidth: 0 }}>
+                <div style={{ position: "relative" }}>
                   <Controller
                     name={`PaymentGLCode_${idx}`}
                     control={control}
                     render={({ field: f }) => (
-                      <Dropdown
-                        label="Payment GL Code"
-                        options={lovOptions["Payment GL Code"] || []}
-                        selectedKey={entry.PaymentGLCode ?? undefined}
-                        onChange={(_, option) => {
-                          const updated = [...taxIssueEntries];
-                          updated[idx].PaymentGLCode =
-                            (option?.key as string) || "";
-                          setTaxIssueEntries(updated);
-                          f.onChange(option?.key);
-                        }}
-                        placeholder="Select"
-                      />
+                      <>
+                        <Dropdown
+                          label="Payment GL Code"
+                          options={lovOptions["Payment GL Code"] || []}
+                          selectedKey={entry.PaymentGLCode ?? undefined}
+                          onChange={(_, option) => {
+                            const updated = [...taxIssueEntries];
+                            updated[idx].PaymentGLCode =
+                              (option?.key as string) || "";
+                            setTaxIssueEntries(updated);
+                            f.onChange(option?.key);
+                          }}
+                          placeholder="Select"
+                        />
+                        {entry.PaymentGLCode && (
+                          <span
+                            title="Clear selection"
+                            onClick={() => {
+                              const updated = [...taxIssueEntries];
+                              updated[idx].PaymentGLCode = "";
+                              setTaxIssueEntries(updated);
+                              f.onChange("");
+                            }}
+                            style={{
+                              position: "absolute",
+                              right: "25px",
+                              top: "30px",
+                              cursor: "pointer",
+                              color: "#888",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            ×
+                          </span>
+                        )}
+                      </>
                     )}
                   />
                 </div>
               </div>
 
-              {/* Remove Row Button */}
+              {/* Remove Issue Button */}
               <div style={{ textAlign: "right", marginTop: "0.75rem" }}>
                 <button
                   type="button"
@@ -2151,7 +2311,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     const updated = [...taxIssueEntries];
                     updated.splice(idx, 1);
                     setTaxIssueEntries(updated);
-                    // also remove rateInputs entry for cleanliness
                     setRateInputs((prev) => {
                       const copy = { ...prev };
                       delete copy[idx];

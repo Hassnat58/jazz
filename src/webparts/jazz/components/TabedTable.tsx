@@ -1803,8 +1803,7 @@ const TabbedTables: React.FC<{
             <tr>
               <th>UTP ID</th>
               <th>GMLR ID</th>
-              <th>GRS Code</th>
-              <th>ERM Unique Numbering</th>
+              <th>UTP Date</th>
               <th>Gross Exposure</th>
               <th>Tax Type</th>
               <th>Approval Status</th>
@@ -1816,8 +1815,7 @@ const TabbedTables: React.FC<{
               <tr key={item.ID}>
                 <td>{item.UTPId}</td>
                 <td>{item.GMLRID}</td>
-                <td>{item.GRSCode}</td>
-                <td>{item.ERMUniqueNumbering}</td>
+                <td>{item.UTPDate?.split("T")[0]}</td>
                 <td>{item.GrossExposure}</td>
                 <td>{item.TaxType}</td>
                 <td>
