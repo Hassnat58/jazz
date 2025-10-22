@@ -93,6 +93,8 @@ const reportConfig: Record<
       { header: "P&L exposure PKR", field: "plExposurePKR" },
       { header: "EBITDA exposure PKR", field: "ebitdaExposurePKR" },
       { header: "ERM unique numbering", field: "ermUniqueNumbering" },
+      { header: "Case Number", field: "caseNumber" },
+
     ],
   },
 
@@ -387,7 +389,40 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
     return sign + formatted;
   };
+  const getLatestUTPIssues = async (issues: any) => {
+    if (!Array.isArray(issues) || issues.length === 0) return [];
 
+    const latestMap = issues.reduce((acc: any, issue: any) => {
+      const id = issue.UTPId;
+      if (!id) return acc;
+
+      const existing = acc[id];
+      if (!existing || issue.Id > existing.Id) {
+        acc[id] = issue; // ✅ Keep the one with the highest SharePoint item ID
+      }
+
+      return acc;
+    }, {});
+
+    return Object.values(latestMap);
+  };
+  const getLatestCaseIssues = async (issues: any) => {
+    if (!Array.isArray(issues) || issues.length === 0) return [];
+
+    const latestMap = issues.reduce((acc: any, issue: any) => {
+      const id = issue.Title;
+      if (!id) return acc;
+
+      const existing = acc[id];
+      if (!existing || issue.Id > existing.Id) {
+        acc[id] = issue; // ✅ Keep the one with the highest SharePoint item ID
+      }
+
+      return acc;
+    }, {});
+
+    return Object.values(latestMap);
+  };
   const normalizeData = async (
     reportType: string,
     rawData: any[],
@@ -396,7 +431,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     switch (reportType) {
       case "Litigation":
         const sp1 = spfi().using(SPFx(SpfxContext));
-
+        const latestICases = await getLatestCaseIssues(rawData);
         const utpIssues1 = await sp1.web.lists
           .getByTitle("UTPData")
           .items.expand("CaseNumber") // lookup field
@@ -405,7 +440,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         // Map Litigation.Id → UTP row
         const utpMap = new Map(utpIssues1.map((u) => [u.CaseNumber?.Id, u]));
 
-        const litigationData = rawData.map((item) => {
+        const litigationData = latestICases.map((item: any) => {
           const utp = utpMap.get(item.ID); // match Litigation.Id
 
           return {
@@ -462,7 +497,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         return litigationData;
 
       case "ActiveCases":
-        return rawData.map((item) => ({
+        const latestActive = await getLatestCaseIssues(rawData);
+        return latestActive.map((item: any) => ({
           type: item.TaxType || "", // "Type" → In/Out
           caseNo: item.Title || item.Id || "", // "Case Number"
           issue: item.IssuedBy || "", // "Issue"
@@ -525,8 +561,10 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             "RiskCategory",
             "EBITDA",
             "GrossTaxExposure",
+             "ContigencyNote",
+             "ProvisionGLCode",
             "UTP/Id",
-            "ContingencyNote"
+           
           )
           .expand("UTP")();
 
@@ -624,16 +662,16 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               const curr =
                 r.month === currentMonth && r.year === year
                   ? r.GrossTaxExposure?.reduce(
-                      (sum: number, val: number) => sum + val,
-                      0
-                    ) || 0
+                    (sum: number, val: number) => sum + val,
+                    0
+                  ) || 0
                   : 0;
               const prev =
                 r.month === prevMonth && r.year === year
                   ? r.GrossTaxExposure?.reduce(
-                      (sum: number, val: number) => sum + val,
-                      0
-                    ) || 0
+                    (sum: number, val: number) => sum + val,
+                    0
+                  ) || 0
                   : 0;
 
               subtotalCurr += curr;
@@ -648,7 +686,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 previousMonthAmount: formatAmount(prev),
                 variance: formatAmount(
                   Number((curr + "").replace(/,/g, "")) -
-                    Number((prev + "").replace(/,/g, ""))
+                  Number((prev + "").replace(/,/g, ""))
                 ),
               });
             });
@@ -664,7 +702,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             previousMonthAmount: formatAmount(subtotalPrev),
             variance: formatAmount(
               Number((subtotalCurr + "").replace(/,/g, "")) -
-                Number((subtotalPrev + "").replace(/,/g, ""))
+              Number((subtotalPrev + "").replace(/,/g, ""))
             ),
           });
         });
@@ -697,7 +735,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           previousMonthAmount: formatAmount(totalPrev),
           variance: formatAmount(
             Number((totalCurr + "").replace(/,/g, "")) -
-              Number((totalPrev + "").replace(/,/g, ""))
+            Number((totalPrev + "").replace(/,/g, ""))
           ),
         });
 
@@ -834,8 +872,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 r?.TaxType === "Income Tax"
                   ? 0
                   : r.RiskCategory === "Probable"
-                  ? 0
-                  : r.GrossTaxExposure || 0
+                    ? 0
+                    : r.GrossTaxExposure || 0
               ) || 0),
             0
           );
@@ -849,8 +887,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 r?.TaxType === "Income Tax"
                   ? 0
                   : r.RiskCategory === "Probable"
-                  ? 0
-                  : r.GrossTaxExposure || 0
+                    ? 0
+                    : r.GrossTaxExposure || 0
               ) || 0),
             0
           );
@@ -1069,7 +1107,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           previousMonthAmount: formatAmount(subtotalPrev),
           variance: formatAmount(
             Number((subtotalCurr + "").replace(/,/g, "")) -
-              Number((subtotalPrev + "").replace(/,/g, ""))
+            Number((subtotalPrev + "").replace(/,/g, ""))
           ),
         });
 
@@ -1100,10 +1138,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           // ✅ Apply filter only when risk category is selected
           utpQuery = utpQuery.filter(`RiskCategory eq '${cat}'`);
         }
-
         const utpIssues = await utpQuery();
-
-        const merged = rawData.flatMap((utp) => {
+        const latestIssues = await getLatestUTPIssues(rawData);
+        const merged = latestIssues.flatMap((utp: any) => {
           const mainRow = {
             ...utp,
             utpId: utp.UTPId, // exists (currently null in your data)
@@ -1147,20 +1184,21 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : utp.RiskCategory === "Probable"
-                ? 0
-                : utp.GrossExposure || 0
+                  ? 0
+                  : utp.GrossExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (utp.GrossExposure || 0) - utp.Amount || 0
             ),
 
             ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
+            caseNumber: utp?.CaseNumber?.Title || "",
           };
 
           const relatedIssues = utpIssues.filter(
             (issue) => issue.UTPId === utp.Id
           );
-          // console.log(utp.Id, utpIssues,rawData,relatedIssues,'dekhloo');
+          console.log(utp.Id, utpIssues, rawData, relatedIssues, 'dekhloo');
 
           if (relatedIssues.length === 0) return [mainRow];
 
@@ -1188,8 +1226,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
             contingencyNote: issue.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
             briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
-            provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
-            provisionGrsCode: utp.GRSCode, // exists
+            provisionGlCode: issue.ProvisionGLCode, // ❌ not in data (undefined)
+            provisionGrsCode: issue.GRSCode, // exists
             paymentUnderProtest:
               issue.PaymentType == "Payment under Protest"
                 ? formatAmount(issue.Amount)
@@ -1199,14 +1237,14 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 ? formatAmount(issue.Amount)
                 : "", // exists but null (note lowercase "u")
             // exists but null (note lowercase "u")
-            paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
-            utpPaperCategory: utp.UTPCategory, // exists but null
+            paymentGlCode: issue.PaymentGLCode, // ❌ not in data (undefined)
+            utpPaperCategory: issue.UTPCategory, // exists but null
             provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
 
             utpIssue: issue.Title ?? "",
             amtContested: formatAmount(issue.AmountContested) ?? "",
             rate: issue.Rate ?? "",
-            ermCategory: utp.ERMCategory ?? "",
+            ermCategory: issue.ERMCategory ?? "",
             plExposurePKR: formatAmount(
               issue.RiskCategory === "Probable"
                 ? 0
@@ -1216,14 +1254,15 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : issue.RiskCategory === "Probable"
-                ? 0
-                : issue.GrossTaxExposure || 0
+                  ? 0
+                  : issue.GrossTaxExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (issue.GrossTaxExposure || 0) - issue.Amount || 0
             ),
 
             ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
+            caseNumber: utp?.CaseNumber?.Title || "",
           }));
 
           // return [mainRow, ...issueRows];
@@ -1352,6 +1391,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
         handleFilterChangeDate2(newStart, newEnd, items);
       } else {
+
         items_updated = await normalizeData(reportType, items, "");
         setFilteredData(items_updated);
       }
@@ -1379,6 +1419,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     setSelectedDate(null);
     setDateRange([null, null]);
     setFilters(reset);
+    setData([])
+    setFilteredData([])
     fetchData();
   }, [reportType]);
 
@@ -1520,8 +1562,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           reportType === "Litigation"
             ? item.DateReceived
             : reportType === "ActiveCases"
-            ? item.DateofCompliance
-            : item.UTPDate;
+              ? item.DateofCompliance
+              : item.UTPDate;
 
         const itemDateStr = itemDateRaw
           ? new Date(itemDateRaw).toISOString().split("T")[0]
@@ -1555,7 +1597,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-                updatedFilters.financialYear) &&
+              updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -1640,7 +1682,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-                updatedFilters.financialYear) &&
+              updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -1684,9 +1726,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     reportType
   )
     ? filteredData.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-      )
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    )
     : filteredData;
 
   return (
