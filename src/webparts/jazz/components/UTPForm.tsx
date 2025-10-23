@@ -274,7 +274,6 @@ const UTPForm: React.FC<UTPFormProps> = ({
     setTempName(getFileNameWithoutExtension(currentName));
   };
 
-  // Save attachment name change
   const saveAttachmentName = (id: string, isExisting: boolean = true) => {
     const extension = isExisting
       ? getFileExtension(

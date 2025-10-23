@@ -121,7 +121,7 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
       onHide={onHide}
       placement="end"
       backdrop={true}
-      style={caseData.type === "utp" ? { width: "1280px" } : { width: "850px" }}
+      style={caseData.type === "utp" ? { width: "1340px" } : { width: "850px" }}
     >
       <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
         <h6 className="m-0">{caseData.caseNo}</h6>
