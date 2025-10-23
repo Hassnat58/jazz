@@ -240,7 +240,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
   useEffect(() => {
     const fetchNextIdAndSetUTPId = async () => {
-      if (isEditMode) return; // ✅ skip if editing
+      if (isEditMode) return;
       if (!selectedCaseNumberId) return;
 
       const caseId = Number(selectedCaseNumberId);
