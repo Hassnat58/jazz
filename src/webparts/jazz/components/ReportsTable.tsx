@@ -351,20 +351,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     window.URL.revokeObjectURL(url);
   };
 
-  const filterCurrentMonth = (data: CaseItem[]) => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
 
-    return data.filter((item) => {
-      if (!item.UTPDate) return false;
-      const utpDate = new Date(item.UTPDate);
-      return (
-        utpDate.getMonth() === currentMonth &&
-        utpDate.getFullYear() === currentYear
-      );
-    });
-  };
   // format helpers
   const formatAmount = (
     value: number | string | null | undefined,
@@ -426,7 +413,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
   const normalizeData = async (
     reportType: string,
     rawData: any[],
-    cat: any
+    filter: any
   ) => {
     switch (reportType) {
       case "Litigation":
@@ -550,197 +537,213 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           briefDescription: item.BriefDescription || "",
           // "In UTP"
         }));
-      case "Provisions1": {
-        const sp = spfi().using(SPFx(SpfxContext));
+case "Provisions1": {
+  const sp = spfi().using(SPFx(SpfxContext));
 
-        // Step 1: Get Risk Categories, EBITDA, and GrossTaxExposure from UTP Tax Issue
-        const utpIssues = await sp.web.lists
-          .getByTitle("UTP Tax Issue")
-          .items.select(
-            "Id",
-            "RiskCategory",
-            "EBITDA",
-            "GrossTaxExposure",
-             "ContigencyNote",
-             "ProvisionGLCode",
-            "UTP/Id",
-           
-          )
-          .expand("UTP")();
+  // ---------- STEP 1: Determine effective period ----------
+  const now = new Date();
+  let effectiveCurrentMonth: number;
+  let effectiveCurrentYear: number;
+  let prevMonth: number;
+  let prevYear: number;
 
-        // Step 2: Group multiple risk categories + values by UTP Id
-        const riskMap = utpIssues.reduce((acc, issue) => {
-          const utpId = issue.UTP?.Id;
-          if (!utpId) return acc;
+  // --- Case 1: Month selector chosen ---
+  if (filter.dateStart) {
+    const selectedMonth = new Date(filter.dateStart); // e.g., "2025-07-01"
+    effectiveCurrentMonth = selectedMonth.getMonth();
+    effectiveCurrentYear = selectedMonth.getFullYear();
+    const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+    prevMonth = prev.getMonth();
+    prevYear = prev.getFullYear();
+  }
 
-          if (!acc[utpId]) {
-            acc[utpId] = {
-              riskCategories: [],
-              ebitdaValues: [],
-              grossTaxExposures: [],
-            };
-          }
+  // --- Case 2: Date range selected ---
+  else if (filter.dateRangeStart && filter.dateRangeEnd) {
+    const end = new Date(filter.dateRangeEnd);
+    effectiveCurrentMonth = end.getMonth();
+    effectiveCurrentYear = end.getFullYear();
+    const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+    prevMonth = prev.getMonth();
+    prevYear = prev.getFullYear();
+  }
 
-          acc[utpId].riskCategories.push(issue.RiskCategory);
+  // --- Case 3: Nothing selected (system date fallback) ---
+  else {
+    effectiveCurrentMonth = now.getMonth();
+    effectiveCurrentYear = now.getFullYear();
+    const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+    prevMonth = prev.getMonth();
+    prevYear = prev.getFullYear();
+  }
 
-          // Push EBITDA if available
-          if (
-            issue.RiskCategory === "Probable" &&
-            issue.EBITDA !== undefined &&
-            issue.EBITDA !== null
-          ) {
-            acc[utpId].ebitdaValues.push(issue.EBITDA);
-          }
+  // ---------- STEP 2: Pick latest UTP per month (same date => higher ID) ----------
+  const latestByMonth = rawData.reduce((acc: any, utp: any) => {
+    const d = new Date(utp.UTPDate);
+    const month = d.getMonth();
+    const year = d.getFullYear();
+    const id = utp.UTPId;
+    if (!id) return acc;
+    if (!acc[id]) acc[id] = {};
 
-          // Push GrossTaxExposure if available
-          if (
-            issue.RiskCategory === "Probable" &&
-            issue.GrossTaxExposure !== undefined &&
-            issue.GrossTaxExposure !== null
-          ) {
-            acc[utpId].grossTaxExposures.push(issue.GrossTaxExposure);
-          }
-
-          return acc;
-        }, {} as Record<number, { riskCategories: string[]; ebitdaValues: number[]; grossTaxExposures: number[] }>);
-
-        // Step 3: Merge RiskCategories, EBITDA & GrossTaxExposure into rawData
-        const merged = rawData.map((r) => {
-          const {
-            riskCategories = [],
-            ebitdaValues = [],
-            grossTaxExposures = [],
-          } = riskMap[r.Id] || {};
-          const d = r.UTPDate ? new Date(r.UTPDate) : null;
-
-          return {
-            ...r,
-            RiskCategories: riskCategories,
-            EBITDA: ebitdaValues,
-            GrossTaxExposure: grossTaxExposures,
-            hasProbable: riskCategories.includes("Probable"),
-            month: d ? d.getMonth() : null,
-            year: d ? d.getFullYear() : null,
-          };
-        });
-
-        // Step 4: Filter only those having at least one "Probable" RiskCategory
-        const filtered = merged.filter((r) => r.hasProbable);
-
-        // Step 5: Utility function for grouping
-        const groupBy = (arr: any[], keyFn: (r: any) => string) =>
-          arr.reduce((acc, r) => {
-            const key = keyFn(r);
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(r);
-            return acc;
-          }, {} as Record<string, any[]>);
-
-        // Step 6: Get current and previous month details
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const year = now.getFullYear();
-
-        const prevDate = new Date(year, currentMonth - 1, 1);
-        const prevMonth = prevDate.getMonth();
-
-        // Step 7: Segregate by TaxType
-        const segregated = groupBy(filtered, (r) => r.EBITDA);
-
-        const exportData: any[] = [];
-
-        // Step 8: Prepare export data grouped by GL Code
-        Object.entries(segregated).forEach(([TaxType, rows]) => {
-          const byGL = groupBy(rows as any[], (r) => r.ProvisionGLCode || "");
-
-          let subtotalCurr = 0;
-          let subtotalPrev = 0;
-
-          Object.entries(byGL).forEach(([ProvisionGLCode, records]) => {
-            (records as any[]).forEach((r: any) => {
-              // Use GrossTaxExposure instead of GrossExposure
-              const curr =
-                r.month === currentMonth && r.year === year
-                  ? r.GrossTaxExposure?.reduce(
-                    (sum: number, val: number) => sum + val,
-                    0
-                  ) || 0
-                  : 0;
-              const prev =
-                r.month === prevMonth && r.year === year
-                  ? r.GrossTaxExposure?.reduce(
-                    (sum: number, val: number) => sum + val,
-                    0
-                  ) || 0
-                  : 0;
-
-              subtotalCurr += curr;
-              subtotalPrev += prev;
-
-              exportData.push({
-                glCode: ProvisionGLCode || "",
-                taxType: r?.CaseNumber?.CorrespondenceType || "",
-                provisionType: r?.EBITDA?.length ? r.EBITDA[0] : "",
-                entity: r?.CaseNumber?.Entity || "",
-                currentMonthAmount: formatAmount(curr),
-                previousMonthAmount: formatAmount(prev),
-                variance: formatAmount(
-                  Number((curr + "").replace(/,/g, "")) -
-                  Number((prev + "").replace(/,/g, ""))
-                ),
-              });
-            });
-          });
-
-          // Step 9: Subtotal row
-          exportData.push({
-            glCode: "",
-            taxType: "",
-            provisionType: "",
-            entity: "Sub Total",
-            currentMonthAmount: formatAmount(subtotalCurr),
-            previousMonthAmount: formatAmount(subtotalPrev),
-            variance: formatAmount(
-              Number((subtotalCurr + "").replace(/,/g, "")) -
-              Number((subtotalPrev + "").replace(/,/g, ""))
-            ),
-          });
-        });
-
-        // Step 10: Grand total row
-        const totalCurr = exportData
-          .filter((r) => r.entity === "Sub Total")
-          .reduce(
-            (sum, r) =>
-              sum +
-              (Number((r.currentMonthAmount + "").replace(/,/g, "")) || 0),
-            0
-          );
-
-        const totalPrev = exportData
-          .filter((r) => r.entity === "Sub Total")
-          .reduce(
-            (sum, r) =>
-              sum +
-              (Number((r.previousMonthAmount + "").replace(/,/g, "")) || 0),
-            0
-          );
-
-        exportData.push({
-          glCode: "",
-          taxType: "",
-          provisionType: "",
-          entity: "Grand Total",
-          currentMonthAmount: formatAmount(totalCurr),
-          previousMonthAmount: formatAmount(totalPrev),
-          variance: formatAmount(
-            Number((totalCurr + "").replace(/,/g, "")) -
-            Number((totalPrev + "").replace(/,/g, ""))
-          ),
-        });
-
-        return exportData;
+    // Current month logic
+    if (month === effectiveCurrentMonth && year === effectiveCurrentYear) {
+      const curr = acc[id].current;
+      if (
+        !curr ||
+        d > new Date(curr.UTPDate) ||
+        (d.getTime() === new Date(curr.UTPDate).getTime() && utp.Id > curr.Id)
+      ) {
+        acc[id].current = utp;
       }
+    }
+
+    // Previous month logic
+    else if (month === prevMonth && year === prevYear) {
+      const prev = acc[id].previous;
+      if (
+        !prev ||
+        d > new Date(prev.UTPDate) ||
+        (d.getTime() === new Date(prev.UTPDate).getTime() && utp.Id > prev.Id)
+      ) {
+        acc[id].previous = utp;
+      }
+    }
+
+    return acc;
+  }, {});
+
+  // ---------- STEP 3: Fetch UTP Tax Issues + GL Code ----------
+  const utpIssues = await sp.web.lists
+    .getByTitle("UTP Tax Issue")
+    .items.select(
+      "Id",
+      "RiskCategory",
+      "EBITDA",
+      "GrossTaxExposure",
+      "ContigencyNote",
+      "ProvisionGLCode",
+      "UTP/Id"
+    )
+    .expand("UTP")();
+
+  // ---------- STEP 4: Group Issues by UTP SharePoint Id ----------
+  const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
+    const utpId = issue.UTP?.Id;
+    if (!utpId) return acc;
+    if (!acc[utpId]) acc[utpId] = [];
+    acc[utpId].push(issue);
+    return acc;
+  }, {});
+
+  // ---------- STEP 5: Build Results ----------
+  const results: any[] = [];
+
+  for (const [utpId, { current, previous }] of Object.entries(latestByMonth) as [string, { current?: any; previous?: any }][]) {
+   
+    const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
+    const previousIssues = previous ? issuesByUtp[previous?.Id] || [] : [];
+    const maxLength = Math.max(currentIssues.length, previousIssues.length);
+
+    for (let i = 0; i < maxLength; i++) {
+      const currIssue = currentIssues[i];
+      const prevIssue = previousIssues[i];
+
+      // Only count Probable cases
+      const currAmt =
+        currIssue && currIssue.RiskCategory === "Probable"
+          ? currIssue.GrossTaxExposure || 0
+          : 0;
+      const prevAmt =
+        prevIssue && prevIssue.RiskCategory === "Probable"
+          ? prevIssue.GrossTaxExposure || 0
+          : 0;
+
+      if (currAmt === 0 && prevAmt === 0) continue;
+
+      results.push({
+        utpId,
+        glCode: currIssue?.ProvisionGLCode || prevIssue?.ProvisionGLCode || "",
+        taxType:
+          current?.CaseNumber?.CorrespondenceType ||
+          previous?.CaseNumber?.CorrespondenceType ||
+          "",
+        provisionType: currIssue?.EBITDA || prevIssue?.EBITDA || "",
+        entity:
+          current?.CaseNumber?.Entity || previous?.CaseNumber?.Entity || "",
+        currentMonthAmount: currAmt,
+        previousMonthAmount: prevAmt,
+        variance: currAmt - prevAmt,
+      });
+    }
+  }
+
+
+  // ---------- STEP 6: Group & Subtotal ----------
+  const groupedByTaxType = results.reduce((acc: any, r) => {
+    const provisionType = r.provisionType || "Unknown";
+    if (!acc[provisionType]) acc[provisionType] = [];
+    acc[provisionType].push(r);
+    return acc;
+  }, {});
+
+  const exportData: any[] = [];
+  let grandCurr = 0;
+  let grandPrev = 0;
+
+  for (const [taxType, items] of Object.entries(groupedByTaxType) as [string, any[]][]) {
+    let subtotalCurr = 0;
+    let subtotalPrev = 0;
+console.log(taxType);
+
+    items.forEach((r: any) => {
+      subtotalCurr += r.currentMonthAmount;
+      subtotalPrev += r.previousMonthAmount;
+
+      exportData.push({
+        utpId: r.utpId,
+        glCode: r.glCode,
+        taxType: r.taxType,
+        provisionType: r.provisionType,
+        entity: r.entity,
+        currentMonthAmount: formatAmount(r.currentMonthAmount),
+        previousMonthAmount: formatAmount(r.previousMonthAmount),
+        variance: formatAmount(r.variance),
+      });
+    });
+
+    exportData.push({
+      utpId: "",
+      glCode: "",
+      provisionType: "",
+      entity: "Sub Total",
+      currentMonthAmount: formatAmount(subtotalCurr),
+      previousMonthAmount: formatAmount(subtotalPrev),
+      variance: formatAmount(subtotalCurr - subtotalPrev),
+    });
+
+    grandCurr += subtotalCurr;
+    grandPrev += subtotalPrev;
+  }
+
+  // ---------- STEP 7: Grand Total ----------
+  exportData.push({
+    utpId: "",
+    glCode: "",
+    taxType: "",
+    provisionType: "",
+    entity: "Grand Total",
+    currentMonthAmount: formatAmount(grandCurr),
+    previousMonthAmount: formatAmount(grandPrev),
+    variance: formatAmount(grandCurr - grandPrev),
+  });
+
+  return exportData;
+}
+
+
+
+
+
 
       case "Provisions3": {
         const sp3 = spfi().using(SPFx(SpfxContext));
@@ -758,6 +761,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             "PLExposure",
             "EBITDA",
             "UTP/Id",
+            "UTP/UTPId",
+
             "UTP/UTPDate",
             "UTP/TaxType"
           )
@@ -938,107 +943,113 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
         return results3;
       }
 
-      case "Provisions2": {
-        const sp = spfi().using(SPFx(SpfxContext));
+case "Provisions2": {
+  const sp = spfi().using(SPFx(SpfxContext));
 
-        // ✅ Step 1: Get Risk Categories + GrossTaxExposure from UTP Tax Issue
-        const utpIssues = await sp.web.lists
-          .getByTitle("UTP Tax Issue")
-          .items.select("Id", "RiskCategory", "GrossTaxExposure", "UTP/Id")
-          .expand("UTP")();
+  // ---------- STEP 1: Determine effective current month ----------
+  const now = new Date();
+  let effectiveCurrentMonth: number;
+  let effectiveCurrentYear: number;
 
-        // ✅ Step 2: Group multiple risk categories by UTP Id
-        const riskMap = utpIssues.reduce((acc, issue) => {
-          const utpId = issue.UTP?.Id;
-          if (!utpId) return acc;
+  if (filter.dateStart) {
+    const selectedMonth = new Date(filter.dateStart);
+    effectiveCurrentMonth = selectedMonth.getMonth();
+    effectiveCurrentYear = selectedMonth.getFullYear();
+  } else if (filter.dateRangeStart && filter.dateRangeEnd) {
+    const end = new Date(filter.dateRangeEnd);
+    effectiveCurrentMonth = end.getMonth();
+    effectiveCurrentYear = end.getFullYear();
+  } else {
+    effectiveCurrentMonth = now.getMonth();
+    effectiveCurrentYear = now.getFullYear();
+  }
 
-          if (!acc[utpId]) {
-            acc[utpId] = { riskCategories: [], grossTaxExposures: [] };
-          }
+  // ---------- STEP 2: Pick latest UTP per current month ----------
+  const latestCurrentMonth = rawData.reduce((acc: any, utp: any) => {
+    const d = new Date(utp.UTPDate);
+    const month = d.getMonth();
+    const year = d.getFullYear();
+    const id = utp.UTPId;
+    if (!id) return acc;
 
-          // ✅ Corrected: push to the riskCategories array
-          acc[utpId].riskCategories.push(issue.RiskCategory);
+    if (month === effectiveCurrentMonth && year === effectiveCurrentYear) {
+      const existing = acc[id];
+      if (
+        !existing ||
+        d > new Date(existing.UTPDate) ||
+        (d.getTime() === new Date(existing.UTPDate).getTime() && utp.Id > existing.Id)
+      ) {
+        acc[id] = utp;
+      }
+    }
 
-          // ✅ Add only Probable GrossTaxExposure
-          if (
-            issue.RiskCategory === "Probable" &&
-            issue.GrossTaxExposure !== undefined &&
-            issue.GrossTaxExposure !== null
-          ) {
-            acc[utpId].grossTaxExposures.push(issue.GrossTaxExposure);
-          }
+    return acc;
+  }, {});
 
-          return acc;
-        }, {} as Record<number, { riskCategories: string[]; grossTaxExposures: number[] }>);
+  // ---------- STEP 3: Fetch UTP Tax Issues (GRS from here) ----------
+  const utpIssues = await sp.web.lists
+    .getByTitle("UTP Tax Issue")
+    .items.select(
+      "Id",
+      "RiskCategory",
+      "EBITDA",
+      "GrossTaxExposure",
+      "GRSCode",
+      "UTP/Id"
+    )
+    .expand("UTP")();
 
-        // ✅ Step 3: Merge RiskCategories into rawData
-        const rawDataWithRisk = rawData.map((r) => {
-          const { riskCategories = [], grossTaxExposures = [] } =
-            riskMap[r.Id] || {};
+  // ---------- STEP 4: Group Issues by UTP Id ----------
+  const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
+    const utpId = issue.UTP?.Id;
+    if (!utpId) return acc;
+    if (!acc[utpId]) acc[utpId] = [];
+    acc[utpId].push(issue);
+    return acc;
+  }, {});
 
-          return {
-            ...r,
-            RiskCategories: riskCategories,
-            GrossTaxExposure: grossTaxExposures,
-            hasProbable: riskCategories.includes("Probable"),
-          };
-        });
+  // ---------- STEP 5: Build flat results ----------
+  const results: any[] = [];
+  let grandCurr = 0;
 
-        // ✅ Step 4: Filter only Probable risk categories for current month
-        const currentMonthData: any = filterCurrentMonth(
-          rawDataWithRisk
-        ).filter((r: any) => r.hasProbable);
+  for (const [utpId, current] of Object.entries(latestCurrentMonth) as [string, any][]) {
+    const issues = issuesByUtp[current?.Id] || [];
 
-        // ✅ Step 5: Group & sum by GRS Code
-        const summarized = Object.values(
-          currentMonthData.reduce((acc: any, item: any) => {
-            const grsCode = item.GRSCode || "";
-            const exposure = (item.GrossTaxExposure || []).reduce(
-              (sum: number, val: number) => sum + Number(val || 0),
-              0
-            );
+    for (const issue of issues) {
+      // only probable cases
+      if (issue.RiskCategory !== "Probable") continue;
 
-            if (!acc[grsCode]) {
-              acc[grsCode] = {
-                GRSCode: grsCode,
-                entity: item?.CaseNumber?.Entity || "",
-                taxMatter: item?.CaseNumber?.CorrespondenceType || "",
-                taxType: item?.CaseNumber?.TaxType || "",
-                GrossExposure: 0,
-                RiskCategories: item.RiskCategories || [],
-              };
-            }
+      const currAmt = issue.GrossTaxExposure || 0;
+      if (currAmt === 0) continue;
 
-            acc[grsCode].GrossExposure += exposure;
-            return acc;
-          }, {})
-        );
+      grandCurr += currAmt;
 
-        // ✅ Step 6: Subtotal
-        const total: any = summarized.reduce(
-          (sum: number, r: any) =>
-            sum +
-            (Number(String(r.GrossExposure || "0").replace(/,/g, "")) || 0),
-          0
-        );
+      results.push({
+        utpId,
+        GRSCode: issue.GRSCode || "",
+       taxMatter: current?.CaseNumber?.CorrespondenceType || "",
+                taxType: current?.CaseNumber?.TaxType || "", 
+        entity: current?.CaseNumber?.Entity || "",
+        GrossExposure: formatAmount(currAmt),
+       
+      });
+    }
+  }
 
-        // ✅ Step 7: Format for output
-        const formattedSummary = summarized.map((r: any) => ({
-          ...r,
-          GrossExposure: formatAmount(r.GrossExposure),
-        }));
-
-        // ✅ Step 8: Add subtotal row
-        formattedSummary.push({
-          GRSCode: "",
+  // ---------- STEP 6: Add grand total ----------
+  results.push({
+      GRSCode: "",
           taxMatter: "",
           entity: "Sub Total",
           taxType: "",
-          GrossExposure: formatAmount(total),
-        });
+    GrossExposure: formatAmount(grandCurr),
+   
+  });
 
-        return formattedSummary;
-      }
+  return results;
+}
+
+
 
       case "Contingencies":
         // helper: group by GLCode
@@ -1134,9 +1145,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           .items.expand("UTP")
           .select("*,UTP/Id,UTP/Title");
 
-        if (cat) {
+        if (filter.category) {
           // ✅ Apply filter only when risk category is selected
-          utpQuery = utpQuery.filter(`RiskCategory eq '${cat}'`);
+          utpQuery = utpQuery.filter(`RiskCategory eq '${filter.category}'`);
         }
         const utpIssues = await utpQuery();
         const latestIssues = await getLatestUTPIssues(rawData);
@@ -1198,7 +1209,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           const relatedIssues = utpIssues.filter(
             (issue) => issue.UTPId === utp.Id
           );
-          console.log(utp.Id, utpIssues, rawData, relatedIssues, 'dekhloo');
+          console.log(utp.Id, utpIssues, rawData,latestIssues, relatedIssues, 'dekhloo');
 
           if (relatedIssues.length === 0) return [mainRow];
 
@@ -1540,7 +1551,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     const dataf = await normalizeData(
       reportType,
       filtered,
-      updatedFilters.category
+      updatedFilters
     );
     setFilteredData(dataf);
     setLoading(false);
@@ -1629,7 +1640,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     const dataf = await normalizeData(
       reportType,
       filtered,
-      updatedFilters.category
+      updatedFilters
     );
     setFilteredData(dataf);
     setLoading(false);
@@ -1714,7 +1725,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     const dataf = await normalizeData(
       reportType,
       filtered,
-      updatedFilters.category
+      updatedFilters
     );
     setFilteredData(dataf);
     setLoading(false);
