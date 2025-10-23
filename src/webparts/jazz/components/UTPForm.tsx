@@ -185,8 +185,11 @@ const UTPForm: React.FC<UTPFormProps> = ({
       : latestCases;
 
     // Step 4: Build dropdown options
-    const caseDropdownOptions = filteredCases
-      .filter((item) => !usedCaseNumbers.includes(item.Id)) // 🚫 exclude already-used
+    const caseDropdownOptions = (
+      isEditMode
+        ? filteredCases // ✅ Show all approved cases in edit mode
+        : filteredCases.filter((item) => !usedCaseNumbers.includes(item.Id))
+    ) // 🚫 Hide used in add mode
       .map((item) => ({
         key: item.Id,
         text: item.Title,
@@ -194,7 +197,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
       }));
 
     setCaseOptions(caseDropdownOptions);
-  }, [selectedTaxType, allCases]);
+  }, [selectedTaxType, allCases, usedCaseNumbers, isEditMode]);
 
   const selectedCaseNumberId = watch("CaseNumber");
   let cachedNextId: number | null = null;
