@@ -745,7 +745,7 @@ console.log(taxType);
 
 
 
- case "Provisions3": {
+case "Provisions3": {
   const sp3 = spfi().using(SPFx(SpfxContext));
 
   // ---------- STEP 1: Determine effective period ----------
@@ -776,8 +776,9 @@ console.log(taxType);
   const utpIssues3 = await sp3.web.lists
     .getByTitle("UTP Tax Issue")
     .items.filter(
-  "RiskCategory eq 'Probable' or RiskCategory eq 'Possible' or RiskCategory eq 'Remote'"
-).select(
+      "RiskCategory eq 'Probable' or RiskCategory eq 'Possible' or RiskCategory eq 'Remote'"
+    )
+    .select(
       "Id",
       "RiskCategory",
       "GrossTaxExposure",
@@ -792,31 +793,49 @@ console.log(taxType);
     )
     .expand("UTP")();
 
-  // ---------- STEP 3: Get latest issue per UTPId ----------
-  const latestMap = utpIssues3.reduce((acc: any, issue: any) => {
+  // ---------- STEP 3: Get latest issue per UTPId for both current & previous month ----------
+  const latestByMonth3 = utpIssues3.reduce((acc: any, issue: any) => {
     const id = issue.UTP?.UTPId;
     if (!id) return acc;
 
-    const existing = acc[id];
-    if (!existing) {
-      acc[id] = issue;
-    } else {
-      const issueDate = new Date(issue.UTP?.UTPDate);
-      const existingDate = new Date(existing.UTP?.UTPDate);
+    const d = new Date(issue.UTP?.UTPDate);
+    const month = d.getMonth();
+    const year = d.getFullYear();
+
+    if (!acc[id]) acc[id] = {};
+
+    // Current month
+    if (month === effectiveCurrentMonth && year === effectiveCurrentYear) {
+      const curr = acc[id].current;
       if (
-        issueDate > existingDate ||
-        (issueDate.getTime() === existingDate.getTime() && issue.Id > existing.Id)
+        !curr ||
+        d > new Date(curr.UTP?.UTPDate) ||
+        (d.getTime() === new Date(curr.UTP?.UTPDate).getTime() && issue.Id > curr.Id)
       ) {
-        acc[id] = issue;
+        acc[id].current = issue;
       }
     }
+
+    // Previous month
+    else if (month === prevMonth && year === prevYear) {
+      const prev = acc[id].previous;
+      if (
+        !prev ||
+        d > new Date(prev.UTP?.UTPDate) ||
+        (d.getTime() === new Date(prev.UTP?.UTPDate).getTime() && issue.Id > prev.Id)
+      ) {
+        acc[id].previous = issue;
+      }
+    }
+
     return acc;
   }, {});
 
-  const latestIssues = Object.values(latestMap);
+  const latestIssues3 = Object.values(latestByMonth3)
+    .flatMap(({ current, previous }: any) => [current, previous].filter(Boolean));
 
   // ---------- STEP 4: Add month/year ----------
-  const merged3 = latestIssues.map((r: any) => {
+  const merged3 = latestIssues3.map((r: any) => {
     const d = r?.UTP?.UTPDate ? new Date(r.UTP.UTPDate) : null;
     return {
       ...r,
@@ -902,41 +921,36 @@ console.log(taxType);
         variance: formatAmount(totalExposureCurr - totalExposurePrev),
       },
       {
-        label: `Less – Payments under Protest (${category})`,
+        label: `Less – Payments under Protest `,
         current: formatAmount(paymentsUnderProtestCurr),
         prior: formatAmount(paymentsUnderProtestPrev),
         variance: formatAmount(paymentsUnderProtestCurr - paymentsUnderProtestPrev),
       },
       {
-        label: `Less - Admitted Tax (${category})`,
+        label: `Less - Admitted Tax `,
         current: formatAmount(admittedTaxCurr),
         prior: formatAmount(admittedTaxPrev),
         variance: formatAmount(admittedTaxCurr - admittedTaxPrev),
       },
       {
-        label: `Cashflow Exposure (${category})`,
+        label: `Cashflow Exposure `,
         current: formatAmount(cashflowCurr),
         prior: formatAmount(cashflowPrev),
         variance: formatAmount(cashflowCurr - cashflowPrev),
       },
       {
-        label: `P&L Exposure (${category})`,
+        label: `P&L Exposure `,
         current: formatAmount(plCurr),
         prior: formatAmount(plPrev),
         variance: formatAmount(plCurr - plPrev),
       },
       {
-        label: `EBITDA Exposure (PKR) (${category})`,
+        label: `EBITDA Exposure (PKR) `,
         current: formatAmount(ebitdaCurr),
         prior: formatAmount(ebitdaPrev),
         variance: formatAmount(ebitdaCurr - ebitdaPrev),
       },
-       {
-        label: ``,
-        current: "",
-        prior:"",
-        variance: "",
-      },
+      { label: "", current: "", prior: "", variance: "" },
     ];
   };
 
@@ -1820,7 +1834,7 @@ const handleFilterChangeDate2 = async (value1: string, value2: string, data2: an
 
   return (
     <>
-      {reportType !== "Provisions3" && (
+  
         <div className={styles.filtersRow}>
           {/* Date Range */}
           {/* <input
@@ -1917,7 +1931,7 @@ const handleFilterChangeDate2 = async (value1: string, value2: string, data2: an
               className={styles.datePickerInput}
               placeholderText="Select month and year"
             />
-          </div>
+          </div>    {reportType !== "Provisions3" && (<>
           <Dropdown
             label="Entity"
             placeholder="Select Entity"
@@ -2010,7 +2024,7 @@ const handleFilterChangeDate2 = async (value1: string, value2: string, data2: an
               }
               styles={{ root: { minWidth: 160 } }}
             />
-          )}
+          )}</>)}
           {/* <Dropdown
   label="Report Type"
   options={[
@@ -2122,7 +2136,7 @@ const handleFilterChangeDate2 = async (value1: string, value2: string, data2: an
             </button>
           </div>
         </div>
-      )}
+     
 
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
