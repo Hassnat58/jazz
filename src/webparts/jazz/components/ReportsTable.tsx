@@ -745,203 +745,212 @@ console.log(taxType);
 
 
 
-      case "Provisions3": {
-        const sp3 = spfi().using(SPFx(SpfxContext));
+ case "Provisions3": {
+  const sp3 = spfi().using(SPFx(SpfxContext));
 
-        // ✅ Step 1: Fetch only Probable RiskCategory items from UTP Tax Issue
-        const utpIssues3 = await sp3.web.lists
-          .getByTitle("UTP Tax Issue")
-          .items.filter("RiskCategory eq 'Probable'")
-          .select(
-            "Id",
-            "RiskCategory",
-            "GrossTaxExposure",
-            "PaymentType",
-            "Amount",
-            "PLExposure",
-            "EBITDA",
-            "UTP/Id",
-            "UTP/UTPId",
+  // ---------- STEP 1: Determine effective period ----------
+  const now = new Date();
+  let effectiveCurrentMonth: number;
+  let effectiveCurrentYear: number;
+  let prevMonth: number;
+  let prevYear: number;
 
-            "UTP/UTPDate",
-            "UTP/TaxType"
-          )
-          .expand("UTP")();
+  if (filter.dateStart) {
+    const selectedMonth = new Date(filter.dateStart);
+    effectiveCurrentMonth = selectedMonth.getMonth();
+    effectiveCurrentYear = selectedMonth.getFullYear();
+  } else if (filter.dateRangeStart && filter.dateRangeEnd) {
+    const end = new Date(filter.dateRangeEnd);
+    effectiveCurrentMonth = end.getMonth();
+    effectiveCurrentYear = end.getFullYear();
+  } else {
+    effectiveCurrentMonth = now.getMonth();
+    effectiveCurrentYear = now.getFullYear();
+  }
 
-        // ✅ Step 2: Prepare merged data with month/year
-        const merged3 = utpIssues3.map((r: any) => {
-          const d = r?.UTP?.UTPDate ? new Date(r.UTP.UTPDate) : null;
-          return {
-            ...r,
-            month: d ? d.getMonth() : null,
-            year: d ? d.getFullYear() : null,
-          };
-        });
-        // console.log(merged3,'helloo');
+  const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+  prevMonth = prev.getMonth();
+  prevYear = prev.getFullYear();
 
-        // ✅ Step 3: Define current/previous months
-        const now3 = new Date();
-        const currentMonth3 = now3.getMonth();
-        const currentYear3 = now3.getFullYear();
-        const prevDate3 = new Date(currentYear3, currentMonth3 - 1, 1);
-        const prevMonth3 = prevDate3.getMonth();
-        const prevYear3 = prevDate3.getFullYear();
+  // ---------- STEP 2: Fetch all RiskCategories together ----------
+  const utpIssues3 = await sp3.web.lists
+    .getByTitle("UTP Tax Issue")
+    .items.filter(
+  "RiskCategory eq 'Probable' or RiskCategory eq 'Possible' or RiskCategory eq 'Remote'"
+).select(
+      "Id",
+      "RiskCategory",
+      "GrossTaxExposure",
+      "PaymentType",
+      "Amount",
+      "PLExposure",
+      "EBITDA",
+      "UTP/Id",
+      "UTP/UTPId",
+      "UTP/UTPDate",
+      "UTP/TaxType"
+    )
+    .expand("UTP")();
 
-        // ✅ Helper to sum amounts for a given month/year & payment type
-        const sumBy = (
-          arr: any[],
-          month: number,
-          year: number,
-          condition?: (r: any) => boolean
-        ) =>
-          arr
-            .filter(
-              (r) =>
-                r.month === month &&
-                r.year === year &&
-                (!condition || condition(r))
-            )
-            .reduce((s, r) => s + (Number(r.Amount) || 0), 0);
+  // ---------- STEP 3: Get latest issue per UTPId ----------
+  const latestMap = utpIssues3.reduce((acc: any, issue: any) => {
+    const id = issue.UTP?.UTPId;
+    if (!id) return acc;
 
-        // ✅ Step 4: Compute summaries
-        const totalExposureCurr = merged3
-          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
-
-        const totalExposurePrev = merged3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
-
-        // 💰 Payments based on PaymentType
-        const paymentsUnderProtestCurr = sumBy(
-          merged3,
-          currentMonth3,
-          currentYear3,
-          (r) => r.PaymentType === "Payment under Protest"
-        );
-        const paymentsUnderProtestPrev = sumBy(
-          merged3,
-          prevMonth3,
-          prevYear3,
-          (r) => r.PaymentType === "Payment under Protest"
-        );
-
-        const admittedTaxCurr = sumBy(
-          merged3,
-          currentMonth3,
-          currentYear3,
-          (r) => r.PaymentType === "Admitted Tax"
-        );
-        const admittedTaxPrev = sumBy(
-          merged3,
-          prevMonth3,
-          prevYear3,
-          (r) => r.PaymentType === "Admitted Tax"
-        );
-
-        // 💸 Cashflow Exposure = Total Exposure - Payments
-        const cashflowCurr =
-          totalExposureCurr - paymentsUnderProtestCurr - admittedTaxCurr;
-        const cashflowPrev =
-          totalExposurePrev - paymentsUnderProtestPrev - admittedTaxPrev;
-
-        // 📊 P&L and EBITDA Exposure
-        const plCurr = merged3
-          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce(
-            (s, r) =>
-              s +
-              (Number(
-                r.RiskCategory === "Probable" ? 0 : r.GrossTaxExposure || 0
-              ) || 0),
-            0
-          );
-
-        const plPrev = merged3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce(
-            (s, r) =>
-              s +
-              (Number(
-                r.RiskCategory === "Probable" ? 0 : r.GrossTaxExposure || 0
-              ) || 0),
-            0
-          );
-
-        const ebitdaCurr = merged3
-          .filter((r) => r.month === currentMonth3 && r.year === currentYear3)
-          .reduce(
-            (s, r) =>
-              s +
-              (Number(
-                r?.TaxType === "Income Tax"
-                  ? 0
-                  : r.RiskCategory === "Probable"
-                    ? 0
-                    : r.GrossTaxExposure || 0
-              ) || 0),
-            0
-          );
-
-        const ebitdaPrev = merged3
-          .filter((r) => r.month === prevMonth3 && r.year === prevYear3)
-          .reduce(
-            (s, r) =>
-              s +
-              (Number(
-                r?.TaxType === "Income Tax"
-                  ? 0
-                  : r.RiskCategory === "Probable"
-                    ? 0
-                    : r.GrossTaxExposure || 0
-              ) || 0),
-            0
-          );
-
-        // ✅ Step 5: Build Results Table
-        const results3 = [
-          {
-            label: "Total Exposure (Probable only)",
-            current: formatAmount(totalExposureCurr),
-            prior: formatAmount(totalExposurePrev),
-            variance: formatAmount(totalExposureCurr - totalExposurePrev),
-          },
-          {
-            label: "Less – Payments under Protest",
-            current: formatAmount(paymentsUnderProtestCurr),
-            prior: formatAmount(paymentsUnderProtestPrev),
-            variance: formatAmount(
-              paymentsUnderProtestCurr - paymentsUnderProtestPrev
-            ),
-          },
-          {
-            label: "Less - Admitted Tax",
-            current: formatAmount(admittedTaxCurr),
-            prior: formatAmount(admittedTaxPrev),
-            variance: formatAmount(admittedTaxCurr - admittedTaxPrev),
-          },
-          {
-            label: "Cashflow Exposure",
-            current: formatAmount(cashflowCurr),
-            prior: formatAmount(cashflowPrev),
-            variance: formatAmount(cashflowCurr - cashflowPrev),
-          },
-          {
-            label: "P&L Exposure",
-            current: formatAmount(plCurr),
-            prior: formatAmount(plPrev),
-            variance: formatAmount(plCurr - plPrev),
-          },
-          {
-            label: "EBITDA Exposure (PKR)",
-            current: formatAmount(ebitdaCurr),
-            prior: formatAmount(ebitdaPrev),
-            variance: formatAmount(ebitdaCurr - ebitdaPrev),
-          },
-        ];
-
-        return results3;
+    const existing = acc[id];
+    if (!existing) {
+      acc[id] = issue;
+    } else {
+      const issueDate = new Date(issue.UTP?.UTPDate);
+      const existingDate = new Date(existing.UTP?.UTPDate);
+      if (
+        issueDate > existingDate ||
+        (issueDate.getTime() === existingDate.getTime() && issue.Id > existing.Id)
+      ) {
+        acc[id] = issue;
       }
+    }
+    return acc;
+  }, {});
+
+  const latestIssues = Object.values(latestMap);
+
+  // ---------- STEP 4: Add month/year ----------
+  const merged3 = latestIssues.map((r: any) => {
+    const d = r?.UTP?.UTPDate ? new Date(r.UTP.UTPDate) : null;
+    return {
+      ...r,
+      month: d ? d.getMonth() : null,
+      year: d ? d.getFullYear() : null,
+    };
+  });
+
+  // ---------- STEP 5: Helper ----------
+  const sumBy = (arr: any[], month: number, year: number, condition?: (r: any) => boolean) =>
+    arr
+      .filter((r) => r.month === month && r.year === year && (!condition || condition(r)))
+      .reduce((s, r) => s + (Number(r.Amount) || 0), 0);
+
+  // ---------- STEP 6: Function to compute for each category ----------
+  const calculateCategory = (category: string) => {
+    const filtered = merged3.filter((r) => r.RiskCategory === category);
+
+    const totalExposureCurr = filtered
+      .filter((r) => r.month === effectiveCurrentMonth && r.year === effectiveCurrentYear)
+      .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
+
+    const totalExposurePrev = filtered
+      .filter((r) => r.month === prevMonth && r.year === prevYear)
+      .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
+
+    const paymentsUnderProtestCurr = sumBy(
+      filtered,
+      effectiveCurrentMonth,
+      effectiveCurrentYear,
+      (r) => r.PaymentType === "Payment under Protest"
+    );
+    const paymentsUnderProtestPrev = sumBy(
+      filtered,
+      prevMonth,
+      prevYear,
+      (r) => r.PaymentType === "Payment under Protest"
+    );
+
+    const admittedTaxCurr = sumBy(
+      filtered,
+      effectiveCurrentMonth,
+      effectiveCurrentYear,
+      (r) => r.PaymentType === "Admitted Tax"
+    );
+    const admittedTaxPrev = sumBy(
+      filtered,
+      prevMonth,
+      prevYear,
+      (r) => r.PaymentType === "Admitted Tax"
+    );
+
+    const cashflowCurr = totalExposureCurr - paymentsUnderProtestCurr - admittedTaxCurr;
+    const cashflowPrev = totalExposurePrev - paymentsUnderProtestPrev - admittedTaxPrev;
+
+    const plCurr = filtered
+      .filter((r) => r.month === effectiveCurrentMonth && r.year === effectiveCurrentYear)
+      .reduce((s, r) => s + (r?.RiskCategory === "Probable" ? 0 : Number(r.GrossTaxExposure) || 0), 0);
+
+    const plPrev = filtered
+      .filter((r) => r.month === prevMonth && r.year === prevYear)
+      .reduce((s, r) => s + (r?.RiskCategory === "Probable" ? 0 : Number(r.GrossTaxExposure) || 0), 0);
+
+    const ebitdaCurr = filtered
+      .filter((r) => r.month === effectiveCurrentMonth && r.year === effectiveCurrentYear)
+      .reduce(
+        (s, r) => s + (r?.UTP?.TaxType === "Income Tax" ? 0 : Number(r.GrossTaxExposure) || 0),
+        0
+      );
+
+    const ebitdaPrev = filtered
+      .filter((r) => r.month === prevMonth && r.year === prevYear)
+      .reduce(
+        (s, r) => s + (r?.UTP?.TaxType === "Income Tax" ? 0 : Number(r.GrossTaxExposure) || 0),
+        0
+      );
+
+    return [
+      {
+        label: `Total Exposure (${category}) only`,
+        current: formatAmount(totalExposureCurr),
+        prior: formatAmount(totalExposurePrev),
+        variance: formatAmount(totalExposureCurr - totalExposurePrev),
+      },
+      {
+        label: `Less – Payments under Protest (${category})`,
+        current: formatAmount(paymentsUnderProtestCurr),
+        prior: formatAmount(paymentsUnderProtestPrev),
+        variance: formatAmount(paymentsUnderProtestCurr - paymentsUnderProtestPrev),
+      },
+      {
+        label: `Less - Admitted Tax (${category})`,
+        current: formatAmount(admittedTaxCurr),
+        prior: formatAmount(admittedTaxPrev),
+        variance: formatAmount(admittedTaxCurr - admittedTaxPrev),
+      },
+      {
+        label: `Cashflow Exposure (${category})`,
+        current: formatAmount(cashflowCurr),
+        prior: formatAmount(cashflowPrev),
+        variance: formatAmount(cashflowCurr - cashflowPrev),
+      },
+      {
+        label: `P&L Exposure (${category})`,
+        current: formatAmount(plCurr),
+        prior: formatAmount(plPrev),
+        variance: formatAmount(plCurr - plPrev),
+      },
+      {
+        label: `EBITDA Exposure (PKR) (${category})`,
+        current: formatAmount(ebitdaCurr),
+        prior: formatAmount(ebitdaPrev),
+        variance: formatAmount(ebitdaCurr - ebitdaPrev),
+      },
+       {
+        label: ``,
+        current: "",
+        prior:"",
+        variance: "",
+      },
+    ];
+  };
+
+  // ---------- STEP 7: Flatten results ----------
+  const results3 = [
+    ...calculateCategory("Probable"),
+    ...calculateCategory("Possible"),
+    ...calculateCategory("Remote"),
+  ];
+
+  return results3;
+}
+
+
 
 case "Provisions2": {
   const sp = spfi().using(SPFx(SpfxContext));
@@ -1050,79 +1059,139 @@ case "Provisions2": {
 }
 
 
+case "Contingencies": {
+  const sp = spfi().using(SPFx(SpfxContext));
 
-      case "Contingencies":
-        // helper: group by GLCode
-        const groupBy2 = (arr: CaseItem[], keyFn: (r: CaseItem) => string) => {
-          return arr.reduce((acc, r) => {
-            const key = keyFn(r);
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(r);
-            return acc;
-          }, {} as Record<string, CaseItem[]>);
-        };
+  // ---------- STEP 1: Determine effective period ----------
+  const now = new Date();
+  let effectiveCurrentMonth: number;
+  let effectiveCurrentYear: number;
+  let prevMonth: number;
+  let prevYear: number;
 
-        const now1 = new Date();
-        const currentMonth1 = now1.getMonth(); // 0 = Jan
-        const year1 = now1.getFullYear();
+  if (filter.dateStart) {
+    const selectedMonth = new Date(filter.dateStart);
+    effectiveCurrentMonth = selectedMonth.getMonth();
+    effectiveCurrentYear = selectedMonth.getFullYear();
+  } else if (filter.dateRangeStart && filter.dateRangeEnd) {
+    const end = new Date(filter.dateRangeEnd);
+    effectiveCurrentMonth = end.getMonth();
+    effectiveCurrentYear = end.getFullYear();
+  } else {
+    effectiveCurrentMonth = now.getMonth();
+    effectiveCurrentYear = now.getFullYear();
+  }
 
-        const prevDate1 = new Date(year1, currentMonth1 - 1, 1);
-        const prevMonth1 = prevDate1.getMonth();
+  const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+  prevMonth = prev.getMonth();
+  prevYear = prev.getFullYear();
 
-        const enriched1 = rawData.map((r) => {
-          const d = r.UTPDate ? new Date(r.UTPDate) : null;
-          return {
-            ...r,
-            month: d ? d.getMonth() : null,
-            year: d ? d.getFullYear() : null,
-          };
-        });
+  // ---------- STEP 2: Pick latest UTP per month ----------
+  const latestByMonth = rawData.reduce((acc: any, utp: any) => {
+    const d = new Date(utp.UTPDate);
+    const month = d.getMonth();
+    const year = d.getFullYear();
+    const id = utp.UTPId;
+    if (!id) return acc;
+    if (!acc[id]) acc[id] = {};
 
-        const grouped = groupBy2(enriched1, (r) => r.ProvisionGLCode || "");
+    if (month === effectiveCurrentMonth && year === effectiveCurrentYear) {
+      const curr = acc[id].current;
+      if (
+        !curr ||
+        d > new Date(curr.UTPDate) ||
+        (d.getTime() === new Date(curr.UTPDate).getTime() && utp.Id > curr.Id)
+      ) {
+        acc[id].current = utp;
+      }
+    } else if (month === prevMonth && year === prevYear) {
+      const prevU = acc[id].previous;
+      if (
+        !prevU ||
+        d > new Date(prevU.UTPDate) ||
+        (d.getTime() === new Date(prevU.UTPDate).getTime() && utp.Id > prevU.Id)
+      ) {
+        acc[id].previous = utp;
+      }
+    }
 
-        const exportData3: any[] = [];
-        let subtotalCurr = 0;
-        let subtotalPrev = 0;
+    return acc;
+  }, {});
 
-        Object.entries(grouped).forEach(([ProvisionGLCode, records]) => {
-          (records as any[]).forEach((r: any) => {
-            const curr =
-              r.month === currentMonth1 && r.year === year1
-                ? r.GrossExposure || 0
-                : 0;
-            const prev =
-              r.month === prevMonth1 && r.year === year1
-                ? r.GrossExposure || 0
-                : 0;
+  // ---------- STEP 3: Fetch UTP Tax Issues + GL Code ----------
+  const utpIssues = await sp.web.lists
+    .getByTitle("UTP Tax Issue")
+    .items.select(
+      "Id",
+      "RiskCategory",
+      "EBITDA",
+      "GrossTaxExposure",
+      "ContigencyNote",
+      "ProvisionGLCode",
+      "UTP/Id"
+    )
+    .expand("UTP")();
 
-            subtotalCurr += curr;
-            subtotalPrev += prev;
+  // ---------- STEP 4: Group Issues by UTP SharePoint Id ----------
+  const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
+    const utpId = issue.UTP?.Id;
+    if (!utpId) return acc;
+    if (!acc[utpId]) acc[utpId] = [];
+    acc[utpId].push(issue);
+    return acc;
+  }, {});
 
-            exportData3.push({
-              glCode: ProvisionGLCode || "",
-              taxType: r?.CaseNumber?.CorrespondenceType || "", // ✅ now each row’s own correspondence type
-              entity: r?.CaseNumber?.Entity || "",
-              currentMonthAmount: formatAmount(curr) || 0,
-              previousMonthAmount: formatAmount(prev) || 0,
-              variance: formatAmount((curr || 0) - (prev || 0)),
-            });
-          });
-        });
+  // ---------- STEP 5: Build Flat Results ----------
+  const results: any[] = [];
+  let grandCurr = 0;
+  let grandPrev = 0;
 
-        // Subtotal row
-        exportData3.push({
-          glCode: "",
-          taxType: "",
-          entity: "Sub Total",
-          currentMonthAmount: formatAmount(subtotalCurr),
-          previousMonthAmount: formatAmount(subtotalPrev),
-          variance: formatAmount(
-            Number((subtotalCurr + "").replace(/,/g, "")) -
-            Number((subtotalPrev + "").replace(/,/g, ""))
-          ),
-        });
+  for (const [utpId, { current, previous }] of Object.entries(latestByMonth) as [string, { current?: any; previous?: any }][]) {
+    const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
+    const previousIssues = previous ? issuesByUtp[previous?.Id] || [] : [];
+    const maxLength = Math.max(currentIssues.length, previousIssues.length);
 
-        return exportData3;
+    for (let i = 0; i < maxLength; i++) {
+      const currIssue = currentIssues[i];
+      const prevIssue = previousIssues[i];
+
+      const currAmt = currIssue?.GrossTaxExposure || 0;
+      const prevAmt = prevIssue?.GrossTaxExposure || 0;
+
+      if (currAmt === 0 && prevAmt === 0) continue;
+
+      grandCurr += currAmt;
+      grandPrev += prevAmt;
+
+      results.push({
+        utpId,
+        glCode: currIssue?.ProvisionGLCode || prevIssue?.ProvisionGLCode || "",
+        taxType:
+          current?.CaseNumber?.CorrespondenceType ||
+          previous?.CaseNumber?.CorrespondenceType ||
+          "",
+        entity:
+          current?.CaseNumber?.Entity || previous?.CaseNumber?.Entity || "",
+        currentMonthAmount: formatAmount(currAmt),
+        previousMonthAmount: formatAmount(prevAmt),
+        variance: formatAmount(currAmt - prevAmt),
+      });
+    }
+  }
+
+  // ---------- STEP 6: Add Grand Total ----------
+  results.push({
+    utpId: "",
+    glCode: "",
+    taxType: "",
+    entity: "Grand Total",
+    currentMonthAmount: formatAmount(grandCurr),
+    previousMonthAmount: formatAmount(grandPrev),
+    variance: formatAmount(grandCurr - grandPrev),
+  });
+
+  return results;
+}
 
       case "ERM":
         return rawData.map((item) => ({
@@ -1284,7 +1353,7 @@ case "Provisions2": {
     }
   };
 
-  const getListName = (type: ReportType) => {
+  const getListName = async(type: ReportType) => {
     if (type === "Litigation" || type === "ActiveCases") {
       return "Cases";
     }
@@ -1304,10 +1373,10 @@ case "Provisions2": {
 
   const fetchData = async () => {
     setLoading(true);
-    let items_updated;
+    let items_updated=[];
     let items: any[] = [];
     try {
-      const listName = getListName(reportType);
+      const listName = await getListName(reportType);
       if (listName === "UTPData") {
         // 1️⃣ Fetch UTPData items and expand CaseNumber lookup
         items = await sp.web.lists
@@ -1414,7 +1483,11 @@ case "Provisions2": {
       setLoading(false); // stop loading
     }
   };
-  useEffect(() => {
+useEffect(() => {
+  let isActive = true; // ✅ track if this effect is still active
+
+  const runFetch = async () => {
+    // Reset before fetch
     const reset = {
       dateStart: "",
       dateEnd: "",
@@ -1427,13 +1500,32 @@ case "Provisions2": {
       taxAuthority: "",
       entity: "",
     };
+
     setSelectedDate(null);
     setDateRange([null, null]);
     setFilters(reset);
-    setData([])
-    setFilteredData([])
-    fetchData();
-  }, [reportType]);
+    setData([]);
+    setFilteredData([]);
+
+    setLoading(true);
+
+    try {
+      await fetchData();
+    } catch (error) {
+      if (isActive) console.error(error);
+    } finally {
+      if (isActive) setLoading(false);
+    }
+  };
+
+  runFetch();
+
+  // ✅ Cleanup to cancel outdated fetch results
+  return () => {
+    isActive = false;
+  };
+}, [reportType]);
+
 
   useEffect(() => {
     const fetchLOVs = async () => {
@@ -1455,68 +1547,152 @@ case "Provisions2": {
 
     fetchLOVs();
   }, []);
-  const handleFilterChange = async (key: string, value: string) => {
-    const updatedFilters = { ...filters, [key]: value };
-    setFilters(updatedFilters);
-    const normalizeDate = (date: Date) => {
-      const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    };
+const handleFilterChange = async (key: string, value: string) => {
+  const updatedFilters = { ...filters, [key]: value };
+  setFilters(updatedFilters);
 
-    const filtered = data.filter((item) => {
-      let dateMatch = true;
+  const normalizeDate = (date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
 
-      if (updatedFilters.dateRangeStart || updatedFilters.dateRangeEnd) {
-        const start = updatedFilters.dateRangeStart
-          ? normalizeDate(new Date(updatedFilters.dateRangeStart))
-          : null;
-        const end = updatedFilters.dateRangeEnd
-          ? normalizeDate(new Date(updatedFilters.dateRangeEnd))
-          : null;
+  // STEP 1: Date filter (if selected)
+  let workingData = [...data];
+  if (updatedFilters.dateRangeStart || updatedFilters.dateRangeEnd) {
+    const start = updatedFilters.dateRangeStart
+      ? normalizeDate(new Date(updatedFilters.dateRangeStart))
+      : null;
+    const end = updatedFilters.dateRangeEnd
+      ? normalizeDate(new Date(updatedFilters.dateRangeEnd))
+      : null;
 
-        let itemDate: Date | null = null;
+    workingData = data.filter((item) => {
+      let itemDate: Date | null = null;
 
-        if (reportType === "Litigation") {
-          itemDate = item.DateReceived
-            ? normalizeDate(new Date(item.DateReceived))
-            : null;
-        } else if (reportType === "ActiveCases") {
-          itemDate = item.DateofCompliance
-            ? normalizeDate(new Date(item.DateofCompliance))
-            : null;
-        } else {
-          itemDate = item.UTPDate
-            ? normalizeDate(new Date(item.UTPDate))
-            : null;
-        }
-
-        if (itemDate) {
-          if (start && end) {
-            dateMatch = itemDate >= start && itemDate <= end;
-          } else if (start) {
-            dateMatch = itemDate >= start;
-          } else if (end) {
-            dateMatch = itemDate <= end;
-          }
-        } else {
-          dateMatch = false;
-        }
+      if (reportType === "Litigation") {
+        itemDate = item.DateReceived ? normalizeDate(new Date(item.DateReceived)) : null;
+      } else if (reportType === "ActiveCases") {
+        itemDate = item.DateofCompliance ? normalizeDate(new Date(item.DateofCompliance)) : null;
+      } else {
+        itemDate = item.UTPDate ? normalizeDate(new Date(item.UTPDate)) : null;
       }
 
-      // ---- OTHER FILTERS ----
-      if (
-        [
-          "UTP",
-          "Provisions1",
-          "Provisions2",
-          "Provisions3",
-          "Contingencies",
-          "ERM",
-        ].includes(reportType)
-      ) {
+      if (!itemDate) return false;
+      if (start && itemDate < start) return false;
+      if (end && itemDate > end) return false;
+      return true;
+    });
+  }
+
+  // STEP 2: Apply latest logic (based on reportType)
+  let latestData: any[] = [];
+  if (
+    ["UTP", "Provisions1", "Provisions2", "Provisions3", "Contingencies", "ERM"].includes(reportType)
+  ) {
+    latestData = await getLatestUTPIssues(workingData);
+  } else if (["Litigation", "ActiveCases"].includes(reportType)) {
+    latestData = await getLatestCaseIssues(workingData);
+  } else {
+    latestData = workingData;
+  }
+
+  // STEP 3: Apply other filters
+  const filtered = latestData.filter((item) => {
+    if (
+      [
+        "UTP",
+        "Provisions1",
+        "Provisions2",
+        "Provisions3",
+        "Contingencies",
+        "ERM",
+      ].includes(reportType)
+    ) {
+      return (
+        (!updatedFilters.category ||
+          item.RiskCategoryList?.includes(updatedFilters.category)) &&
+        (!updatedFilters.financialYear ||
+          item.CaseNumber?.FinancialYear === updatedFilters.financialYear) &&
+        (!updatedFilters.taxYear ||
+          item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
+        (!updatedFilters.taxType ||
+          item.CaseNumber?.TaxType === updatedFilters.taxType) &&
+        (!updatedFilters.entity ||
+          item.CaseNumber?.Entity === updatedFilters.entity)
+      );
+    }
+
+    if (["Litigation", "ActiveCases"].includes(reportType)) {
+      return (
+        (!updatedFilters.taxYear ||
+          item.TaxYear === updatedFilters.taxYear) &&
+        (!updatedFilters.taxAuthority ||
+          item.TaxAuthority === updatedFilters.taxAuthority) &&
+        (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
+        (!updatedFilters.financialYear ||
+          item.FinancialYear === updatedFilters.financialYear) &&
+        (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
+      );
+    }
+
+    return true;
+  });
+
+  setLoading(true);
+  const dataf = await normalizeData(reportType, filtered, updatedFilters);
+  setFilteredData(dataf);
+  setLoading(false);
+};
+
+const handleFilterChangeDate = async (value1: string, value2: string) => {
+  const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
+  setFilters(updatedFilters);
+
+  // STEP 1: Filter by date range (month selector)
+  let workingData = data;
+  if (value1 || value2) {
+    const startDate = value1 ? new Date(value1) : null;
+    const endDate = value2 ? new Date(value2) : null;
+
+    workingData = data.filter((item) => {
+      const itemDateRaw =
+        reportType === "Litigation"
+          ? item.DateReceived
+          : reportType === "ActiveCases"
+          ? item.DateofCompliance
+          : item.UTPDate;
+
+      const itemDate = itemDateRaw ? new Date(itemDateRaw) : null;
+      if (!itemDate) return false;
+      if (startDate && itemDate < startDate) return false;
+      if (endDate && itemDate > endDate) return false;
+      return true;
+    });
+  }
+
+  // STEP 2: Apply latest version logic
+  let latestData: any[] = [];
+  if (
+    ["UTP", "Provisions1", "Provisions2", "Provisions3", "Contingencies", "ERM"].includes(reportType)
+  ) {
+    latestData = await getLatestUTPIssues(workingData);
+  } else if (["Litigation", "ActiveCases"].includes(reportType)) {
+    latestData = await getLatestCaseIssues(workingData);
+  } else {
+    latestData = workingData;
+  }
+
+  // STEP 3: Apply other filters (category, tax year, etc.)
+  const filtered = latestData.filter((item) => {
+    switch (reportType) {
+      case "UTP":
+      case "Provisions1":
+      case "Provisions2":
+      case "Provisions3":
+      case "Contingencies":
+      case "ERM":
         return (
-          dateMatch &&
           (!updatedFilters.category ||
             item.RiskCategoryList?.includes(updatedFilters.category)) &&
           (!updatedFilters.financialYear ||
@@ -1528,11 +1704,10 @@ case "Provisions2": {
           (!updatedFilters.entity ||
             item.CaseNumber?.Entity === updatedFilters.entity)
         );
-      }
 
-      if (["Litigation", "ActiveCases"].includes(reportType)) {
+      case "Litigation":
+      case "ActiveCases":
         return (
-          dateMatch &&
           (!updatedFilters.taxYear ||
             item.TaxYear === updatedFilters.taxYear) &&
           (!updatedFilters.taxAuthority ||
@@ -1542,194 +1717,95 @@ case "Provisions2": {
             item.FinancialYear === updatedFilters.financialYear) &&
           (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
         );
-      }
 
-      return dateMatch;
+      default:
+        return true;
+    }
+  });
+
+  setLoading(true);
+  const dataf = await normalizeData(reportType, filtered, updatedFilters);
+  setFilteredData(dataf);
+  setLoading(false);
+};
+
+const handleFilterChangeDate2 = async (value1: string, value2: string, data2: any) => {
+  const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
+  setFilters(updatedFilters);
+
+  // STEP 1: Filter by date range
+  let workingData = data2;
+  if (value1 || value2) {
+    const startDate = value1 ? new Date(value1) : null;
+    const endDate = value2 ? new Date(value2) : null;
+
+    workingData = data2.filter((item: any) => {
+      const itemDate = item.DateofCompliance ? new Date(item.DateofCompliance) : null;
+      if (!itemDate) return false;
+      if (startDate && itemDate < startDate) return false;
+      if (endDate && itemDate > endDate) return false;
+      return true;
     });
+  }
 
-    setLoading(true);
-    const dataf = await normalizeData(
-      reportType,
-      filtered,
-      updatedFilters
-    );
-    setFilteredData(dataf);
-    setLoading(false);
-  };
+  // STEP 2: Apply latest version logic
+  let latestData: any[] = [];
+  if (
+    ["UTP", "Provisions1", "Provisions2", "Provisions3", "Contingencies", "ERM"].includes(reportType)
+  ) {
+    latestData = await getLatestUTPIssues(workingData);
+  } else if (["Litigation", "ActiveCases"].includes(reportType)) {
+    latestData =await getLatestCaseIssues(workingData);
+  } else {
+    latestData = workingData;
+  }
 
-  const handleFilterChangeDate = async (value1: string, value2: string) => {
-    const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
-    setFilters(updatedFilters);
+  // STEP 3: Apply other filters
+  const filtered = latestData.filter((item) => {
+    switch (reportType) {
+      case "UTP":
+      case "Provisions1":
+      case "Provisions2":
+      case "Provisions3":
+      case "Contingencies":
+      case "ERM":
+        return (
+          (!updatedFilters.category ||
+            item.RiskCategoryList?.includes(updatedFilters.category)) &&
+          (!updatedFilters.financialYear ||
+            item.CaseNumber?.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.taxYear ||
+            item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxType ||
+            item.CaseNumber?.TaxType === updatedFilters.taxType) &&
+          (!updatedFilters.entity ||
+            item.CaseNumber?.Entity === updatedFilters.entity)
+        );
 
-    const filtered = data.filter((item) => {
-      let dateMatch = true;
+      case "Litigation":
+      case "ActiveCases":
+        return (
+          (!updatedFilters.taxYear ||
+            item.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxAuthority ||
+            item.TaxAuthority === updatedFilters.taxAuthority) &&
+          (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
+          (!updatedFilters.financialYear ||
+            item.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
+        );
 
-      if (value1 || value2) {
-        // convert to YYYY-MM-DD for comparison
-        // const startStr = updatedFilters.dateStart || null;
-        const endStr = updatedFilters.dateEnd || null;
+      default:
+        return true;
+    }
+  });
 
-        const itemDateRaw =
-          reportType === "Litigation"
-            ? item.DateReceived
-            : reportType === "ActiveCases"
-              ? item.DateofCompliance
-              : item.UTPDate;
+  setLoading(true);
+  const dataf = await normalizeData(reportType, filtered, updatedFilters);
+  setFilteredData(dataf);
+  setLoading(false);
+};
 
-        const itemDateStr = itemDateRaw
-          ? new Date(itemDateRaw).toISOString().split("T")[0]
-          : null;
-
-        if (itemDateStr) {
-          dateMatch = true;
-
-          // if (startStr && itemDateStr < startStr) {
-          //   dateMatch = false;
-          // }
-          if (endStr && itemDateStr > endStr) {
-            dateMatch = false;
-          }
-        } else {
-          dateMatch = false;
-        }
-      }
-
-      // ---- OTHER FILTERS ----
-      switch (reportType) {
-        case "UTP":
-        case "Provisions1":
-        case "Provisions2":
-        case "Provisions3":
-        case "Contingencies":
-        case "ERM":
-          return (
-            dateMatch &&
-            (!updatedFilters.category ||
-              item.RiskCategoryList?.includes(updatedFilters.category)) &&
-            (!updatedFilters.financialYear ||
-              item.CaseNumber?.FinancialYear ===
-              updatedFilters.financialYear) &&
-            (!updatedFilters.taxYear ||
-              item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxType ||
-              item.CaseNumber?.TaxType === updatedFilters.taxType) &&
-            (!updatedFilters.entity ||
-              item.CaseNumber?.Entity === updatedFilters.entity)
-          );
-
-        case "Litigation":
-        case "ActiveCases":
-          return (
-            dateMatch &&
-            (!updatedFilters.taxYear ||
-              item.TaxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxAuthority ||
-              item.TaxAuthority === updatedFilters.taxAuthority) &&
-            (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
-            (!updatedFilters.financialYear ||
-              item.FinancialYear === updatedFilters.financialYear) &&
-            (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
-          );
-
-        default:
-          return dateMatch;
-      }
-    });
-
-    setLoading(true);
-    const dataf = await normalizeData(
-      reportType,
-      filtered,
-      updatedFilters
-    );
-    setFilteredData(dataf);
-    setLoading(false);
-  };
-  const handleFilterChangeDate2 = async (
-    value1: string,
-    value2: string,
-    data2: any
-  ) => {
-    const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
-    // console.log(value1, value2, data2, "data2");
-
-    setFilters(updatedFilters);
-
-    const filtered = data2.filter((item: any) => {
-      let dateMatch = true;
-
-      if (value1 || value2) {
-        const startDate = value1 ? new Date(value1) : null;
-        const endDate = value2 ? new Date(value2) : null;
-
-        const itemDateRaw = item.DateofCompliance;
-        const itemDate = itemDateRaw ? new Date(itemDateRaw) : null;
-
-        if (itemDate) {
-          dateMatch = true;
-
-          if (startDate && itemDate < startDate) {
-            dateMatch = false;
-          }
-          if (endDate && itemDate > endDate) {
-            dateMatch = false;
-          }
-        } else {
-          dateMatch = false;
-        }
-      }
-
-      // ---- OTHER FILTERS ----
-      switch (reportType) {
-        case "UTP":
-        case "Provisions1":
-        case "Provisions2":
-        case "Provisions3":
-        case "Contingencies":
-        case "ERM":
-          return (
-            dateMatch &&
-            (!updatedFilters.category ||
-              item.RiskCategoryList?.includes(updatedFilters.category)) &&
-            (!updatedFilters.financialYear ||
-              item.CaseNumber?.FinancialYear ===
-              updatedFilters.financialYear) &&
-            (!updatedFilters.taxYear ||
-              item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxType ||
-              item.CaseNumber?.TaxType === updatedFilters.taxType) &&
-            (!updatedFilters.entity ||
-              item.CaseNumber?.Entity === updatedFilters.entity)
-          );
-
-        case "Litigation":
-        case "ActiveCases":
-          return (
-            dateMatch &&
-            (!updatedFilters.taxYear ||
-              item.TaxYear === updatedFilters.taxYear) &&
-            (!updatedFilters.taxAuthority ||
-              item.TaxAuthority === updatedFilters.taxAuthority) &&
-            (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
-            (!updatedFilters.financialYear ||
-              item.FinancialYear === updatedFilters.financialYear) &&
-            (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
-          );
-
-        default:
-          return dateMatch;
-      }
-    });
-
-    setLoading(true);
-    const dataf = await normalizeData(
-      reportType,
-      filtered,
-      updatedFilters
-    );
-    setFilteredData(dataf);
-    setLoading(false);
-  };
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
