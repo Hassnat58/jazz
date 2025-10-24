@@ -743,8 +743,6 @@ console.log(taxType);
 
 
 
-
-
 case "Provisions3": {
   const sp3 = spfi().using(SPFx(SpfxContext));
 
@@ -759,21 +757,30 @@ case "Provisions3": {
     const selectedMonth = new Date(filter.dateStart);
     effectiveCurrentMonth = selectedMonth.getMonth();
     effectiveCurrentYear = selectedMonth.getFullYear();
+    const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+    prevMonth = prev.getMonth();
+    prevYear = prev.getFullYear();
   } else if (filter.dateRangeStart && filter.dateRangeEnd) {
     const end = new Date(filter.dateRangeEnd);
     effectiveCurrentMonth = end.getMonth();
     effectiveCurrentYear = end.getFullYear();
+    const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+    prevMonth = prev.getMonth();
+    prevYear = prev.getFullYear();
   } else {
     effectiveCurrentMonth = now.getMonth();
     effectiveCurrentYear = now.getFullYear();
+    const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+    prevMonth = prev.getMonth();
+    prevYear = prev.getFullYear();
   }
 
-  const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
-  prevMonth = prev.getMonth();
-  prevYear = prev.getFullYear();
+  // ---------- STEP 2: Fetch UTP + Issues ----------
+  const utpItems = await sp3.web.lists
+    .getByTitle("UTPData")
+    .items.select("Id", "UTPId", "UTPDate", "TaxType")();
 
-  // ---------- STEP 2: Fetch all RiskCategories together ----------
-  const utpIssues3 = await sp3.web.lists
+  const utpIssues = await sp3.web.lists
     .getByTitle("UTP Tax Issue")
     .items.filter(
       "RiskCategory eq 'Probable' or RiskCategory eq 'Possible' or RiskCategory eq 'Remote'"
@@ -793,69 +800,94 @@ case "Provisions3": {
     )
     .expand("UTP")();
 
-  // ---------- STEP 3: Get latest issue per UTPId for both current & previous month ----------
-  const latestByMonth3 = utpIssues3.reduce((acc: any, issue: any) => {
-    const id = issue.UTP?.UTPId;
-    if (!id) return acc;
-
-    const d = new Date(issue.UTP?.UTPDate);
+  // ---------- STEP 3: Find latest UTP per month ----------
+  const latestByMonth = utpItems.reduce((acc: any, utp: any) => {
+    const d = new Date(utp.UTPDate);
     const month = d.getMonth();
     const year = d.getFullYear();
+    const key = utp.UTPId;
 
-    if (!acc[id]) acc[id] = {};
+    if (!key) return acc;
+    if (!acc[key]) acc[key] = {};
 
-    // Current month
+    // Current
     if (month === effectiveCurrentMonth && year === effectiveCurrentYear) {
-      const curr = acc[id].current;
+      const curr = acc[key].current;
       if (
         !curr ||
-        d > new Date(curr.UTP?.UTPDate) ||
-        (d.getTime() === new Date(curr.UTP?.UTPDate).getTime() && issue.Id > curr.Id)
+        d > new Date(curr.UTPDate) ||
+        (d.getTime() === new Date(curr.UTPDate).getTime() && utp.Id > curr.Id)
       ) {
-        acc[id].current = issue;
+        acc[key].current = utp;
       }
     }
-
-    // Previous month
+    // Previous
     else if (month === prevMonth && year === prevYear) {
-      const prev = acc[id].previous;
+      const prev = acc[key].previous;
       if (
         !prev ||
-        d > new Date(prev.UTP?.UTPDate) ||
-        (d.getTime() === new Date(prev.UTP?.UTPDate).getTime() && issue.Id > prev.Id)
+        d > new Date(prev.UTPDate) ||
+        (d.getTime() === new Date(prev.UTPDate).getTime() && utp.Id > prev.Id)
       ) {
-        acc[id].previous = issue;
+        acc[key].previous = utp;
       }
     }
 
     return acc;
   }, {});
 
-  const latestIssues3 = Object.values(latestByMonth3)
-    .flatMap(({ current, previous }: any) => [current, previous].filter(Boolean));
+  // ---------- STEP 4: Group issues by UTP Id ----------
+  const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
+    const utpId = issue.UTP?.Id;
+    if (!utpId) return acc;
+    if (!acc[utpId]) acc[utpId] = [];
+    acc[utpId].push(issue);
+    return acc;
+  }, {});
 
-  // ---------- STEP 4: Add month/year ----------
-  const merged3 = latestIssues3.map((r: any) => {
-    const d = r?.UTP?.UTPDate ? new Date(r.UTP.UTPDate) : null;
-    return {
-      ...r,
-      month: d ? d.getMonth() : null,
-      year: d ? d.getFullYear() : null,
-    };
-  });
+  // ---------- STEP 5: Collect all issues for latest UTPs ----------
+  const mergedIssues: any[] = [];
 
-  // ---------- STEP 5: Helper ----------
-  const sumBy = (arr: any[], month: number, year: number, condition?: (r: any) => boolean) =>
+  for (const { current, previous } of Object.values(latestByMonth) as any[]) {
+    if (current && issuesByUtp[current.Id]) {
+      mergedIssues.push(
+        ...issuesByUtp[current.Id].map((i: any) => ({
+          ...i,
+          month: effectiveCurrentMonth,
+          year: effectiveCurrentYear,
+        }))
+      );
+    }
+    if (previous && issuesByUtp[previous.Id]) {
+      mergedIssues.push(
+        ...issuesByUtp[previous.Id].map((i: any) => ({
+          ...i,
+          month: prevMonth,
+          year: prevYear,
+        }))
+      );
+    }
+  }
+
+  // ---------- STEP 6: Utility ----------
+  const sumBy = (
+    arr: any[],
+    month: number,
+    year: number,
+    condition?: (r: any) => boolean
+  ) =>
     arr
       .filter((r) => r.month === month && r.year === year && (!condition || condition(r)))
       .reduce((s, r) => s + (Number(r.Amount) || 0), 0);
 
-  // ---------- STEP 6: Function to compute for each category ----------
+  // ---------- STEP 7: Category calculations ----------
   const calculateCategory = (category: string) => {
-    const filtered = merged3.filter((r) => r.RiskCategory === category);
+    const filtered = mergedIssues.filter((r) => r.RiskCategory === category);
 
     const totalExposureCurr = filtered
-      .filter((r) => r.month === effectiveCurrentMonth && r.year === effectiveCurrentYear)
+      .filter(
+        (r) => r.month === effectiveCurrentMonth && r.year === effectiveCurrentYear
+      )
       .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
 
     const totalExposurePrev = filtered
@@ -888,28 +920,52 @@ case "Provisions3": {
       (r) => r.PaymentType === "Admitted Tax"
     );
 
-    const cashflowCurr = totalExposureCurr - paymentsUnderProtestCurr - admittedTaxCurr;
-    const cashflowPrev = totalExposurePrev - paymentsUnderProtestPrev - admittedTaxPrev;
+    const cashflowCurr =
+      totalExposureCurr - paymentsUnderProtestCurr - admittedTaxCurr;
+    const cashflowPrev =
+      totalExposurePrev - paymentsUnderProtestPrev - admittedTaxPrev;
 
     const plCurr = filtered
-      .filter((r) => r.month === effectiveCurrentMonth && r.year === effectiveCurrentYear)
-      .reduce((s, r) => s + (r?.RiskCategory === "Probable" ? 0 : Number(r.GrossTaxExposure) || 0), 0);
+      .filter(
+        (r) => r.month === effectiveCurrentMonth && r.year === effectiveCurrentYear
+      )
+      .reduce(
+        (s, r) =>
+          s +
+          (r?.RiskCategory === "Probable" ? 0 : Number(r.GrossTaxExposure) || 0),
+        0
+      );
 
     const plPrev = filtered
       .filter((r) => r.month === prevMonth && r.year === prevYear)
-      .reduce((s, r) => s + (r?.RiskCategory === "Probable" ? 0 : Number(r.GrossTaxExposure) || 0), 0);
+      .reduce(
+        (s, r) =>
+          s +
+          (r?.RiskCategory === "Probable" ? 0 : Number(r.GrossTaxExposure) || 0),
+        0
+      );
 
     const ebitdaCurr = filtered
-      .filter((r) => r.month === effectiveCurrentMonth && r.year === effectiveCurrentYear)
+      .filter(
+        (r) => r.month === effectiveCurrentMonth && r.year === effectiveCurrentYear
+      )
       .reduce(
-        (s, r) => s + (r?.UTP?.TaxType === "Income Tax" ? 0 : Number(r.GrossTaxExposure) || 0),
+        (s, r) =>
+          s +
+          (r?.UTP?.TaxType === "Income Tax"
+            ? 0
+            : Number(r.GrossTaxExposure) || 0),
         0
       );
 
     const ebitdaPrev = filtered
       .filter((r) => r.month === prevMonth && r.year === prevYear)
       .reduce(
-        (s, r) => s + (r?.UTP?.TaxType === "Income Tax" ? 0 : Number(r.GrossTaxExposure) || 0),
+        (s, r) =>
+          s +
+          (r?.UTP?.TaxType === "Income Tax"
+            ? 0
+            : Number(r.GrossTaxExposure) || 0),
         0
       );
 
@@ -921,31 +977,33 @@ case "Provisions3": {
         variance: formatAmount(totalExposureCurr - totalExposurePrev),
       },
       {
-        label: `Less – Payments under Protest `,
+        label: `Less – Payments under Protest`,
         current: formatAmount(paymentsUnderProtestCurr),
         prior: formatAmount(paymentsUnderProtestPrev),
-        variance: formatAmount(paymentsUnderProtestCurr - paymentsUnderProtestPrev),
+        variance: formatAmount(
+          paymentsUnderProtestCurr - paymentsUnderProtestPrev
+        ),
       },
       {
-        label: `Less - Admitted Tax `,
+        label: `Less - Admitted Tax`,
         current: formatAmount(admittedTaxCurr),
         prior: formatAmount(admittedTaxPrev),
         variance: formatAmount(admittedTaxCurr - admittedTaxPrev),
       },
       {
-        label: `Cashflow Exposure `,
+        label: `Cashflow Exposure`,
         current: formatAmount(cashflowCurr),
         prior: formatAmount(cashflowPrev),
         variance: formatAmount(cashflowCurr - cashflowPrev),
       },
       {
-        label: `P&L Exposure `,
+        label: `P&L Exposure`,
         current: formatAmount(plCurr),
         prior: formatAmount(plPrev),
         variance: formatAmount(plCurr - plPrev),
       },
       {
-        label: `EBITDA Exposure (PKR) `,
+        label: `EBITDA Exposure (PKR)`,
         current: formatAmount(ebitdaCurr),
         prior: formatAmount(ebitdaPrev),
         variance: formatAmount(ebitdaCurr - ebitdaPrev),
@@ -954,15 +1012,17 @@ case "Provisions3": {
     ];
   };
 
-  // ---------- STEP 7: Flatten results ----------
+  // ---------- STEP 8: Combine all categories ----------
   const results3 = [
     ...calculateCategory("Probable"),
     ...calculateCategory("Possible"),
     ...calculateCategory("Remote"),
   ];
 
+  // ---------- STEP 9: Return ----------
   return results3;
 }
+
 
 
 
