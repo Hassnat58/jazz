@@ -159,7 +159,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
   }, []);
 
   useEffect(() => {
-    // Step 1: Filter cases that are both Active and Approved
+    // Filter active & approved cases (same as before)
     const approvedCases = allCases.filter((item) => {
       if (!item.TaxType) return false;
       const caseStatus = (item.CaseStatus || "").toLowerCase().trim();
@@ -167,37 +167,62 @@ const UTPForm: React.FC<UTPFormProps> = ({
       return caseStatus === "active" && approvalStatus === "approved";
     });
 
-    // Step 2: Group cases by Title and keep only the latest (highest ID)
+    // Keep latest per Title (same logic)
     const latestCasesMap = new Map<string, any>();
-
     approvedCases.forEach((item) => {
       const existing = latestCasesMap.get(item.Title);
       if (!existing || item.Id > existing.Id) {
         latestCasesMap.set(item.Title, item);
       }
     });
-
     const latestCases = Array.from(latestCasesMap.values());
 
-    // Step 3: Filter by selected TaxType if any
+    // Filter by TaxType if selected
     const filteredCases = selectedTaxType
       ? latestCases.filter((item) => item.TaxType === selectedTaxType)
       : latestCases;
 
-    // Step 4: Build dropdown options
-    const caseDropdownOptions = (
+    // Build options and normalize keys to string
+    let builtOptions = (
       isEditMode
-        ? approvedCases // ✅ Show all approved cases in edit mode
+        ? filteredCases // show filtered cases in edit mode (or you used approvedCases previously; use whichever intended)
         : filteredCases.filter((item) => !usedCaseNumbers.includes(item.Id))
-    ) // 🚫 Hide used in add mode
-      .map((item) => ({
-        key: item.Id,
-        text: item.Title,
-        data: item,
-      }));
+    ).map((item) => ({
+      key: String(item.Id), // <-- IMPORTANT: string key
+      text: item.Title,
+      data: item,
+    }));
 
-    setCaseOptions(caseDropdownOptions);
-  }, [selectedTaxType, allCases, usedCaseNumbers, isEditMode]);
+    // If editing and selectedCase exists, ensure its CaseNumber option is present
+    if (selectedCase) {
+      const candidateKeys = [
+        selectedCase?.CaseNumberId,
+        selectedCase?.CaseNumber?.Id,
+        selectedCase?.CaseNumber,
+        selectedCase?.Id,
+      ]
+        .filter(Boolean)
+        .map(String);
+
+      const hasSelected = builtOptions.some((o) =>
+        candidateKeys.includes(String(o.key))
+      );
+      if (!hasSelected) {
+        // inject the selectedCase as the first option (best-effort)
+        const optKey = candidateKeys[0] || String(selectedCase.Id);
+        builtOptions = [
+          {
+            key: optKey,
+            text: selectedCase.CaseNumber?.Title || `Case ${optKey}`,
+            data: selectedCase,
+          },
+          ...builtOptions,
+        ];
+      }
+    }
+
+    setCaseOptions(builtOptions);
+  }, [selectedTaxType, allCases, usedCaseNumbers, isEditMode, selectedCase]);
 
   const selectedCaseNumberId = watch("CaseNumber");
   let cachedNextId: number | null = null;
@@ -323,56 +348,40 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
   useEffect(() => {
     const prefillForm = async () => {
-      if (!selectedCase || caseOptions.length === 0) return;
+      if (!selectedCase) return;
 
-      const prefilled: any = {};
-      ["TaxType"].forEach((f) => (prefilled[f] = selectedCase[f] || ""));
-      ["GRSCode"].forEach(
-        (name) => (prefilled[name] = selectedCase[name] || "")
-      );
-      [{ name: "UTPDate" }].forEach(
-        ({ name }) =>
-          (prefilled[name] = selectedCase[name]
-            ? new Date(selectedCase[name])
-            : null)
-      );
-      // ["ContingencyNoteExists"].forEach((name) => {
-      //   prefilled[name] =
-      //     selectedCase[name] === true
-      //       ? true
-      //       : selectedCase[name] === false
-      //       ? false
-      //       : null;
-      // });
-
-      prefilled.CaseNumber =
+      // derive the case number value and normalize to string if exists
+      const rawCaseNumber =
         selectedCase?.CaseNumberId ??
         selectedCase?.CaseNumber?.Id ??
         selectedCase?.CaseNumber ??
         null;
 
-      console.log("CaseNumber", selectedCase?.CaseNumber?.Id);
+      const caseNumberStr =
+        rawCaseNumber !== null && rawCaseNumber !== undefined
+          ? String(rawCaseNumber)
+          : null;
 
-      prefilled.UTPId = selectedCase?.UTPId || null;
-      prefilled.GMLRID = selectedCase?.GMLRID || null;
-      // prefilled.PaymentGLCode = selectedCase?.PaymentGLCode || null;
-      // prefilled.ProvisionGLCode = selectedCase?.ProvisionGLCode || null;
-      // prefilled.Amount = selectedCase?.Amount || null;
+      const prefilled: any = {
+        TaxType: selectedCase.TaxType || "",
+        GRSCode: selectedCase.GRSCode || "",
+        UTPDate: selectedCase.UTPDate ? new Date(selectedCase.UTPDate) : null,
+        CaseNumber: caseNumberStr,
+        UTPId: selectedCase?.UTPId || null,
+        GMLRID: selectedCase?.GMLRID || null,
+      };
 
-      // prefilled.PLExposure =
-      //   selectedCase.PLExposure !== undefined &&
-      //   selectedCase.PLExposure !== null
-      //     ? Number(selectedCase.PLExposure)
-      //     : "";
+      console.log(
+        "Prefilling form: CaseNumber =",
+        caseNumberStr,
+        "caseOptions keys:",
+        caseOptions.map((o) => o.key)
+      );
 
-      // prefilled.EBITDAExposure =
-      //   selectedCase.EBITDAExposure !== undefined &&
-      //   selectedCase.EBITDAExposure !== null
-      //     ? Number(selectedCase.EBITDAExposure)
-
-      // prefilled.ContigencyNote = selectedCase.ContigencyNote || "";
-
+      // reset now — caseOptions already includes an injected option from the previous effect
       reset(prefilled);
+
+      // fetch files & issues just like before
       const files = await sp.web.lists
         .getByTitle("Core Data Repositories")
         .items.filter(`UTPId eq ${selectedCase.ID}`)
@@ -439,7 +448,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
     };
 
     prefillForm();
-  }, [selectedCase, caseOptions]);
+  }, [selectedCase, caseOptions, reset]);
 
   const toNullIfEmpty = (val: any) => {
     if (val === undefined || val === null || val === "") return null;
@@ -514,7 +523,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
         itemId = result.ID;
 
-        const selectedCaseItem = allCases.find((c) => c.Id === data.CaseNumber);
+        const selectedCaseItem = allCases.find(
+          (c) => String(c.Id) === String(data.CaseNumber)
+        );
         const taxAuth = selectedCaseItem?.TaxAuthority || "N/A";
         const taxtype =
           selectedCaseItem?.TaxType === "Income Tax"
@@ -813,7 +824,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 label="Case Number"
                 options={caseOptions}
                 disabled={isEditMode}
-                selectedKey={field.value ? Number(field.value) : undefined}
+                selectedKey={field.value ? String(field.value) : undefined}
                 onChange={(_, option) => {
                   if (option && usedCaseNumbers.includes(Number(option.key))) {
                     setCaseError(
@@ -2040,14 +2051,29 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       render={({ field: f }) => (
                         <TextField
                           label="Amount"
-                          value={entry.amount?.toString() || "0"}
+                          value={
+                            entry.amount !== undefined && entry.amount !== null
+                              ? entry.amount.toLocaleString("en-US") // Format with commas
+                              : ""
+                          }
                           onChange={(_, newValue) => {
-                            const updated = [...taxIssueEntries];
-                            updated[idx].amount = newValue
-                              ? Number(newValue)
+                            if (newValue === undefined) return; // ✅ safely handle undefined
+
+                            // Remove non-digit characters (commas, spaces, etc.)
+                            const rawValue = newValue.replace(/[^0-9]/g, "");
+
+                            // Convert to number
+                            const numericValue = rawValue
+                              ? Number(rawValue)
                               : 0;
+
+                            // Update state
+                            const updated = [...taxIssueEntries];
+                            updated[idx].amount = numericValue;
                             setTaxIssueEntries(updated);
-                            f.onChange(newValue);
+
+                            // Update controller field
+                            f.onChange(numericValue);
                           }}
                         />
                       )}

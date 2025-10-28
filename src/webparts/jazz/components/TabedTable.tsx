@@ -191,7 +191,7 @@ const TabbedTables: React.FC<{
   useEffect(() => {
     const fetchCases = async () => {
       try {
-        const cases = await sp.web.lists
+        const items = await sp.web.lists
           .getByTitle("Cases")
           .items.select(
             "Id",
@@ -203,19 +203,19 @@ const TabbedTables: React.FC<{
           .filter("ApprovalStatus eq 'Approved'")
           .top(5000)();
 
-        // Format and remove duplicate titles
-        const uniqueTitles = new Map<string, { key: number; text: string }>();
+        // Use Map to ensure unique titles
+        const uniqueCases = new Map<string, { key: number; text: string }>();
 
-        cases.forEach((c: any) => {
-          const title = c.Title?.trim();
-          if (title && !uniqueTitles.has(title)) {
-            uniqueTitles.set(title, { key: c.Id, text: title });
+        items.forEach((item: any) => {
+          const title = item.Title?.trim();
+          if (title && !uniqueCases.has(title)) {
+            uniqueCases.set(title, { key: item.Id, text: title });
           }
         });
 
-        setCaseOptions(Array.from(uniqueTitles.values()));
+        setCaseOptions(Array.from(uniqueCases.values()));
       } catch (error) {
-        console.error("Error fetching cases:", error);
+        console.error("Error fetching approved cases:", error);
       }
     };
 
@@ -614,48 +614,63 @@ const TabbedTables: React.FC<{
     const handleFilterChange = (key: string, value: string | undefined) => {
       const updatedFilters = { ...filters, [key]: value ?? "" };
       setFilters(updatedFilters);
+      console.log("🔍 Filtering by:", key, "=", value);
 
       const filtered = casesData.filter((item) => {
-        const caseNum = item.ParentCase
-          ? getFormattedCaseNumber(
-              item.TaxType,
-              item.TaxAuthority,
-              item.ParentCase.Id
-            )
-          : item.Title;
+        const caseNum = item.Title;
+
+        console.log(
+          "🧾 CaseNum:",
+          caseNum,
+          "| CaseNumber filter:",
+          updatedFilters.caseNumber
+        );
+
+        // ✅ Make exact match instead of partial (prevents IT-FBR-1 matching IT-FBR-163)
+        const matchesCaseNumber =
+          !updatedFilters.caseNumber ||
+          caseNum.trim().toLowerCase() ===
+            updatedFilters.caseNumber.trim().toLowerCase();
+
+        const matchesEntity =
+          !updatedFilters.Entity || item.Entity === updatedFilters.Entity;
+        const matchesFinancialYear =
+          !updatedFilters.financialYear ||
+          item.FinancialYear === updatedFilters.financialYear;
+        const matchesTaxYear =
+          !updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear;
+        const matchesTaxType =
+          !updatedFilters.taxType || item.TaxType === updatedFilters.taxType;
+        const matchesTaxAuthority =
+          !updatedFilters.taxAuthority ||
+          item.TaxAuthority === updatedFilters.taxAuthority;
 
         return (
-          (!updatedFilters.caseNumber ||
-            caseNum
-              .toLowerCase()
-              .includes(updatedFilters.caseNumber.toLowerCase())) &&
-          (!updatedFilters.financialYear ||
-            item.FinancialYear === updatedFilters.financialYear) &&
-          (!updatedFilters.taxYear ||
-            item.TaxYear === updatedFilters.taxYear) &&
-          (!updatedFilters.taxType ||
-            item.TaxType === updatedFilters.taxType) &&
-          (!updatedFilters.taxAuthority ||
-            item.TaxAuthority === updatedFilters.taxAuthority) &&
-          (!updatedFilters.Entity || item.Entity === updatedFilters.Entity)
+          matchesCaseNumber &&
+          matchesEntity &&
+          matchesFinancialYear &&
+          matchesTaxYear &&
+          matchesTaxType &&
+          matchesTaxAuthority
         );
       });
 
       setFilteredData(filtered);
       setCasesPage(1);
     };
-    const getFormattedCaseNumber = (
-      taxType: string,
-      taxAuthority: string,
-      parentCaseId: number
-    ) => {
-      let prefix = "CN";
-      if (taxType === "Income Tax") prefix = "IT";
-      else if (taxType === "Sales Tax") prefix = "ST";
-      const authority = taxAuthority ? `-${taxAuthority}` : "";
 
-      return `${prefix}${authority}-${parentCaseId}`;
-    };
+    // const getFormattedCaseNumber = (
+    //   taxType: string,
+    //   taxAuthority: string,
+    //   parentCaseId: number
+    // ) => {
+    //   let prefix = "CN";
+    //   if (taxType === "Income Tax") prefix = "IT";
+    //   else if (taxType === "Sales Tax") prefix = "ST";
+    //   const authority = taxAuthority ? `-${taxAuthority}` : "";
+
+    //   return `${prefix}${authority}-${parentCaseId}`;
+    // };
 
     return (
       <>
@@ -664,22 +679,20 @@ const TabbedTables: React.FC<{
           <div style={{ position: "relative", display: "inline-block" }}>
             <ComboBox
               label="Case Number"
-              key={filters.caseNumber}
               placeholder="Select or type Case Number"
               allowFreeform
               autoComplete="on"
               useComboBoxAsMenuWidth
-              options={caseOptions}
+              options={caseOptions || []}
+              text={filters.caseNumber || ""} // Controlled value
               selectedKey={
-                caseOptions.find(
-                  (opt) =>
-                    opt.text.toLowerCase() ===
-                    (filters.caseNumber || "").toLowerCase()
-                )?.key
+                filters.caseNumber
+                  ? caseOptions.find((o) => o.text === filters.caseNumber)
+                      ?.key || null
+                  : null
               }
-              text={filters.caseNumber || ""}
               onInputValueChange={(newText) => {
-                handleFilterChange("caseNumber", newText);
+                handleFilterChange("caseNumber", newText || "");
               }}
               onChange={(_, option, __, value) => {
                 const newValue = option ? (option.text as string) : value || "";
@@ -704,7 +717,10 @@ const TabbedTables: React.FC<{
             {filters.caseNumber && (
               <button
                 type="button"
-                onClick={() => handleFilterChange("caseNumber", undefined)}
+                onClick={() => {
+                  handleFilterChange("caseNumber", ""); // ✅ Clear ComboBox value
+                  setFilteredData(casesData); // ✅ Reset full data
+                }}
                 style={{
                   position: "absolute",
                   right: 20,
@@ -1039,15 +1055,7 @@ const TabbedTables: React.FC<{
           <tbody>
             {paginatedData.map((item) => (
               <tr key={item.ID}>
-                <td>
-                  {item.ParentCase
-                    ? getFormattedCaseNumber(
-                        item.TaxType,
-                        item.TaxAuthority,
-                        item.ParentCase.Id
-                      )
-                    : item.Title}
-                </td>
+                <td>{item.Title}</td>
                 <td>{item.CorrespondenceType}</td>
                 <td>{item.DateReceived?.split("T")[0]}</td>
                 <td>{item.FinancialYear}</td>
@@ -1372,7 +1380,7 @@ const TabbedTables: React.FC<{
     );
 
     const handleUtpFilterChange = (key: string, value: string | undefined) => {
-      const updatedFilters = { ...utpFilters, [key]: value };
+      const updatedFilters = { ...utpFilters, [key]: value ?? "" };
       setUtpFilters(updatedFilters);
 
       const filtered = utpData.filter((item) => {
@@ -1380,28 +1388,42 @@ const TabbedTables: React.FC<{
           ? item.CaseNumber.Title
           : item.Title || "";
 
+        // ✅ exact match instead of includes
+        const matchesCaseNumber =
+          !updatedFilters.caseNumber ||
+          caseNum.trim().toLowerCase() ===
+            updatedFilters.caseNumber.trim().toLowerCase();
+
+        const matchesCategory =
+          !updatedFilters.category || item.Category === updatedFilters.category;
+        const matchesFinancialYear =
+          !updatedFilters.financialYear ||
+          item.FinancialYear === updatedFilters.financialYear;
+        const matchesTaxYear =
+          !updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear;
+        const matchesTaxType =
+          !updatedFilters.taxType || item.TaxType === updatedFilters.taxType;
+        const matchesTaxAuthority =
+          !updatedFilters.taxAuthority ||
+          item.TaxAuthority === updatedFilters.taxAuthority;
+        const matchesEntity =
+          !updatedFilters.entity || item.Entity === updatedFilters.entity;
+
         return (
-          (!updatedFilters.caseNumber ||
-            caseNum
-              .toLowerCase()
-              .includes(updatedFilters.caseNumber.toLowerCase())) &&
-          (!updatedFilters.category ||
-            item.Category === updatedFilters.category) &&
-          (!updatedFilters.financialYear ||
-            item.FinancialYear === updatedFilters.financialYear) &&
-          (!updatedFilters.taxYear ||
-            item.TaxYear === updatedFilters.taxYear) &&
-          (!updatedFilters.taxType ||
-            item.TaxType === updatedFilters.taxType) &&
-          (!updatedFilters.taxAuthority ||
-            item.TaxAuthority === updatedFilters.taxAuthority) &&
-          (!updatedFilters.entity || item.Entity === updatedFilters.entity)
+          matchesCaseNumber &&
+          matchesCategory &&
+          matchesFinancialYear &&
+          matchesTaxYear &&
+          matchesTaxType &&
+          matchesTaxAuthority &&
+          matchesEntity
         );
       });
 
       setFilteredUtpData(filtered);
       setUtpPage(1);
     };
+
     return (
       <>
         <div className={styles.filtersRow}>
@@ -1409,15 +1431,21 @@ const TabbedTables: React.FC<{
           <div style={{ position: "relative", display: "inline-block" }}>
             <ComboBox
               label="Case Number"
-              key={utpFilters.caseNumber}
               placeholder="Select or type Case Number"
               allowFreeform
               autoComplete="on"
               useComboBoxAsMenuWidth
-              options={caseOptions}
-              text={utpFilters.caseNumber || ""}
+              options={caseOptions || []}
+              text={utpFilters.caseNumber || ""} // controlled value
+              selectedKey={
+                utpFilters.caseNumber
+                  ? caseOptions.find(
+                      (opt) => opt.text === utpFilters.caseNumber
+                    )?.key || null
+                  : null
+              }
               onInputValueChange={(newText) => {
-                handleUtpFilterChange("caseNumber", newText);
+                handleUtpFilterChange("caseNumber", newText || "");
               }}
               onChange={(_, option, __, value) => {
                 const newValue = option ? (option.text as string) : value || "";
@@ -1438,10 +1466,14 @@ const TabbedTables: React.FC<{
                 input: { width: "100%" },
               }}
             />
+
             {utpFilters.caseNumber && (
               <button
                 type="button"
-                onClick={() => handleUtpFilterChange("caseNumber", undefined)}
+                onClick={() => {
+                  handleUtpFilterChange("caseNumber", ""); // ✅ clear field
+                  setFilteredUtpData(utpData); // ✅ reset table
+                }}
                 style={{
                   position: "absolute",
                   right: 20,

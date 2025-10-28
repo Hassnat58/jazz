@@ -109,7 +109,7 @@ const reportConfig: Record<
       // { header: "Tax exposure SCN", field: "taxExposureScn" },
       // { header: "Tax exposure Order", field: "taxExposureOrder" },
       // { header: "Tax period Start", field: "taxPeriodStart" },
-      // { header: "Tax period End", field: "taxPeriodEnd" },
+      { header: "Hearing Date", field: "hearingDate" },
       { header: "Date of Receipt", field: "dateOfReceipt" },
       { header: "Gross Exposure", field: "grossExp" },
 
@@ -438,7 +438,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             taxYear: item.TaxYear || "",
             DateReceived: item.DateReceived || "",
             fy: item.FinancialYear || "",
-
+            hearingDate: item.Hearingdate
+              ? new Date(item.Hearingdate).toISOString().split("T")[0]
+              : "",
             taxExposureScn: item.TaxExposure || "",
             taxExposureOrder: item.TaxExposureOrder || "",
             taxExposure: formatAmount(item.TaxExposure) || "",
