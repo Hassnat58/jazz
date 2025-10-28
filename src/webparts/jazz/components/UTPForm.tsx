@@ -2032,6 +2032,28 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     </span>
                   )}
                 </div>
+                {entry.PaymentType && (
+                  <div>
+                    <Controller
+                      name={`Amount_${idx}`}
+                      control={control}
+                      render={({ field: f }) => (
+                        <TextField
+                          label="Amount"
+                          value={entry.amount?.toString() || "0"}
+                          onChange={(_, newValue) => {
+                            const updated = [...taxIssueEntries];
+                            updated[idx].amount = newValue
+                              ? Number(newValue)
+                              : 0;
+                            setTaxIssueEntries(updated);
+                            f.onChange(newValue);
+                          }}
+                        />
+                      )}
+                    />
+                  </div>
+                )}
 
                 {/* EBITDA */}
                 <div style={{ position: "relative" }}>
