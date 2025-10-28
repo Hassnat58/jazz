@@ -187,7 +187,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
     // Step 4: Build dropdown options
     const caseDropdownOptions = (
       isEditMode
-        ? filteredCases // ✅ Show all approved cases in edit mode
+        ? approvedCases // ✅ Show all approved cases in edit mode
         : filteredCases.filter((item) => !usedCaseNumbers.includes(item.Id))
     ) // 🚫 Hide used in add mode
       .map((item) => ({
