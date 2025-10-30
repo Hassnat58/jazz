@@ -179,28 +179,36 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
         )
         .top(5000)();
 
-      const options = items
-        .filter((item) => {
-          if (!item.Title || !item.Title.trim()) return false;
+      // Step 1: Filter approved, active, and correct tax type
+      const filtered = items.filter((item) => {
+        if (!item.Title || !item.Title.trim()) return false;
 
-          const approval = (item.ApprovalStatus || "").toLowerCase().trim();
-          const caseStatus = (item.CaseStatus || "").toLowerCase().trim();
-          const taxType = (item.TaxType || "").toLowerCase().trim();
-          // Debug log
+        const approval = (item.ApprovalStatus || "").toLowerCase().trim();
+        const caseStatus = (item.CaseStatus || "").toLowerCase().trim();
+        const taxType = (item.TaxType || "").toLowerCase().trim();
 
-          const isApproved = approval === "approved";
-          const isActive = caseStatus === "active";
-          const isTaxType = taxType === "income tax" || taxType === "sales tax";
+        const isApproved = approval === "approved";
+        const isActive = caseStatus === "active";
+        const isTaxType = taxType === "income tax" || taxType === "sales tax";
 
-          return isApproved && isActive && isTaxType;
-        })
-        .map((item) => ({
-          key: item.Id,
-          // text: getFormattedCaseNumber(item),
-          text: item.Title,
-          data: item,
-        }));
-      // Debug filtered results
+        return isApproved && isActive && isTaxType;
+      });
+
+      // Step 2: Group by Title and keep the one with the highest Id
+      const latestByTitle: Record<string, any> = {};
+      filtered.forEach((item) => {
+        const title = item.Title.trim();
+        if (!latestByTitle[title] || item.Id > latestByTitle[title].Id) {
+          latestByTitle[title] = item;
+        }
+      });
+
+      // Step 3: Convert to dropdown options
+      const options = Object.values(latestByTitle).map((item: any) => ({
+        key: item.Id,
+        text: item.Title,
+        data: item,
+      }));
 
       setAllCases(options);
       setCaseOptions(options);
@@ -211,7 +219,9 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
         .getByTitle("LOVData1")
         .items.select("Id", "Title", "Value", "Status")
         .top(5000)();
+
       const activeItems = items.filter((item) => item.Status === "Active");
+
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
         if (!grouped[item.Title]) grouped[item.Title] = [];
@@ -220,6 +230,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           text: item.Value,
         });
       });
+
       setLovOptions(grouped);
     };
 
@@ -498,42 +509,69 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
             control={control}
             rules={{ required: "Case Number is required" }}
             render={({ field, fieldState: { error } }) => (
-              <ComboBox
-                label="Case Number"
-                options={caseOptions}
-                required
-                selectedKey={field.value}
-                onChange={(_, option) => field.onChange(option?.key)}
-                placeholder="Select Case Number"
-                allowFreeform
-                autoComplete="on"
-                useComboBoxAsMenuWidth
-                onInputValueChange={(newValue) => {
-                  if (!newValue) {
-                    setCaseOptions(allCases);
-                  } else {
-                    const filtered = allCases.filter((opt) =>
-                      opt.text.toLowerCase().includes(newValue.toLowerCase())
-                    );
-                    setCaseOptions(filtered);
-                  }
-                }}
-                styles={{
-                  root: { width: "100%" },
-                  container: { width: "100%" },
-                  callout: {
-                    width: "100%",
-                    maxHeight: 5 * 36,
-                    overflowY: "auto",
-                  },
-                  optionsContainerWrapper: {
-                    maxHeight: 5 * 36,
-                    overflowY: "auto",
-                  },
-                  input: { width: "100%" },
-                }}
-                errorMessage={error?.message}
-              />
+              <div style={{ position: "relative", width: "100%" }}>
+                <ComboBox
+                  label="Case Number"
+                  options={caseOptions}
+                  required
+                  selectedKey={field.value}
+                  onChange={(_, option) => field.onChange(option?.key)}
+                  placeholder="Select Case Number"
+                  allowFreeform
+                  autoComplete="on"
+                  useComboBoxAsMenuWidth
+                  onInputValueChange={(newValue) => {
+                    if (!newValue) {
+                      setCaseOptions(allCases);
+                    } else {
+                      const filtered = allCases.filter((opt) =>
+                        opt.text.toLowerCase().includes(newValue.toLowerCase())
+                      );
+                      setCaseOptions(filtered);
+                    }
+                  }}
+                  styles={{
+                    root: { width: "100%" },
+                    container: { width: "100%" },
+                    callout: {
+                      width: "100%",
+                      maxHeight: 5 * 36,
+                      overflowY: "auto",
+                    },
+                    optionsContainerWrapper: {
+                      maxHeight: 5 * 36,
+                      overflowY: "auto",
+                    },
+                    input: { width: "100%" },
+                  }}
+                  errorMessage={error?.message}
+                />
+
+                {/* ✖ Clear Button */}
+                {field.value && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()} // prevent ComboBox blur
+                    onClick={() => {
+                      field.onChange(undefined);
+                    }}
+                    style={{
+                      position: "absolute",
+                      right: 30, // adjust for label width
+                      top: "65%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#888",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
             )}
           />
 
@@ -619,6 +657,13 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                       styles={{
                         root: { width: "100%" },
                         textField: { width: "100%" },
+                      }}
+                      calloutProps={{
+                        preventDismissOnScroll: true,
+                        // Ensures calendar stays fixed to viewport
+                        doNotLayer: false,
+                        // Keeps focus within popup to stop layout shift
+                        setInitialFocus: true,
                       }}
                     />
                     {field.value && (

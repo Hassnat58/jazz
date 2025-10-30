@@ -1732,6 +1732,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     value={field.value}
                     calloutProps={{
                       preventDismissOnScroll: true,
+                      // Ensures calendar stays fixed to viewport
+                      doNotLayer: false,
+                      // Keeps focus within popup to stop layout shift
+                      setInitialFocus: true,
                     }}
                     onSelectDate={(date) => {
                       if (date) {
@@ -1775,6 +1779,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
                         },
                       },
                     }}
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
                   />
 
                   {/* ❌ Clear button inside the field */}
@@ -2044,41 +2050,35 @@ const UTPForm: React.FC<UTPFormProps> = ({
                   )}
                 </div>
                 {entry.PaymentType && (
-                  <div>
-                    <Controller
-                      name={`Amount_${idx}`}
-                      control={control}
-                      render={({ field: f }) => (
-                        <TextField
-                          label="Amount"
-                          value={
-                            entry.amount !== undefined && entry.amount !== null
-                              ? entry.amount.toLocaleString("en-US") // Format with commas
-                              : ""
-                          }
-                          onChange={(_, newValue) => {
-                            if (newValue === undefined) return; // ✅ safely handle undefined
-
-                            // Remove non-digit characters (commas, spaces, etc.)
-                            const rawValue = newValue.replace(/[^0-9]/g, "");
-
-                            // Convert to number
-                            const numericValue = rawValue
-                              ? Number(rawValue)
-                              : 0;
-
-                            // Update state
-                            const updated = [...taxIssueEntries];
-                            updated[idx].amount = numericValue;
-                            setTaxIssueEntries(updated);
-
-                            // Update controller field
-                            f.onChange(numericValue);
-                          }}
-                        />
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name={`Amount_${idx}`}
+                    control={control}
+                    rules={{
+                      required:
+                        "Amount is required when Payment Type is selected",
+                    }}
+                    render={({ field: f, fieldState: { error } }) => (
+                      <TextField
+                        label="Amount"
+                        required
+                        errorMessage={error?.message}
+                        value={
+                          entry.amount !== undefined && entry.amount !== null
+                            ? entry.amount.toLocaleString("en-US")
+                            : ""
+                        }
+                        onChange={(_, newValue) => {
+                          const rawValue =
+                            newValue?.replace(/[^0-9]/g, "") || "";
+                          const numericValue = rawValue ? Number(rawValue) : 0;
+                          const updated = [...taxIssueEntries];
+                          updated[idx].amount = numericValue;
+                          setTaxIssueEntries(updated);
+                          f.onChange(numericValue);
+                        }}
+                      />
+                    )}
+                  />
                 )}
 
                 {/* EBITDA */}
@@ -2118,98 +2118,102 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 </div>
 
                 {/* GRS Code (already had ×) */}
-                <div style={{ position: "relative" }}>
-                  <Controller
-                    name={`GRSCode_${idx}`}
-                    control={control}
-                    render={({ field: f }) => (
-                      <>
-                        <Dropdown
-                          label="GRS Code"
-                          options={lovOptions["GRS Code"] || []}
-                          selectedKey={entry.GRSCode ?? undefined}
-                          onChange={(_, option) => {
-                            const updated = [...taxIssueEntries];
-                            updated[idx].GRSCode =
-                              (option?.key as string) || "";
-                            setTaxIssueEntries(updated);
-                            f.onChange(option?.key);
-                          }}
-                          placeholder="Select"
-                        />
-                        {entry.GRSCode && (
-                          <span
-                            title="Clear selection"
-                            onClick={() => {
+                {entry.RiskCategory === "Probable" && (
+                  <div style={{ position: "relative" }}>
+                    <Controller
+                      name={`GRSCode_${idx}`}
+                      control={control}
+                      render={({ field: f }) => (
+                        <>
+                          <Dropdown
+                            label="GRS Code"
+                            options={lovOptions["GRS Code"] || []}
+                            selectedKey={entry.GRSCode ?? undefined}
+                            onChange={(_, option) => {
                               const updated = [...taxIssueEntries];
-                              updated[idx].GRSCode = "";
+                              updated[idx].GRSCode =
+                                (option?.key as string) || "";
                               setTaxIssueEntries(updated);
-                              f.onChange("");
+                              f.onChange(option?.key);
                             }}
-                            style={{
-                              position: "absolute",
-                              right: "25px",
-                              top: "30px",
-                              cursor: "pointer",
-                              color: "#888",
-                              fontSize: "18px",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            ×
-                          </span>
-                        )}
-                      </>
-                    )}
-                  />
-                </div>
+                            placeholder="Select"
+                          />
+                          {entry.GRSCode && (
+                            <span
+                              title="Clear selection"
+                              onClick={() => {
+                                const updated = [...taxIssueEntries];
+                                updated[idx].GRSCode = "";
+                                setTaxIssueEntries(updated);
+                                f.onChange("");
+                              }}
+                              style={{
+                                position: "absolute",
+                                right: "25px",
+                                top: "30px",
+                                cursor: "pointer",
+                                color: "#888",
+                                fontSize: "18px",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              ×
+                            </span>
+                          )}
+                        </>
+                      )}
+                    />
+                  </div>
+                )}
 
                 {/* Provision GL Code */}
-                <div style={{ position: "relative" }}>
-                  <Controller
-                    name={`ProvisionGLCode_${idx}`}
-                    control={control}
-                    render={({ field: f }) => (
-                      <>
-                        <Dropdown
-                          label="Provision GL Code"
-                          options={lovOptions["Provision GL Code"] || []}
-                          selectedKey={entry.ProvisionGLCode ?? undefined}
-                          onChange={(_, option) => {
-                            const updated = [...taxIssueEntries];
-                            updated[idx].ProvisionGLCode =
-                              (option?.key as string) || "";
-                            setTaxIssueEntries(updated);
-                            f.onChange(option?.key);
-                          }}
-                          placeholder="Select"
-                        />
-                        {entry.ProvisionGLCode && (
-                          <span
-                            title="Clear selection"
-                            onClick={() => {
+                {entry.RiskCategory === "Probable" && (
+                  <div style={{ position: "relative" }}>
+                    <Controller
+                      name={`ProvisionGLCode_${idx}`}
+                      control={control}
+                      render={({ field: f }) => (
+                        <>
+                          <Dropdown
+                            label="Provision GL Code"
+                            options={lovOptions["Provision GL Code"] || []}
+                            selectedKey={entry.ProvisionGLCode ?? undefined}
+                            onChange={(_, option) => {
                               const updated = [...taxIssueEntries];
-                              updated[idx].ProvisionGLCode = "";
+                              updated[idx].ProvisionGLCode =
+                                (option?.key as string) || "";
                               setTaxIssueEntries(updated);
-                              f.onChange("");
+                              f.onChange(option?.key);
                             }}
-                            style={{
-                              position: "absolute",
-                              right: "25px",
-                              top: "30px",
-                              cursor: "pointer",
-                              color: "#888",
-                              fontSize: "18px",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            ×
-                          </span>
-                        )}
-                      </>
-                    )}
-                  />
-                </div>
+                            placeholder="Select"
+                          />
+                          {entry.ProvisionGLCode && (
+                            <span
+                              title="Clear selection"
+                              onClick={() => {
+                                const updated = [...taxIssueEntries];
+                                updated[idx].ProvisionGLCode = "";
+                                setTaxIssueEntries(updated);
+                                f.onChange("");
+                              }}
+                              style={{
+                                position: "absolute",
+                                right: "25px",
+                                top: "30px",
+                                cursor: "pointer",
+                                color: "#888",
+                                fontSize: "18px",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              ×
+                            </span>
+                          )}
+                        </>
+                      )}
+                    />
+                  </div>
+                )}
 
                 {/* UTP Category */}
                 <div style={{ position: "relative" }}>
@@ -2306,51 +2310,53 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 </div>
 
                 {/* Payment GL Code */}
-                <div style={{ position: "relative" }}>
-                  <Controller
-                    name={`PaymentGLCode_${idx}`}
-                    control={control}
-                    render={({ field: f }) => (
-                      <>
-                        <Dropdown
-                          label="Payment GL Code"
-                          options={lovOptions["Payment GL Code"] || []}
-                          selectedKey={entry.PaymentGLCode ?? undefined}
-                          onChange={(_, option) => {
-                            const updated = [...taxIssueEntries];
-                            updated[idx].PaymentGLCode =
-                              (option?.key as string) || "";
-                            setTaxIssueEntries(updated);
-                            f.onChange(option?.key);
-                          }}
-                          placeholder="Select"
-                        />
-                        {entry.PaymentGLCode && (
-                          <span
-                            title="Clear selection"
-                            onClick={() => {
+                {entry.PaymentType && (
+                  <div style={{ position: "relative" }}>
+                    <Controller
+                      name={`PaymentGLCode_${idx}`}
+                      control={control}
+                      render={({ field: f }) => (
+                        <>
+                          <Dropdown
+                            label="Payment GL Code"
+                            options={lovOptions["Payment GL Code"] || []}
+                            selectedKey={entry.PaymentGLCode ?? undefined}
+                            onChange={(_, option) => {
                               const updated = [...taxIssueEntries];
-                              updated[idx].PaymentGLCode = "";
+                              updated[idx].PaymentGLCode =
+                                (option?.key as string) || "";
                               setTaxIssueEntries(updated);
-                              f.onChange("");
+                              f.onChange(option?.key);
                             }}
-                            style={{
-                              position: "absolute",
-                              right: "25px",
-                              top: "30px",
-                              cursor: "pointer",
-                              color: "#888",
-                              fontSize: "18px",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            ×
-                          </span>
-                        )}
-                      </>
-                    )}
-                  />
-                </div>
+                            placeholder="Select"
+                          />
+                          {entry.PaymentGLCode && (
+                            <span
+                              title="Clear selection"
+                              onClick={() => {
+                                const updated = [...taxIssueEntries];
+                                updated[idx].PaymentGLCode = "";
+                                setTaxIssueEntries(updated);
+                                f.onChange("");
+                              }}
+                              style={{
+                                position: "absolute",
+                                right: "25px",
+                                top: "30px",
+                                cursor: "pointer",
+                                color: "#888",
+                                fontSize: "18px",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              ×
+                            </span>
+                          )}
+                        </>
+                      )}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Remove Issue Button */}

@@ -75,30 +75,48 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
   // ✅ load lookup dropdown values
   const loadLookupValues = async () => {
     try {
-      const caseItems = await sp.web.lists
-        .getByTitle("Cases")
-        .items.select("Id", "Title")();
+      // ✅ Fetch all three lookup lists
+      const [caseItems, utpItems, coItems] = await Promise.all([
+        sp.web.lists.getByTitle("Cases").items.select("Id", "Title")(),
+        sp.web.lists.getByTitle("UTPData").items.select("Id", "UTPId")(),
+        sp.web.lists
+          .getByTitle("CorrespondenceOut")
+          .items.select("Id", "CaseNumber/Title")
+          .expand("CaseNumber")(),
+      ]);
 
-      const utpItems = await sp.web.lists
-        .getByTitle("UTPData")
-        .items.select("Id", "UTPId")();
+      // ✅ Deduplicate Cases → Keep latest (highest ID) per Title
+      const uniqueCasesMap = new Map<string, any>();
+      for (const item of caseItems) {
+        const existing = uniqueCasesMap.get(item.Title);
+        if (!existing || item.Id > existing.Id) {
+          uniqueCasesMap.set(item.Title, item);
+        }
+      }
+      const uniqueCases = Array.from(uniqueCasesMap.values());
 
-      const coItems = await sp.web.lists
-        .getByTitle("CorrespondenceOut")
-        .items.select("Id", "CaseNumber/Title")
-        .expand("CaseNumber")();
+      // ✅ Deduplicate UTPs → Keep latest (highest ID) per UTPId
+      const uniqueUtpsMap = new Map<string, any>();
+      for (const item of utpItems) {
+        const existing = uniqueUtpsMap.get(item.UTPId);
+        if (!existing || item.Id > existing.Id) {
+          uniqueUtpsMap.set(item.UTPId, item);
+        }
+      }
+      const uniqueUtps = Array.from(uniqueUtpsMap.values());
 
-      // ✅ remove duplicates by Id
-      const uniqueCases = caseItems.filter(
-        (v, i, a) => a.findIndex((t) => t.Id === v.Id) === i
-      );
-      const uniqueUtps = utpItems.filter(
-        (v, i, a) => a.findIndex((t) => t.Id === v.Id) === i
-      );
-      const uniqueCos = coItems.filter(
-        (v, i, a) => a.findIndex((t) => t.Id === v.Id) === i
-      );
+      // ✅ Deduplicate CorrespondenceOut → Keep latest (highest ID) per CaseNumber Title
+      const uniqueCosMap = new Map<string, any>();
+      for (const item of coItems) {
+        const title = item.CaseNumber?.Title || `CO-${item.Id}`;
+        const existing = uniqueCosMap.get(title);
+        if (!existing || item.Id > existing.Id) {
+          uniqueCosMap.set(title, item);
+        }
+      }
+      const uniqueCos = Array.from(uniqueCosMap.values());
 
+      // ✅ Update state
       setCases(uniqueCases);
       setUtps(uniqueUtps);
       setCorrespondenceOuts(uniqueCos);
@@ -162,108 +180,189 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
         />
 
         {/* Case Dropdown */}
-        <ComboBox
-          label="Case"
-          placeholder="Select Case"
-          options={cases.map((c) => ({
-            key: c.Id,
-            text: c.Title, // ✅ Case Title
-          }))}
-          selectedKey={filters.caseId || null}
-          allowFreeform
-          useComboBoxAsMenuWidth
-          autoComplete="on"
-          onChange={(_, option, __, value) =>
-            setFilters((f) => ({
-              ...f,
-              caseId: option ? Number(option.key) : Number(value) || 0,
-            }))
-          }
-          styles={{
-            root: { width: "200px" },
-            container: { width: "200px" },
-            callout: {
-              width: "100%",
-              maxHeight: 5 * 36,
-              overflowY: "auto",
-            },
-            optionsContainerWrapper: {
-              maxHeight: 5 * 36,
-              overflowY: "auto",
-            },
-            input: { width: "100%" },
-          }}
-        />
+        <div style={{ position: "relative", width: "200px" }}>
+          <ComboBox
+            label="Case"
+            placeholder="Select Case"
+            options={cases.map((c) => ({
+              key: c.Id,
+              text: c.Title, // ✅ Case Title
+            }))}
+            selectedKey={filters.caseId || null}
+            allowFreeform
+            useComboBoxAsMenuWidth
+            autoComplete="on"
+            onChange={(_, option, __, value) =>
+              setFilters((f) => ({
+                ...f,
+                caseId: option ? Number(option.key) : Number(value) || 0,
+              }))
+            }
+            styles={{
+              root: { width: "100%" },
+              container: { width: "100%" },
+              callout: {
+                width: "100%",
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              optionsContainerWrapper: {
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              input: { width: "100%", paddingRight: "30px" }, // leave space for ✖
+            }}
+          />
+
+          {filters.caseId !== 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                setFilters((f) => ({
+                  ...f,
+                  caseId: 0,
+                }))
+              }
+              style={{
+                position: "absolute",
+                right: 20,
+                top: "75%",
+                transform: "translateY(-50%)",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: "16px",
+                color: "#888",
+              }}
+            >
+              ✖
+            </button>
+          )}
+        </div>
 
         {/* UTP Dropdown */}
-        <ComboBox
-          label="UTP"
-          placeholder="Select UTP"
-          options={utps.map((u) => ({
-            key: u.Id,
-            text: u.UTPId, // ✅ UTPId
-          }))}
-          selectedKey={filters.utpId || null}
-          allowFreeform
-          useComboBoxAsMenuWidth
-          autoComplete="on"
-          onChange={(_, option, __, value) =>
-            setFilters((f) => ({
-              ...f,
-              utpId: option ? Number(option.key) : Number(value) || 0,
-            }))
-          }
-          styles={{
-            root: { width: "200px" },
-            container: { width: "200px" },
-            callout: {
-              width: "100%",
-              maxHeight: 5 * 36,
-              overflowY: "auto",
-            },
-            optionsContainerWrapper: {
-              maxHeight: 5 * 36,
-              overflowY: "auto",
-            },
-            input: { width: "100%" },
-          }}
-        />
+        <div style={{ position: "relative", width: "200px" }}>
+          <ComboBox
+            label="UTP"
+            placeholder="Select UTP"
+            options={utps.map((u) => ({
+              key: u.Id,
+              text: u.UTPId, // ✅ UTPId
+            }))}
+            selectedKey={filters.utpId || null}
+            allowFreeform
+            useComboBoxAsMenuWidth
+            autoComplete="on"
+            onChange={(_, option, __, value) =>
+              setFilters((f) => ({
+                ...f,
+                utpId: option ? Number(option.key) : Number(value) || 0,
+              }))
+            }
+            styles={{
+              root: { width: "100%" },
+              container: { width: "100%" },
+              callout: {
+                width: "100%",
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              optionsContainerWrapper: {
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              input: { width: "100%", paddingRight: "30px" }, // Space for ✖
+            }}
+          />
+
+          {filters.utpId !== 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                setFilters((f) => ({
+                  ...f,
+                  utpId: 0,
+                }))
+              }
+              style={{
+                position: "absolute",
+                right: 20,
+                top: "75%",
+                transform: "translateY(-50%)",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: "16px",
+                color: "#888",
+              }}
+            >
+              ✖
+            </button>
+          )}
+        </div>
 
         {/* Correspondence Out Dropdown */}
-        <ComboBox
-          label="Correspondence Out"
-          placeholder="Select Correspondence"
-          options={correspondenceOuts.map((co) => ({
-            key: co.Id,
-            text: co.CaseNumber?.Title || `CO-${co.Id}`, // ✅ CaseNumber Title
-          }))}
-          selectedKey={filters.correspondenceId || null}
-          allowFreeform
-          useComboBoxAsMenuWidth
-          autoComplete="on"
-          onChange={(_, option, __, value) =>
-            setFilters((f) => ({
-              ...f,
-              correspondenceId: option
-                ? Number(option.key)
-                : Number(value) || 0,
-            }))
-          }
-          styles={{
-            root: { width: "200px" },
-            container: { width: "200px" },
-            callout: {
-              width: "100%",
-              maxHeight: 5 * 36,
-              overflowY: "auto",
-            },
-            optionsContainerWrapper: {
-              maxHeight: 5 * 36,
-              overflowY: "auto",
-            },
-            input: { width: "100%" },
-          }}
-        />
+        <div style={{ position: "relative", width: "200px" }}>
+          <ComboBox
+            label="Correspondence Out"
+            placeholder="Select Correspondence"
+            options={correspondenceOuts.map((co) => ({
+              key: co.Id,
+              text: co.CaseNumber?.Title || `CO-${co.Id}`, // ✅ CaseNumber Title
+            }))}
+            selectedKey={filters.correspondenceId || null}
+            allowFreeform
+            useComboBoxAsMenuWidth
+            autoComplete="on"
+            onChange={(_, option, __, value) =>
+              setFilters((f) => ({
+                ...f,
+                correspondenceId: option
+                  ? Number(option.key)
+                  : Number(value) || 0,
+              }))
+            }
+            styles={{
+              root: { width: "100%" },
+              container: { width: "100%" },
+              callout: {
+                width: "100%",
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              optionsContainerWrapper: {
+                maxHeight: 5 * 36,
+                overflowY: "auto",
+              },
+              input: { width: "100%", paddingRight: "30px" }, // Space for ✖
+            }}
+          />
+
+          {filters.correspondenceId !== 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                setFilters((f) => ({
+                  ...f,
+                  correspondenceId: 0,
+                }))
+              }
+              style={{
+                position: "absolute",
+                right: 20,
+                top: "75%",
+                transform: "translateY(-50%)",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: "16px",
+                color: "#888",
+              }}
+            >
+              ✖
+            </button>
+          )}
+        </div>
 
         <Button
           variant="light"

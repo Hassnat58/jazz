@@ -361,19 +361,32 @@ const CaseForm: React.FC<CaseFormProps> = ({
         "ApprovalStatus"
       )()
       .then((items) => {
-        const options: IComboBoxOption[] = items
-          .filter(
-            (item) =>
-              item.CaseStatus === "Active" && item.ApprovalStatus === "Approved"
-          )
-          .map((item) => ({
-            key: item.ID.toString(),
-            text: item.Title,
-            data: {
-              taxType: item.TaxType,
-              taxAuthority: item.TaxAuthority,
-            },
-          }));
+        const activeApproved = items.filter(
+          (item) =>
+            item.CaseStatus === "Active" && item.ApprovalStatus === "Approved"
+        );
+
+        // Deduplicate: keep only the highest ID per Title
+        const uniqueCasesMap = new Map<string, any>();
+        for (const item of activeApproved) {
+          const existing = uniqueCasesMap.get(item.Title);
+          if (!existing || item.ID > existing.ID) {
+            uniqueCasesMap.set(item.Title, item);
+          }
+        }
+
+        const uniqueCases = Array.from(uniqueCasesMap.values());
+
+        // Create dropdown options
+        const options: IComboBoxOption[] = uniqueCases.map((item) => ({
+          key: item.ID.toString(),
+          text: item.Title,
+          data: {
+            taxType: item.TaxType,
+            taxAuthority: item.TaxAuthority,
+          },
+        }));
+
         setCasesOptions(options);
       });
   }, []);
@@ -428,20 +441,22 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   // 🔸 Apply dynamic prefix to dropdown texts
 
-  const caseNumberOptions = React.useMemo(() => {
-    return filteredCaseOptions.map((opt) => {
-      const authority = opt.data?.taxAuthority || "Unknown";
-      const taxType = opt.data?.taxType;
-      let prefix = "CN";
-      if (taxType === "Income Tax") prefix = "IT";
-      else if (taxType === "Sales Tax") prefix = "ST";
+  // const caseNumberOptions = React.useMemo(() => {
+  //   return filteredCaseOptions.map((opt) => {
+  //     // const authority = opt.data?.taxAuthority || "Unknown";
+  //     // const taxType = opt.data?.taxType;
+  //     // let prefix = "CN";
+  //     // if (taxType === "Income Tax")
+  //     //   // prefix = "IT";
+  //     // else if (taxType === "Sales Tax")
+  //     //   // prefix = "ST";
 
-      return {
-        key: opt.key, // use the original case ID
-        text: `${prefix}-${authority}-${opt.key}`,
-      };
-    });
-  }, [filteredCaseOptions]);
+  //     return {
+  //       key: opt.key, // use the original case ID
+  //       text: opt.data?.title,
+  //     };
+  //   });
+  // }, [filteredCaseOptions]);
 
   const getFileExtension = (filename: string): string => {
     const lastDotIndex = filename.lastIndexOf(".");
@@ -1084,7 +1099,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   render={({ field: f, fieldState }) => (
                     <ComboBox
                       label="Link Case (If any)"
-                      options={caseNumberOptions}
+                      options={filteredCaseOptions}
                       selectedKey={f.value ?? ""}
                       onChange={(_, option) => {
                         const key = option?.key ?? "";
@@ -1208,47 +1223,85 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     />
                   );
                 } else {
-                  // Your existing Income Tax ComboBox
+                  // ✅ Income Tax ComboBox with clear logic
                   return (
                     <Controller
                       key={field.label}
                       name={internalName}
                       control={control}
                       render={({ field: f }) => (
-                        <ComboBox
-                          key={f.value ?? "empty"}
-                          label={field.label}
-                          options={financialYearOptions}
-                          selectedKey={f.value ?? undefined}
-                          componentRef={financialComboRef}
-                          onClick={() => financialComboRef.current?.focus(true)}
-                          onChange={(_, option) => {
-                            if (f.value === option?.key) {
-                              f.onChange(undefined);
-                            } else {
-                              f.onChange(option?.key as string);
+                        <div style={{ position: "relative" }}>
+                          <ComboBox
+                            key={f.value ?? "empty"}
+                            label={field.label}
+                            options={financialYearOptions}
+                            selectedKey={f.value ?? undefined}
+                            componentRef={financialComboRef}
+                            onClick={() =>
+                              financialComboRef.current?.focus(true)
                             }
-                          }}
-                          placeholder="Select Year"
-                          allowFreeform
-                          autoComplete="on"
-                          useComboBoxAsMenuWidth
-                          onInputValueChange={handleFinancialYearInputChange}
-                          styles={{
-                            root: { width: "100%" },
-                            container: { width: "100%" },
-                            callout: {
-                              width: "100%",
-                              maxHeight: 5 * 36,
-                              overflowY: "auto",
-                            },
-                            optionsContainerWrapper: {
-                              maxHeight: 5 * 36,
-                              overflowY: "auto",
-                            },
-                            input: { width: "100%" },
-                          }}
-                        />
+                            onChange={(_, option) => {
+                              if (f.value === option?.key) {
+                                // 👇 Clear Financial Year + Tax Year if same option re-selected
+                                f.onChange(undefined);
+                                setValue("TaxYear", undefined);
+                              } else {
+                                // 👇 Select new Financial Year
+                                f.onChange(option?.key as string);
+                              }
+                            }}
+                            placeholder="Select Year"
+                            allowFreeform
+                            autoComplete="on"
+                            useComboBoxAsMenuWidth
+                            onInputValueChange={(value) => {
+                              if (value === "") {
+                                // 👇 If input manually cleared
+                                f.onChange(undefined);
+                                setValue("TaxYear", undefined);
+                              }
+                              handleFinancialYearInputChange(value);
+                            }}
+                            styles={{
+                              root: { width: "100%" },
+                              container: { width: "100%" },
+                              callout: {
+                                width: "100%",
+                                maxHeight: 5 * 36,
+                                overflowY: "auto",
+                              },
+                              optionsContainerWrapper: {
+                                maxHeight: 5 * 36,
+                                overflowY: "auto",
+                              },
+                              input: { width: "100%" },
+                            }}
+                          />
+
+                          {/* ❌ Add Clear Button */}
+                          {f.value && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                f.onChange(undefined);
+                                setValue("TaxYear", undefined); // 👈 Clear Tax Year as well
+                              }}
+                              style={{
+                                position: "absolute",
+                                right: 29,
+                                top: "49px",
+                                transform: "translateY(-50%)",
+                                border: "none",
+                                background: "transparent",
+                                cursor: "pointer",
+                                fontSize: "16px",
+                                color: "#888",
+                              }}
+                            >
+                              ✖
+                            </button>
+                          )}
+                        </div>
                       )}
                     />
                   );
@@ -1334,6 +1387,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                         <ComboBox
                           key={f.value ?? "empty"}
                           label={field.label}
+                          disabled={taxType === "Income Tax"}
                           options={taxYearOptions}
                           selectedKey={f.value ?? undefined}
                           componentRef={taxComboRef}
@@ -1378,19 +1432,47 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     name={internalName}
                     control={control}
                     render={({ field: f }) => (
-                      <Dropdown
-                        label={field.label}
-                        options={taxConsultantOptions}
-                        selectedKey={f.value ?? undefined}
-                        onChange={(_, option) => {
-                          f.onChange(option?.key as string);
-                          setValue(
-                            "ConsultantEmail",
-                            option?.data?.email || ""
-                          );
-                        }}
-                        placeholder="Select Tax Consultant"
-                      />
+                      <div style={{ position: "relative" }}>
+                        <Dropdown
+                          label={field.label}
+                          options={taxConsultantOptions}
+                          selectedKey={f.value ?? null} // ✅ ensure correct binding
+                          onChange={(_, option) => {
+                            f.onChange(option ? option.key : null);
+                            setValue(
+                              "ConsultantEmail",
+                              option?.data?.email || ""
+                            );
+                          }}
+                          placeholder="Select Tax Consultant"
+                        />
+
+                        {/* ✖ button to clear selected value */}
+                        {f.value && (
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()} // ✅ prevent blur
+                            onClick={() => {
+                              f.onChange(null); // ✅ clear react-hook-form value
+                              setValue("ConsultantEmail", "");
+                            }}
+                            style={{
+                              position: "absolute",
+                              right: 30,
+                              top: "70%",
+                              transform: "translateY(-50%)",
+                              border: "none",
+                              background: "transparent",
+                              cursor: "pointer",
+                              fontSize: "16px",
+                              color: "#888",
+                              lineHeight: 1,
+                            }}
+                          >
+                            ✖
+                          </button>
+                        )}
+                      </div>
                     )}
                   />
                 );
@@ -1405,16 +1487,44 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     name={internalName}
                     control={control}
                     render={({ field: f }) => (
-                      <Dropdown
-                        label={field.label}
-                        options={lawyerOptions}
-                        selectedKey={f.value ?? undefined}
-                        onChange={(_, option) => {
-                          f.onChange(option?.key as string);
-                          setValue("LawyerEmail", option?.data?.email || "");
-                        }}
-                        placeholder="Select Lawyer Assigned"
-                      />
+                      <div style={{ position: "relative" }}>
+                        <Dropdown
+                          label={field.label}
+                          options={lawyerOptions}
+                          selectedKey={f.value ?? null} // ✅ use null not undefined
+                          onChange={(_, option) => {
+                            f.onChange(option ? option.key : null);
+                            setValue("LawyerEmail", option?.data?.email || "");
+                          }}
+                          placeholder="Select Lawyer Assigned"
+                        />
+
+                        {/* ✖ button to clear selected value */}
+                        {f.value && (
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()} // ✅ prevent blur
+                            onClick={() => {
+                              f.onChange(null);
+                              setValue("LawyerEmail", "");
+                            }}
+                            style={{
+                              position: "absolute",
+                              right: 30,
+                              top: "70%",
+                              transform: "translateY(-50%)",
+                              border: "none",
+                              background: "transparent",
+                              cursor: "pointer",
+                              fontSize: "16px",
+                              color: "#888",
+                              lineHeight: 1,
+                            }}
+                          >
+                            ✖
+                          </button>
+                        )}
+                      </div>
                     )}
                   />
                 );
@@ -1492,57 +1602,63 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   key={field.name}
                   name={field.name as string}
                   control={control}
-                  render={({ field: f }) => {
-                    return (
-                      <div
-                        className="date-picker-wrapper"
-                        style={{
-                          position: "relative",
-                          display: "flex",
-                          alignItems: "center",
-                          width: "100%",
+                  render={({ field: f }) => (
+                    <div
+                      className="date-picker-wrapper"
+                      style={{
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "center",
+                        width: "100%",
+                      }}
+                    >
+                      <DatePicker
+                        label={field.label}
+                        value={f.value}
+                        placeholder="Select a date"
+                        componentRef={datePickerRef}
+                        onSelectDate={(date) => f.onChange(date)}
+                        allowTextInput
+                        // 🧩 Prevent the calendar popup from closing or shifting the form
+                        calloutProps={{
+                          preventDismissOnScroll: true,
+                          // Ensures calendar stays fixed to viewport
+                          doNotLayer: false,
+                          // Keeps focus within popup to stop layout shift
+                          setInitialFocus: true,
                         }}
-                      >
-                        <DatePicker
-                          label={field.label}
-                          value={f.value}
-                          placeholder="Select a date"
-                          componentRef={datePickerRef}
-                          onSelectDate={(date) => f.onChange(date)}
-                          allowTextInput
-                          calloutProps={{
-                            preventDismissOnScroll: true,
-                          }}
-                          styles={{
-                            root: { width: "100%" },
-                            textField: { width: "100%" },
-                          }}
-                        />
+                        styles={{
+                          root: { width: "100%" },
+                          textField: { width: "100%" },
+                        }}
+                        // 🧩 Prevent parent scroll/focus behavior when clicking calendar icon
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                      />
 
-                        {f.value && (
-                          <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => f.onChange(undefined)}
-                            style={{
-                              position: "absolute",
-                              right: 22, // snug inside input
-                              top: "69%", // vertically centered
-                              transform: "translateY(-50%)",
-                              border: "none",
-                              background: "transparent",
-                              cursor: "pointer",
-                              fontSize: "16px",
-                              color: "#888",
-                              lineHeight: 1,
-                            }}
-                          >
-                            ✖
-                          </button>
-                        )}
-                      </div>
-                    );
-                  }}
+                      {f.value && (
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()} // Prevent losing focus
+                          onClick={() => f.onChange(undefined)}
+                          style={{
+                            position: "absolute",
+                            right: 22,
+                            top: "69%",
+                            transform: "translateY(-50%)",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            fontSize: "16px",
+                            color: "#888",
+                            lineHeight: 1,
+                          }}
+                        >
+                          ✖
+                        </button>
+                      )}
+                    </div>
+                  )}
                 />
               );
 
