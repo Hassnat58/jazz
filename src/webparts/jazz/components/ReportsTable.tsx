@@ -202,13 +202,13 @@ const reportConfig: Record<
   },
 };
 
-const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
+const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:any;setLoading:any }> = ({
   SpfxContext,
   reportType,
+  loading, setLoading
 }) => {
   const [show, setShow] = useState(false);
   const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
@@ -770,266 +770,266 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
       }
 
       case "Provisions3": {
-  const sp3 = spfi().using(SPFx(SpfxContext));
+        const sp3 = spfi().using(SPFx(SpfxContext));
 
-  // ---------- STEP 1: Determine effective period ----------
-  const now = new Date();
-  let effectiveCurrentMonth: number;
-  let effectiveCurrentYear: number;
-  let prevMonth: number;
-  let prevYear: number;
+        // ---------- STEP 1: Determine effective period ----------
+        const now = new Date();
+        let effectiveCurrentMonth: number;
+        let effectiveCurrentYear: number;
+        let prevMonth: number;
+        let prevYear: number;
 
-  if (filter.dateStart) {
-    const selectedMonth = new Date(filter.dateStart);
-    effectiveCurrentMonth = selectedMonth.getMonth();
-    effectiveCurrentYear = selectedMonth.getFullYear();
-  } else if (filter.dateRangeStart && filter.dateRangeEnd) {
-    const end = new Date(filter.dateRangeEnd);
-    effectiveCurrentMonth = end.getMonth();
-    effectiveCurrentYear = end.getFullYear();
-  } else {
-    effectiveCurrentMonth = now.getMonth();
-    effectiveCurrentYear = now.getFullYear();
-  }
+        if (filter.dateStart) {
+          const selectedMonth = new Date(filter.dateStart);
+          effectiveCurrentMonth = selectedMonth.getMonth();
+          effectiveCurrentYear = selectedMonth.getFullYear();
+        } else if (filter.dateRangeStart && filter.dateRangeEnd) {
+          const end = new Date(filter.dateRangeEnd);
+          effectiveCurrentMonth = end.getMonth();
+          effectiveCurrentYear = end.getFullYear();
+        } else {
+          effectiveCurrentMonth = now.getMonth();
+          effectiveCurrentYear = now.getFullYear();
+        }
 
-  const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
-  prevMonth = prev.getMonth();
-  prevYear = prev.getFullYear();
+        const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+        prevMonth = prev.getMonth();
+        prevYear = prev.getFullYear();
 
-  // ---------- STEP 2: Fetch UTP + Issues ----------
-  const utpItems = await sp3.web.lists
-    .getByTitle("UTPData")
-    .items.select("Id", "UTPId", "UTPDate", "TaxType")();
+        // ---------- STEP 2: Fetch UTP + Issues ----------
+        const utpItems = await sp3.web.lists
+          .getByTitle("UTPData")
+          .items.select("Id", "UTPId", "UTPDate", "TaxType")();
 
-  const utpIssues = await sp3.web.lists
-    .getByTitle("UTP Tax Issue")
-    .items.select(
-      "Id",
-      "RiskCategory",
-      "GrossTaxExposure",
-      "PaymentType",
-      "Amount",
-      "PLExposure",
-      "EBITDA",
-      "UTP/Id",
-      "UTP/UTPId",
-      "UTP/UTPDate",
-      "UTP/TaxType"
-    )
-    .expand("UTP")();
+        const utpIssues = await sp3.web.lists
+          .getByTitle("UTP Tax Issue")
+          .items.select(
+            "Id",
+            "RiskCategory",
+            "GrossTaxExposure",
+            "PaymentType",
+            "Amount",
+            "PLExposure",
+            "EBITDA",
+            "UTP/Id",
+            "UTP/UTPId",
+            "UTP/UTPDate",
+            "UTP/TaxType"
+          )
+          .expand("UTP")();
 
-  // ---------- STEP 3: Find latest UTP per month ----------
-  const latestByMonth = utpItems.reduce((acc: any, utp: any) => {
-    const d = new Date(utp.UTPDate);
-    const month = d.getMonth();
-    const year = d.getFullYear();
-    const key = utp.UTPId;
-    if (!key) return acc;
-    if (!acc[key]) acc[key] = {};
+        // ---------- STEP 3: Find latest UTP per month ----------
+        const latestByMonth = utpItems.reduce((acc: any, utp: any) => {
+          const d = new Date(utp.UTPDate);
+          const month = d.getMonth();
+          const year = d.getFullYear();
+          const key = utp.UTPId;
+          if (!key) return acc;
+          if (!acc[key]) acc[key] = {};
 
-    if (month === effectiveCurrentMonth && year === effectiveCurrentYear) {
-      const curr = acc[key].current;
-      if (
-        !curr ||
-        d > new Date(curr.UTPDate) ||
-        (d.getTime() === new Date(curr.UTPDate).getTime() && utp.Id > curr.Id)
-      )
-        acc[key].current = utp;
-    } else if (month === prevMonth && year === prevYear) {
-      const prev = acc[key].previous;
-      if (
-        !prev ||
-        d > new Date(prev.UTPDate) ||
-        (d.getTime() === new Date(prev.UTPDate).getTime() && utp.Id > prev.Id)
-      )
-        acc[key].previous = utp;
-    }
-    return acc;
-  }, {});
+          if (month === effectiveCurrentMonth && year === effectiveCurrentYear) {
+            const curr = acc[key].current;
+            if (
+              !curr ||
+              d > new Date(curr.UTPDate) ||
+              (d.getTime() === new Date(curr.UTPDate).getTime() && utp.Id > curr.Id)
+            )
+              acc[key].current = utp;
+          } else if (month === prevMonth && year === prevYear) {
+            const prev = acc[key].previous;
+            if (
+              !prev ||
+              d > new Date(prev.UTPDate) ||
+              (d.getTime() === new Date(prev.UTPDate).getTime() && utp.Id > prev.Id)
+            )
+              acc[key].previous = utp;
+          }
+          return acc;
+        }, {});
 
-  // ---------- STEP 4: Group issues by UTP Id ----------
-  const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
-    const utpId = issue.UTP?.Id;
-    if (!utpId) return acc;
-    if (!acc[utpId]) acc[utpId] = [];
-    acc[utpId].push(issue);
-    return acc;
-  }, {});
+        // ---------- STEP 4: Group issues by UTP Id ----------
+        const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
+          const utpId = issue.UTP?.Id;
+          if (!utpId) return acc;
+          if (!acc[utpId]) acc[utpId] = [];
+          acc[utpId].push(issue);
+          return acc;
+        }, {});
 
-  // ---------- STEP 5: Collect all issues for latest UTPs ----------
-  const mergedIssues: any[] = [];
-  for (const { current, previous } of Object.values(latestByMonth) as any[]) {
-    if (current && issuesByUtp[current.Id]) {
-      mergedIssues.push(
-        ...issuesByUtp[current.Id].map((i: any) => ({
-          ...i,
-          month: effectiveCurrentMonth,
-          year: effectiveCurrentYear,
-        }))
-      );
-    }
-    if (previous && issuesByUtp[previous.Id]) {
-      mergedIssues.push(
-        ...issuesByUtp[previous.Id].map((i: any) => ({
-          ...i,
-          month: prevMonth,
-          year: prevYear,
-        }))
-      );
-    }
-  }
+        // ---------- STEP 5: Collect all issues for latest UTPs ----------
+        const mergedIssues: any[] = [];
+        for (const { current, previous } of Object.values(latestByMonth) as any[]) {
+          if (current && issuesByUtp[current.Id]) {
+            mergedIssues.push(
+              ...issuesByUtp[current.Id].map((i: any) => ({
+                ...i,
+                month: effectiveCurrentMonth,
+                year: effectiveCurrentYear,
+              }))
+            );
+          }
+          if (previous && issuesByUtp[previous.Id]) {
+            mergedIssues.push(
+              ...issuesByUtp[previous.Id].map((i: any) => ({
+                ...i,
+                month: prevMonth,
+                year: prevYear,
+              }))
+            );
+          }
+        }
 
-  // ---------- STEP 6: Helper ----------
-  const sumBy = (month: number, year: number, condition?: (r: any) => boolean) =>
-    mergedIssues
-      .filter(
-        (r) => r.month === month && r.year === year && (!condition || condition(r))
-      )
-      .reduce((sum, r) => sum + (Number(r.Amount) || 0), 0);
-  const sumBy2 = (month: number, year: number, condition?: (r: any) => boolean) =>
-    mergedIssues
-      .filter(
-        (r) => r.month === month && r.year === year && (!condition || condition(r))
-      )
-      .reduce((sum, r) => sum + (Number(r.GrossTaxExposure) || 0), 0);
+        // ---------- STEP 6: Helper ----------
+        const sumBy = (month: number, year: number, condition?: (r: any) => boolean) =>
+          mergedIssues
+            .filter(
+              (r) => r.month === month && r.year === year && (!condition || condition(r))
+            )
+            .reduce((sum, r) => sum + (Number(r.Amount) || 0), 0);
+        const sumBy2 = (month: number, year: number, condition?: (r: any) => boolean) =>
+          mergedIssues
+            .filter(
+              (r) => r.month === month && r.year === year && (!condition || condition(r))
+            )
+            .reduce((sum, r) => sum + (Number(r.GrossTaxExposure) || 0), 0);
 
-  // ---------- STEP 7: Compute values ----------
-  // Total Exposure (all records)
-  const totalCurr = sumBy2(effectiveCurrentMonth, effectiveCurrentYear);
-  const totalPrev = sumBy2(prevMonth, prevYear);
+        // ---------- STEP 7: Compute values ----------
+        // Total Exposure (all records)
+        const totalCurr = sumBy2(effectiveCurrentMonth, effectiveCurrentYear);
+        const totalPrev = sumBy2(prevMonth, prevYear);
 
-  // Payments under Protest
-  const pupCurr = sumBy(
-    effectiveCurrentMonth,
-    effectiveCurrentYear,
-    (r) => r.PaymentType === "Payment under Protest"
-  );
-  const pupPrev = sumBy(
-    prevMonth,
-    prevYear,
-    (r) => r.PaymentType === "Payment under Protest"
-  );
+        // Payments under Protest
+        const pupCurr = sumBy(
+          effectiveCurrentMonth,
+          effectiveCurrentYear,
+          (r) => r.PaymentType === "Payment under Protest"
+        );
+        const pupPrev = sumBy(
+          prevMonth,
+          prevYear,
+          (r) => r.PaymentType === "Payment under Protest"
+        );
 
-  // Admitted Tax
-  const admittedCurr = sumBy(
-    effectiveCurrentMonth,
-    effectiveCurrentYear,
-    (r) => r.PaymentType === "Admitted Tax"
-  );
-  const admittedPrev = sumBy(
-    prevMonth,
-    prevYear,
-    (r) => r.PaymentType === "Admitted Tax"
-  );
+        // Admitted Tax
+        const admittedCurr = sumBy(
+          effectiveCurrentMonth,
+          effectiveCurrentYear,
+          (r) => r.PaymentType === "Admitted Tax"
+        );
+        const admittedPrev = sumBy(
+          prevMonth,
+          prevYear,
+          (r) => r.PaymentType === "Admitted Tax"
+        );
 
-  // Cashflow Exposure = Total Exposure - Payments under Protest - Admitted Tax
-  const cashCurr = totalCurr - pupCurr - admittedCurr;
-  const cashPrev = totalPrev - pupPrev - admittedPrev;
+        // Cashflow Exposure = Total Exposure - Payments under Protest - Admitted Tax
+        const cashCurr = totalCurr - pupCurr - admittedCurr;
+        const cashPrev = totalPrev - pupPrev - admittedPrev;
 
-  // Total Provisions = sum of exposures where RiskCategory = Probable
-  const provCurr = mergedIssues
-    .filter(
-      (r) =>
-        r.month === effectiveCurrentMonth &&
-        r.year === effectiveCurrentYear &&
-        r.RiskCategory === "Probable"
-    )
-    .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
-  const provPrev = mergedIssues
-    .filter(
-      (r) =>
-        r.month === prevMonth &&
-        r.year === prevYear &&
-        r.RiskCategory === "Probable"
-    )
-    .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
+        // Total Provisions = sum of exposures where RiskCategory = Probable
+        const provCurr = mergedIssues
+          .filter(
+            (r) =>
+              r.month === effectiveCurrentMonth &&
+              r.year === effectiveCurrentYear &&
+              r.RiskCategory === "Probable"
+          )
+          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
+        const provPrev = mergedIssues
+          .filter(
+            (r) =>
+              r.month === prevMonth &&
+              r.year === prevYear &&
+              r.RiskCategory === "Probable"
+          )
+          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
 
-  // P&L Exposure = Total Exposure - Total Provisions
-  const plCurr = totalCurr - provCurr;
-  const plPrev = totalPrev - provPrev;
+        // P&L Exposure = Total Exposure - Total Provisions
+        const plCurr = totalCurr - provCurr;
+        const plPrev = totalPrev - provPrev;
 
-  // EBITDA Exposure (only where EBITDA = "Above Ebitda")
-  const ebitdaCurr = mergedIssues
-    .filter(
-      (r) =>
-        r.month === effectiveCurrentMonth &&
-        r.year === effectiveCurrentYear &&
-        r.EBITDA === "Above EBITDA"
-    )
-    .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
-  const ebitdaPrev = mergedIssues
-    .filter(
-      (r) =>
-        r.month === prevMonth && r.year === prevYear && r.EBITDA === "Above Ebitda"
-    )
-    .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
+        // EBITDA Exposure (only where EBITDA = "Above Ebitda")
+        const ebitdaCurr = mergedIssues
+          .filter(
+            (r) =>
+              r.month === effectiveCurrentMonth &&
+              r.year === effectiveCurrentYear &&
+              r.EBITDA === "Above EBITDA"
+          )
+          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
+        const ebitdaPrev = mergedIssues
+          .filter(
+            (r) =>
+              r.month === prevMonth && r.year === prevYear && r.EBITDA === "Above Ebitda"
+          )
+          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
 
-  // Unprovided IT Exposure = EBITDA Exposure - P&L Exposure
-  const unprovidedCurr = ebitdaCurr - plCurr;
-  const unprovidedPrev = ebitdaPrev - plPrev;
+        // Unprovided IT Exposure = EBITDA Exposure - P&L Exposure
+        const unprovidedCurr = ebitdaCurr - plCurr;
+        const unprovidedPrev = ebitdaPrev - plPrev;
 
-  // ---------- STEP 8: Final Result ----------
-  const results3 = [
-    {
-      label: "Total Exposure",
-      current: formatAmount(totalCurr),
-      prior: formatAmount(totalPrev),
-      variance: formatAmount(totalCurr - totalPrev),
-    },
-    {
-      label: "Payments under Protest",
-      current: formatAmount(pupCurr),
-      prior: formatAmount(pupPrev),
-      variance: formatAmount(pupCurr - pupPrev),
-    },
-    {
-      label: "Admitted tax paid",
-      current: formatAmount(admittedCurr),
-      prior: formatAmount(admittedPrev),
-      variance: formatAmount(admittedCurr - admittedPrev),
-    },
-    {
-      label: "Cashflow Exposure",
-      current: formatAmount(cashCurr),
-      prior: formatAmount(cashPrev),
-      variance: formatAmount(cashCurr - cashPrev),
-    },
-    {},
-    {
-      label: "Total Exposure",
-      current: formatAmount(totalCurr),
-      prior: formatAmount(totalPrev),
-      variance: formatAmount(totalCurr - totalPrev),
-    },
-    {
-      label: "Total provisions",
-      current: formatAmount(provCurr),
-      prior: formatAmount(provPrev),
-      variance: formatAmount(provCurr - provPrev),
-    },
-    {
-      label: "P&L Exposure",
-      current: formatAmount(plCurr),
-      prior: formatAmount(plPrev),
-      variance: formatAmount(plCurr - plPrev),
-    },
-    {},
-    {
-      label: "Unprovided IT Exposure",
-      current: formatAmount(unprovidedCurr),
-      prior: formatAmount(unprovidedPrev),
-      variance: formatAmount(unprovidedCurr - unprovidedPrev),
-    },
-    {
-      label: "EBITDA Exposure",
-      current: formatAmount(ebitdaCurr),
-      prior: formatAmount(ebitdaPrev),
-      variance: formatAmount(ebitdaCurr - ebitdaPrev),
-    },
-  ];
+        // ---------- STEP 8: Final Result ----------
+        const results3 = [
+          {
+            label: "Total Exposure",
+            current: formatAmount(totalCurr),
+            prior: formatAmount(totalPrev),
+            variance: formatAmount(totalCurr - totalPrev),
+          },
+          {
+            label: "Payments under Protest",
+            current: formatAmount(pupCurr),
+            prior: formatAmount(pupPrev),
+            variance: formatAmount(pupCurr - pupPrev),
+          },
+          {
+            label: "Admitted tax paid",
+            current: formatAmount(admittedCurr),
+            prior: formatAmount(admittedPrev),
+            variance: formatAmount(admittedCurr - admittedPrev),
+          },
+          {
+            label: "Cashflow Exposure",
+            current: formatAmount(cashCurr),
+            prior: formatAmount(cashPrev),
+            variance: formatAmount(cashCurr - cashPrev),
+          },
+          {},
+          {
+            label: "Total Exposure",
+            current: formatAmount(totalCurr),
+            prior: formatAmount(totalPrev),
+            variance: formatAmount(totalCurr - totalPrev),
+          },
+          {
+            label: "Total provisions",
+            current: formatAmount(provCurr),
+            prior: formatAmount(provPrev),
+            variance: formatAmount(provCurr - provPrev),
+          },
+          {
+            label: "P&L Exposure",
+            current: formatAmount(plCurr),
+            prior: formatAmount(plPrev),
+            variance: formatAmount(plCurr - plPrev),
+          },
+          {},
+          {
+            label: "Unprovided IT Exposure",
+            current: formatAmount(unprovidedCurr),
+            prior: formatAmount(unprovidedPrev),
+            variance: formatAmount(unprovidedCurr - unprovidedPrev),
+          },
+          {
+            label: "EBITDA Exposure",
+            current: formatAmount(ebitdaCurr),
+            prior: formatAmount(ebitdaPrev),
+            variance: formatAmount(ebitdaCurr - ebitdaPrev),
+          },
+        ];
 
-  return results3;
-}
+        return results3;
+      }
 
 
       case "Provisions2": {
@@ -1367,8 +1367,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : utp.RiskCategory === "Probable"
-                ? 0
-                : utp.GrossExposure || 0
+                  ? 0
+                  : utp.GrossExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (utp.GrossExposure || 0) - utp.Amount || 0
@@ -1444,8 +1444,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : issue.RiskCategory === "Probable"
-                ? 0
-                : issue.GrossTaxExposure || 0
+                  ? 0
+                  : issue.GrossTaxExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (issue.GrossTaxExposure || 0) - issue.Amount || 0
@@ -1655,7 +1655,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
 
     fetchLOVs();
   }, []);
-  const handleFilterChange = async (key: string, value: string) => {
+  const handleFilterChange = async (key: string, value: any) => {
     const updatedFilters = { ...filters, [key]: value };
     setFilters(updatedFilters);
 
@@ -1781,8 +1781,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
           reportType === "Litigation"
             ? item.DateReceived
             : reportType === "ActiveCases"
-            ? item.DateofCompliance
-            : item.UTPDate;
+              ? item.DateofCompliance
+              : item.UTPDate;
 
         const itemDate = itemDateRaw ? new Date(itemDateRaw) : null;
         if (!itemDate) return false;
@@ -1825,7 +1825,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-                updatedFilters.financialYear) &&
+              updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -1916,7 +1916,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-                updatedFilters.financialYear) &&
+              updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -1955,9 +1955,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
     reportType
   )
     ? filteredData.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-      )
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    )
     : filteredData;
 
   return (
@@ -2021,7 +2021,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
                 ? `${styles.customDay} ${styles.inRange}`
                 : styles.customDay
             }
-            isClearable={false}
+            isClearable={true}
           />
         </div>
         <div className={styles.filterField}>
@@ -2054,104 +2054,311 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType }> = ({
             }}
             dateFormat="MM/yyyy"
             showMonthYearPicker
+            isClearable={true}
             className={styles.datePickerInput}
             placeholderText="Select month and year"
           />
         </div>{" "}
         {reportType !== "Provisions3" && (
           <>
-            <Dropdown
-              label="Entity"
-              placeholder="Select Entity"
-              options={lovOptions.Entity || []}
-              selectedKey={filters.entity || null}
-              onChange={(_, option) =>
-                handleFilterChange("entity", option?.key as string)
-              }
-              styles={{ root: { minWidth: 160 } }}
-            />
-
-            <Dropdown
-              label="Tax Type"
-              placeholder="Select Tax Type"
-              options={lovOptions["Tax Type"] || []}
-              selectedKey={filters.taxType || null}
-              onChange={(_, option) =>
-                handleFilterChange("taxType", option?.key as string)
-              }
-              styles={{ root: { minWidth: 160 } }}
-            />
-            {(reportType == "Litigation" || reportType == "ActiveCases") && (
+            <div style={{ position: "relative", display: "inline-block" }}>
               <Dropdown
-                label="Tax Authority"
-                placeholder="Select Tax Authority"
-                options={lovOptions["Tax Authority"] || []}
-                selectedKey={filters.taxAuthority || null}
+                label="Entity"
+                placeholder="Select Entity"
+                options={lovOptions.Entity || []}
+                selectedKey={filters.entity || null}
                 onChange={(_, option) =>
-                  handleFilterChange("taxAuthority", option?.key as string)
+                  handleFilterChange("entity", option?.key as string)
+                }
+                styles={{
+                  root: { minWidth: 160 },
+                  dropdown: { width: "100%" },
+                }}
+              />
+
+              {filters.entity && (
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("entity", null)}
+                  style={{
+                    position: "absolute",
+                    right: "1px",
+                    top: "75%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: "16px",
+                    color: "#666",
+                  }}
+                  title="Clear selection"
+                >
+                  ✖
+                </button>
+              )}
+            </div>
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <Dropdown
+                label="Tax Type"
+                placeholder="Select Tax Type"
+                options={lovOptions["Tax Type"] || []}
+                selectedKey={filters.taxType || null}
+                onChange={(_, option) =>
+                  handleFilterChange("taxType", option?.key as string)
                 }
                 styles={{ root: { minWidth: 160 } }}
               />
+
+              {filters.taxType && (
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("taxType", null)}
+                  style={{
+                    position: "absolute",
+                    right: "1px",
+                    top: "75%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: "16px",
+                    color: "#666",
+                  }}
+                  title="Clear selection"
+                >
+                  ✖
+                </button>
+              )}
+            </div>
+
+
+            {(reportType == "Litigation" || reportType == "ActiveCases") && (
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <Dropdown
+                  label="Tax Authority"
+                  placeholder="Select Tax Authority"
+                  options={lovOptions["Tax Authority"] || []}
+                  selectedKey={filters.taxAuthority || null}
+                  onChange={(_, option) =>
+                    handleFilterChange("taxAuthority", option?.key as string)
+                  }
+                  styles={{ root: { minWidth: 160 } }}
+                />
+
+                {filters.taxAuthority && (
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange("taxAuthority", null)}
+                    style={{
+                      position: "absolute",
+                      right: "1px",
+                      top: "75%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#666",
+                    }}
+                    title="Clear selection"
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
+
             )}
 
-            <ComboBox
-              label="Tax Year"
-              placeholder="Select Tax Year"
-              options={getYearOptions() || []} // should return IComboBoxOption[]
-              selectedKey={filters.taxYear || null}
-              onChange={(_, option) =>
-                handleFilterChange("taxYear", option?.key as string)
-              }
-              allowFreeform={false}
-              autoComplete="on" // ✅ enables suggestions while typing
-              styles={{
-                root: { minWidth: 160 },
-                callout: {
-                  maxHeight: "30vh",
-                  overflowY: "auto",
-                  directionalHintFixed: true,
-                  directionalHint: 6,
-                },
-                optionsContainerWrapper: {
-                  minWidth: 160,
-                },
-              }}
-            />
+            {filters.taxType === "Sales Tax" ?
+              <div className={styles.filterField}>
+                <label className={styles.filterLabel}> Tax Year</label>
+                <DatePicker
+                  selected={
+                    filters.taxYear
+                      ? (() => {
+                        const [month, year] = filters.taxYear.split("/");
+                        return new Date(Number(year), Number(month) - 1, 1);
+                      })()
+                      : null
+                  }
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const formatted = `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+                      handleFilterChange("taxYear", formatted);
+                    } else {
+                      // CLEAR the filter
+                      handleFilterChange("taxYear", "");
+                    }
+                  }}
+                  dateFormat="MM/yyyy"
+                  showMonthYearPicker
+                  className={styles.datePickerInput}
+                  isClearable={true}
+                  placeholderText="Select month and year"
+                />
 
-            <ComboBox
-              label="Financial Year"
-              placeholder="Select Financial Year"
-              options={getYearOptionsFY() || []}
-              selectedKey={filters.financialYear || null}
-              onChange={(_, option) =>
-                handleFilterChange("financialYear", option?.key as string)
-              }
-              allowFreeform={false}
-              autoComplete="on"
-              styles={{
-                root: { minWidth: 160 },
-                callout: {
-                  maxHeight: "30vh",
-                  overflowY: "auto",
-                  directionalHintFixed: true,
-                  directionalHint: 6,
-                },
-                optionsContainerWrapper: {
-                  minWidth: 160,
-                },
-              }}
-            />
+              </div>
+
+              :
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <ComboBox
+                  label="Tax Year"
+                  placeholder="Select Tax Year"
+                  options={getYearOptions() || []} // should return IComboBoxOption[]
+                  selectedKey={filters.taxYear || null}
+                  onChange={(_, option) =>
+                    handleFilterChange("taxYear", option?.key as string)
+                  }
+                  allowFreeform={false}
+                  autoComplete="on" // ✅ enables suggestions while typing
+                  styles={{
+                    root: { minWidth: 160 },
+                    callout: {
+                      maxHeight: "30vh",
+                      overflowY: "auto",
+                      directionalHintFixed: true,
+                      directionalHint: 6,
+                    },
+                    optionsContainerWrapper: {
+                      minWidth: 160,
+                    },
+                  }}
+                />
+
+                {filters.taxYear && (
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange("taxYear", null)}
+                    style={{
+                      position: "absolute",
+                      right: "1px",
+                      top: "75%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#666",
+                    }}
+                    title="Clear selection"
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>}
+            {filters.taxType === "Sales Tax" ?
+              <div className={styles.filterField}>
+                <label className={styles.filterLabel}> Financial Year</label>
+                <DatePicker
+                  selected={
+                    filters.financialYear
+                      ? (() => {
+                        const [month, year] = filters.financialYear.split("/");
+                        return new Date(Number(year), Number(month) - 1, 1);
+                      })()
+                      : null
+                  }
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const formatted = `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+                      handleFilterChange("financialYear", formatted);
+                    } else {
+                      // CLEAR the filter
+                      handleFilterChange("financialYear", "");
+                    }
+                  }}
+                  dateFormat="MM/yyyy"
+                  showMonthYearPicker
+                  className={styles.datePickerInput}
+                  placeholderText="Select month and year"
+                  isClearable={true}
+                />
+
+              </div>
+
+              :
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <ComboBox
+                  label="Financial Year"
+                  placeholder="Select Financial Year"
+                  options={getYearOptionsFY() || []}
+                  selectedKey={filters.financialYear || null}
+                  onChange={(_, option) =>
+                    handleFilterChange("financialYear", option?.key as string)
+                  }
+                  allowFreeform={false}
+                  autoComplete="on"
+                  styles={{
+                    root: { minWidth: 160 },
+                    callout: {
+                      maxHeight: "30vh",
+                      overflowY: "auto",
+                      directionalHintFixed: true,
+                      directionalHint: 6,
+                    },
+                    optionsContainerWrapper: {
+                      minWidth: 160,
+                    },
+                  }}
+                />
+
+                {filters.financialYear && (
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange("financialYear", null)}
+                    style={{
+                      position: "absolute",
+                      right: "1px",
+                      top: "75%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#666",
+                    }}
+                    title="Clear selection"
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>}
+
             {reportType == "UTP" && (
-              <Dropdown
-                label="Category"
-                placeholder="Select Category"
-                options={lovOptions["Risk Category"] || []}
-                selectedKey={filters.category || null}
-                onChange={(_, option) =>
-                  handleFilterChange("category", option?.key as string)
-                }
-                styles={{ root: { minWidth: 160 } }}
-              />
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <Dropdown
+                  label="Category"
+                  placeholder="Select Category"
+                  options={lovOptions["Risk Category"] || []}
+                  selectedKey={filters.category || null}
+                  onChange={(_, option) =>
+                    handleFilterChange("category", option?.key as string)
+                  }
+                  styles={{ root: { minWidth: 160 } }}
+                />
+
+                {filters.category && (
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange("category", null)}
+                    style={{
+                      position: "absolute",
+                      right: "1px",
+                      top: "75%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      color: "#666",
+                    }}
+                    title="Clear selection"
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
+
             )}
           </>
         )}

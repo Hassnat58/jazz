@@ -145,6 +145,7 @@ const TabbedTables: React.FC<{
   const [userRole, setUserRole] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const itemsPerPage = 10;
+  const [loading, setLoading] = useState<boolean>(false);
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -1992,7 +1993,7 @@ const TabbedTables: React.FC<{
 
       case "Reports":
         return (
-          <ReportsTable SpfxContext={SpfxContext} reportType={reportType} />
+          <ReportsTable SpfxContext={SpfxContext} reportType={reportType} loading={loading} setLoading={setLoading}/>
         );
 
       // case "Managers":
@@ -2225,6 +2226,7 @@ const TabbedTables: React.FC<{
                       reportType == tab.key ? styles.activeTab2 : ""
                     }`}
                     onClick={() => setReportType(tab.key)}
+                    disabled={loading}
                   >
                     {tab.text}
                   </button>

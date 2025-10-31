@@ -296,6 +296,10 @@
     border: 1px solid #ccc;
   }
 }
+.tabButton:disabled {
+
+  cursor: not-allowed;
+}
 .filtersRow {
   display: flex;
   align-items: center;
