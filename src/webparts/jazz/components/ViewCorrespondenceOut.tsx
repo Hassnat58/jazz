@@ -20,7 +20,7 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
     <div className={styles.viewCaseContainer}>
       <div className={styles.header}>
         <img src={jazzLogo} alt="Jazz Logo" className={styles.logo} />
-        <h4>Correspondence Out Details</h4>
+        <h4>Response Details</h4>
       </div>
 
       <div className={styles.metaInfo}>
@@ -34,42 +34,23 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
         <tbody>
           <tr>
             <td>
-              <strong>Correspondence Out:</strong>
-            </td>
-            <td>{data.CorrespondenceOut}</td>
-            <td>
               <strong>Case Number:</strong>
             </td>
+            <td>{data.CaseNumber?.Title || "—"}</td>
             <td>
-              {(() => {
-                if (!data.CaseNumber) return "";
-                let prefix = "CN";
-                if (data.CaseNumber.TaxType === "Income Tax") prefix = "IT";
-                if (data.CaseNumber.TaxType === "Sales Tax") prefix = "ST";
-                const taxAuth = data.CaseNumber.TaxAuthority || "N/A";
-                return `${prefix}-${taxAuth}-${data.CaseNumber?.Id}`;
-              })()}
+              <strong>Response:</strong>
             </td>
+            <td>{data.CorrespondenceOut}</td>
           </tr>
           <tr>
             <td>
-              <strong>Filed Through:</strong>
+              <strong>Tax Type</strong>
             </td>
-            <td>{data.Filedthrough}</td>
+            <td>{data.CaseNumber?.TaxType}</td>
             <td>
-              <strong>Filed At:</strong>
+              <strong>Notice/Order Type</strong>
             </td>
-            <td>{data.FiledAt}</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Date of Filing:</strong>
-            </td>
-            <td>{data.Dateoffiling?.split("T")[0]}</td>
-            <td>
-              <strong>Entity</strong>
-            </td>
-            <td>{data.CaseNumber?.Entity}</td>
+            <td> {data.CaseNumber?.CorrespondenceType}</td>
           </tr>
           <tr>
             <td>
@@ -77,15 +58,19 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
             </td>
             <td>{data.CaseNumber?.TaxAuthority}</td>
             <td>
-              <strong>Tax Type</strong>
+              <strong>Tax Year</strong>
             </td>
-            <td>{data.CaseNumber?.TaxType}</td>
+            <td>{data.CaseNumber?.TaxYear}</td>
           </tr>
           <tr>
             <td>
-              <strong>Tax Year :</strong>
+              <strong>Response Filed At:</strong>
             </td>
-            <td>{data.CaseNumber?.TaxYear}</td>
+            <td>{data.FiledAt}</td>
+            <td>
+              <strong>Date of Filing:</strong>
+            </td>
+            <td>{data.Dateoffiling?.split("T")[0]}</td>
           </tr>
         </tbody>
       </table>

@@ -121,7 +121,7 @@ const reportConfig: Record<
       { header: "SCN/Order Summary", field: "scnOrderSummary" },
       { header: "Consultant", field: "consultant" },
       { header: "Email Title", field: "emailTitle" },
-      { header: "HC Document Number", field: "hcDocumentNumber" },
+      { header: "Document Reference Number", field: "hcDocumentNumber" },
       // { header: "Billing Information", field: "billingInfo" },
       // { header: "Review Status LP", field: "reviewStatusLp" },
       { header: "In UTP", field: "inUtp" },
@@ -202,11 +202,12 @@ const reportConfig: Record<
   },
 };
 
-const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:any;setLoading:any }> = ({
-  SpfxContext,
-  reportType,
-  loading, setLoading
-}) => {
+const ReportsTable: React.FC<{
+  SpfxContext: any;
+  reportType: ReportType;
+  loading: any;
+  setLoading: any;
+}> = ({ SpfxContext, reportType, loading, setLoading }) => {
   const [show, setShow] = useState(false);
   const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
   const [lovOptions, setLovOptions] = useState<{
@@ -792,7 +793,11 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
           effectiveCurrentYear = now.getFullYear();
         }
 
-        const prev = new Date(effectiveCurrentYear, effectiveCurrentMonth - 1, 1);
+        const prev = new Date(
+          effectiveCurrentYear,
+          effectiveCurrentMonth - 1,
+          1
+        );
         prevMonth = prev.getMonth();
         prevYear = prev.getFullYear();
 
@@ -827,12 +832,16 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
           if (!key) return acc;
           if (!acc[key]) acc[key] = {};
 
-          if (month === effectiveCurrentMonth && year === effectiveCurrentYear) {
+          if (
+            month === effectiveCurrentMonth &&
+            year === effectiveCurrentYear
+          ) {
             const curr = acc[key].current;
             if (
               !curr ||
               d > new Date(curr.UTPDate) ||
-              (d.getTime() === new Date(curr.UTPDate).getTime() && utp.Id > curr.Id)
+              (d.getTime() === new Date(curr.UTPDate).getTime() &&
+                utp.Id > curr.Id)
             )
               acc[key].current = utp;
           } else if (month === prevMonth && year === prevYear) {
@@ -840,7 +849,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
             if (
               !prev ||
               d > new Date(prev.UTPDate) ||
-              (d.getTime() === new Date(prev.UTPDate).getTime() && utp.Id > prev.Id)
+              (d.getTime() === new Date(prev.UTPDate).getTime() &&
+                utp.Id > prev.Id)
             )
               acc[key].previous = utp;
           }
@@ -858,7 +868,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
 
         // ---------- STEP 5: Collect all issues for latest UTPs ----------
         const mergedIssues: any[] = [];
-        for (const { current, previous } of Object.values(latestByMonth) as any[]) {
+        for (const { current, previous } of Object.values(
+          latestByMonth
+        ) as any[]) {
           if (current && issuesByUtp[current.Id]) {
             mergedIssues.push(
               ...issuesByUtp[current.Id].map((i: any) => ({
@@ -880,16 +892,30 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
         }
 
         // ---------- STEP 6: Helper ----------
-        const sumBy = (month: number, year: number, condition?: (r: any) => boolean) =>
+        const sumBy = (
+          month: number,
+          year: number,
+          condition?: (r: any) => boolean
+        ) =>
           mergedIssues
             .filter(
-              (r) => r.month === month && r.year === year && (!condition || condition(r))
+              (r) =>
+                r.month === month &&
+                r.year === year &&
+                (!condition || condition(r))
             )
             .reduce((sum, r) => sum + (Number(r.Amount) || 0), 0);
-        const sumBy2 = (month: number, year: number, condition?: (r: any) => boolean) =>
+        const sumBy2 = (
+          month: number,
+          year: number,
+          condition?: (r: any) => boolean
+        ) =>
           mergedIssues
             .filter(
-              (r) => r.month === month && r.year === year && (!condition || condition(r))
+              (r) =>
+                r.month === month &&
+                r.year === year &&
+                (!condition || condition(r))
             )
             .reduce((sum, r) => sum + (Number(r.GrossTaxExposure) || 0), 0);
 
@@ -960,7 +986,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
         const ebitdaPrev = mergedIssues
           .filter(
             (r) =>
-              r.month === prevMonth && r.year === prevYear && r.EBITDA === "Above Ebitda"
+              r.month === prevMonth &&
+              r.year === prevYear &&
+              r.EBITDA === "Above Ebitda"
           )
           .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
 
@@ -1030,7 +1058,6 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
 
         return results3;
       }
-
 
       case "Provisions2": {
         const sp = spfi().using(SPFx(SpfxContext));
@@ -1367,8 +1394,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : utp.RiskCategory === "Probable"
-                  ? 0
-                  : utp.GrossExposure || 0
+                ? 0
+                : utp.GrossExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (utp.GrossExposure || 0) - utp.Amount || 0
@@ -1444,8 +1471,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : issue.RiskCategory === "Probable"
-                  ? 0
-                  : issue.GrossTaxExposure || 0
+                ? 0
+                : issue.GrossTaxExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (issue.GrossTaxExposure || 0) - issue.Amount || 0
@@ -1781,8 +1808,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
           reportType === "Litigation"
             ? item.DateReceived
             : reportType === "ActiveCases"
-              ? item.DateofCompliance
-              : item.UTPDate;
+            ? item.DateofCompliance
+            : item.UTPDate;
 
         const itemDate = itemDateRaw ? new Date(itemDateRaw) : null;
         if (!itemDate) return false;
@@ -1825,7 +1852,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-              updatedFilters.financialYear) &&
+                updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -1916,7 +1943,7 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-              updatedFilters.financialYear) &&
+                updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -1955,9 +1982,9 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
     reportType
   )
     ? filteredData.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    )
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      )
     : filteredData;
 
   return (
@@ -2131,7 +2158,6 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
               )}
             </div>
 
-
             {(reportType == "Litigation" || reportType == "ActiveCases") && (
               <div style={{ position: "relative", display: "inline-block" }}>
                 <Dropdown
@@ -2166,24 +2192,26 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
                   </button>
                 )}
               </div>
-
             )}
 
-            {filters.taxType === "Sales Tax" ?
+            {filters.taxType === "Sales Tax" ? (
               <div className={styles.filterField}>
                 <label className={styles.filterLabel}> Tax Year</label>
                 <DatePicker
                   selected={
                     filters.taxYear
                       ? (() => {
-                        const [month, year] = filters.taxYear.split("/");
-                        return new Date(Number(year), Number(month) - 1, 1);
-                      })()
+                          const [month, year] = filters.taxYear.split("/");
+                          return new Date(Number(year), Number(month) - 1, 1);
+                        })()
                       : null
                   }
                   onChange={(date: Date | null) => {
                     if (date) {
-                      const formatted = `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+                      const formatted = `${String(date.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      )}/${date.getFullYear()}`;
                       handleFilterChange("taxYear", formatted);
                     } else {
                       // CLEAR the filter
@@ -2196,10 +2224,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
                   isClearable={true}
                   placeholderText="Select month and year"
                 />
-
               </div>
-
-              :
+            ) : (
               <div style={{ position: "relative", display: "inline-block" }}>
                 <ComboBox
                   label="Tax Year"
@@ -2245,22 +2271,27 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
                     ✖
                   </button>
                 )}
-              </div>}
-            {filters.taxType === "Sales Tax" ?
+              </div>
+            )}
+            {filters.taxType === "Sales Tax" ? (
               <div className={styles.filterField}>
                 <label className={styles.filterLabel}> Financial Year</label>
                 <DatePicker
                   selected={
                     filters.financialYear
                       ? (() => {
-                        const [month, year] = filters.financialYear.split("/");
-                        return new Date(Number(year), Number(month) - 1, 1);
-                      })()
+                          const [month, year] =
+                            filters.financialYear.split("/");
+                          return new Date(Number(year), Number(month) - 1, 1);
+                        })()
                       : null
                   }
                   onChange={(date: Date | null) => {
                     if (date) {
-                      const formatted = `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+                      const formatted = `${String(date.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      )}/${date.getFullYear()}`;
                       handleFilterChange("financialYear", formatted);
                     } else {
                       // CLEAR the filter
@@ -2273,10 +2304,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
                   placeholderText="Select month and year"
                   isClearable={true}
                 />
-
               </div>
-
-              :
+            ) : (
               <div style={{ position: "relative", display: "inline-block" }}>
                 <ComboBox
                   label="Financial Year"
@@ -2322,7 +2351,8 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
                     ✖
                   </button>
                 )}
-              </div>}
+              </div>
+            )}
 
             {reportType == "UTP" && (
               <div style={{ position: "relative", display: "inline-block" }}>
@@ -2358,7 +2388,6 @@ const ReportsTable: React.FC<{ SpfxContext: any; reportType: ReportType;loading:
                   </button>
                 )}
               </div>
-
             )}
           </>
         )}

@@ -75,7 +75,7 @@ const ViewCaseOffcanvas: React.FC<{
     <div className={styles.viewCaseContainer}>
       <div className={styles.header}>
         <img src={jazzLogo} alt="Jazz Logo" className={styles.logo} />
-        <h4>Correspondence In Details</h4>
+        <h4>Litigation Case Details</h4>
       </div>
 
       <div className={styles.metaInfo}>

@@ -182,8 +182,8 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
         {/* Case Dropdown */}
         <div style={{ position: "relative", width: "200px" }}>
           <ComboBox
-            label="Case"
-            placeholder="Select Case"
+            label="Case Number"
+            placeholder="Select Case Number"
             options={cases.map((c) => ({
               key: c.Id,
               text: c.Title, // ✅ Case Title
@@ -243,8 +243,8 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
         {/* UTP Dropdown */}
         <div style={{ position: "relative", width: "200px" }}>
           <ComboBox
-            label="UTP"
-            placeholder="Select UTP"
+            label="UTP ID"
+            placeholder="Select UTP Id"
             options={utps.map((u) => ({
               key: u.Id,
               text: u.UTPId, // ✅ UTPId
@@ -304,8 +304,8 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
         {/* Correspondence Out Dropdown */}
         <div style={{ position: "relative", width: "200px" }}>
           <ComboBox
-            label="Correspondence Out"
-            placeholder="Select Correspondence"
+            label="Response Case"
+            placeholder="Select Response"
             options={correspondenceOuts.map((co) => ({
               key: co.Id,
               text: co.CaseNumber?.Title || `CO-${co.Id}`, // ✅ CaseNumber Title
