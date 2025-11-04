@@ -123,10 +123,6 @@ const ViewCaseOffcanvas: React.FC<{
               <strong>Tax Consultant:</strong>
             </td>
             <td>{data.TaxConsultantAssigned}</td>
-            <td>
-              <strong>Issued By:</strong>
-            </td>
-            <td>{data.IssuedBy}</td>
           </tr>
 
           <tr>
@@ -142,10 +138,6 @@ const ViewCaseOffcanvas: React.FC<{
               <strong>Financial Year:</strong>
             </td>
             <td>{data.FinancialYear}</td>
-            <td>
-              <strong>Tax Year:</strong>
-            </td>
-            <td>{data.TaxYear}</td>
           </tr>
 
           <tr>
@@ -179,6 +171,14 @@ const ViewCaseOffcanvas: React.FC<{
           </tr>
 
           <tr>
+            <td>
+              <strong>Tax Year:</strong>
+            </td>
+            <td>{data.TaxYear}</td>
+            <td>
+              <strong>Issued By:</strong>
+            </td>
+            <td>{data.IssuedBy}</td>
             <td>
               <strong>Brief Description:</strong>
             </td>
@@ -224,7 +224,6 @@ const ViewCaseOffcanvas: React.FC<{
       )}
 
       <div className={styles.attachments}>
-        {console.log("attachments", attachments)}
         <h6>Attachments:</h6>
         <div className={styles.fileList}>
           {attachments && attachments.length > 0 ? (
