@@ -180,26 +180,57 @@
   padding: 16px;
   border-radius: 8px;
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
+  overflow: hidden; /* keeps rounded corners consistent */
 }
 
+/* Add this wrapper to enable internal scroll */
+.tableWrapper {
+  max-height: 500px; /* adjust height as needed */
+  border-radius: 8px;
+  overflow-y: auto;
+}
+
+/* Table styling */
 .table {
-  border: 1px solid #78797c;
-  border-radius: 10px;
   width: 100%;
   border-collapse: collapse;
+  border: 1px solid #78797c;
 }
+
+/* Sticky header */
 .table th {
+  position: sticky;
+  top: 0;
+  padding: 10px;
   background-color: #57585b;
   color: white;
+  z-index: 2;
 }
-.table th,
+
+/* Hover & row effects */
+.table tbody tr {
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.table tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.table tbody tr:hover {
+  background-color: #e6f7ff;
+  transform: scale(1.01);
+  cursor: pointer;
+}
+
+/* Table cells */
+
 .table td {
   text-align: left;
-  padding: 10px;
+  padding: 5px;
   border: 1px solid #f2f3f1;
 }
 
-/* Status Chips */
+/* Status chips */
 .chipActive {
   background-color: #22c55e;
   color: white;
@@ -232,7 +263,14 @@
   cursor: pointer;
   margin-right: 6px;
   font-size: 16px;
+  transition: transform 0.2s ease;
 }
+
+.eyeBtn:hover,
+.editBtn:hover {
+  transform: scale(1.2);
+}
+
 .formActions {
   display: flex;
   gap: 10px;
@@ -297,7 +335,6 @@
   }
 }
 .tabButton:disabled {
-
   cursor: not-allowed;
 }
 .filtersRow {

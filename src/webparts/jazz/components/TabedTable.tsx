@@ -1057,76 +1057,78 @@ const TabbedTables: React.FC<{
             Clear Filters
           </button>
         </div>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Case No</th>
-              <th>Correspondence Type</th>
-              <th>Tax Type</th>
-              <th>Entity</th>
-              <th>Tax Authority</th>
-              <th>Tax Year</th>
-              <th>Approval Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedData.map((item) => (
-              <tr key={item.ID}>
-                <td>{item.Title}</td>
-                <td>{item.CorrespondenceType}</td>
-                <td>{item.TaxType}</td>
-                <td>{item.Entity}</td>
-                <td>{item.TaxAuthority}</td>
-                <td>{item.TaxYear}</td>
-                <td>
-                  {item.ApprovalStatus && (
-                    <div
-                      style={{
-                        backgroundColor:
-                          item.ApprovalStatus === "Approved"
-                            ? "#5ebd74"
-                            : "#20a5bb",
-                        color: "white",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      {item.ApprovalStatus}
-                    </div>
-                  )}
-                </td>
-                <td>
-                  <Button
-                    variant="outline-warning"
-                    size="sm"
-                    title="View"
-                    onClick={() => handleShow(item)}
-                  >
-                    👁
-                  </Button>
-                  <Button
-                    variant="link"
-                    className={styles.editBtn}
-                    title="Edit"
-                    onClick={() => {
-                      setSelectedCase(item);
-                      setActiveFormType("case");
-                      setIsAddingNew(true);
-                      setExisting(true);
-                    }}
-                    disabled={
-                      item.CaseStatus === "Draft" &&
-                      item.Author?.Id !== currentUser?.Id
-                    }
-                  >
-                    ✏️
-                  </Button>
-                </td>
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Case No</th>
+                <th>Correspondence Type</th>
+                <th>Tax Type</th>
+                <th>Entity</th>
+                <th>Tax Authority</th>
+                <th>Tax Year</th>
+                <th>Approval Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedData.map((item) => (
+                <tr key={item.ID}>
+                  <td>{item.Title}</td>
+                  <td>{item.CorrespondenceType}</td>
+                  <td>{item.TaxType}</td>
+                  <td>{item.Entity}</td>
+                  <td>{item.TaxAuthority}</td>
+                  <td>{item.TaxYear}</td>
+                  <td>
+                    {item.ApprovalStatus && (
+                      <div
+                        style={{
+                          backgroundColor:
+                            item.ApprovalStatus === "Approved"
+                              ? "#5ebd74"
+                              : "#20a5bb",
+                          color: "white",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {item.ApprovalStatus}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <Button
+                      variant="outline-warning"
+                      size="sm"
+                      title="View"
+                      onClick={() => handleShow(item)}
+                    >
+                      👁
+                    </Button>
+                    <Button
+                      variant="link"
+                      className={styles.editBtn}
+                      title="Edit"
+                      onClick={() => {
+                        setSelectedCase(item);
+                        setActiveFormType("case");
+                        setIsAddingNew(true);
+                        setExisting(true);
+                      }}
+                      disabled={
+                        item.CaseStatus === "Draft" &&
+                        item.Author?.Id !== currentUser?.Id
+                      }
+                    >
+                      ✏️
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {/* Pagination for Cases */}
         <Pagination
@@ -1586,60 +1588,61 @@ const TabbedTables: React.FC<{
             Clear Filters
           </button>
         </div>
-
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Case Number</th>
-              <th>Tax Matter</th>
-              <th>Tax type</th>
-              <th>Entity</th>
-              <th>Authority</th>
-              <th>Filed Through</th>
-              <th>Filed At</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedData.map((item) => (
-              <tr key={item.ID}>
-                <td>{item.CaseNumber?.Title}</td>
-                <td>{item.CaseNumber?.CorrespondenceType}</td>
-                <td>{item.CaseNumber?.TaxType}</td>
-                <td>{item.CaseNumber?.Entity}</td>
-                <td>{item.CaseNumber?.TaxAuthority}</td>
-                <td>{item.Filedthrough}</td>
-                <td>{item.FiledAt}</td>
-                <td>
-                  <Button
-                    variant="outline-warning"
-                    size="sm"
-                    title="View"
-                    onClick={() => handleShow(item)}
-                  >
-                    👁
-                  </Button>
-                  <Button
-                    variant="link"
-                    className={styles.editBtn}
-                    title="Edit"
-                    onClick={() => {
-                      setSelectedCase(item);
-                      setActiveFormType("correspondenceOut");
-                      setIsAddingNew(true);
-                    }}
-                    disabled={
-                      item.CaseStatus === "Draft" &&
-                      item.Author?.Id !== currentUser?.Id
-                    }
-                  >
-                    ✏️
-                  </Button>
-                </td>
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Case Number</th>
+                <th>Tax Matter</th>
+                <th>Tax type</th>
+                <th>Entity</th>
+                <th>Authority</th>
+                <th>Filed Through</th>
+                <th>Filed At</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedData.map((item) => (
+                <tr key={item.ID}>
+                  <td>{item.CaseNumber?.Title}</td>
+                  <td>{item.CaseNumber?.CorrespondenceType}</td>
+                  <td>{item.CaseNumber?.TaxType}</td>
+                  <td>{item.CaseNumber?.Entity}</td>
+                  <td>{item.CaseNumber?.TaxAuthority}</td>
+                  <td>{item.Filedthrough}</td>
+                  <td>{item.FiledAt}</td>
+                  <td>
+                    <Button
+                      variant="outline-warning"
+                      size="sm"
+                      title="View"
+                      onClick={() => handleShow(item)}
+                    >
+                      👁
+                    </Button>
+                    <Button
+                      variant="link"
+                      className={styles.editBtn}
+                      title="Edit"
+                      onClick={() => {
+                        setSelectedCase(item);
+                        setActiveFormType("correspondenceOut");
+                        setIsAddingNew(true);
+                      }}
+                      disabled={
+                        item.CaseStatus === "Draft" &&
+                        item.Author?.Id !== currentUser?.Id
+                      }
+                    >
+                      ✏️
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <Pagination
           currentPage={correspondencePage}
           totalPages={totalPages}
@@ -2107,75 +2110,77 @@ const TabbedTables: React.FC<{
             Clear Filters
           </button>
         </div>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>UTP ID</th>
-              <th>Tax Matter</th>
-              <th>Tax Type</th>
-              <th>Entity</th>
-              <th>Tax Authority</th>
-              <th>Tax Year</th>
-              <th>Approval Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedData.map((item) => (
-              <tr key={item.ID}>
-                <td>{item.UTPId}</td>
-                <td>{item.CaseNumber?.CorrespondenceType}</td>
-                <td>{item.TaxType}</td>
-                <td>{item.CaseNumber?.Entity}</td>
-                <td>{item.CaseNumber?.TaxAuthority}</td>
-                <td>{item.CaseNumber?.TaxYear}</td>
-                <td>
-                  {item.ApprovalStatus && (
-                    <div
-                      style={{
-                        backgroundColor:
-                          item.ApprovalStatus === "Approved"
-                            ? "#5ebd74"
-                            : "#20a5bb",
-                        color: "white",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      {item.ApprovalStatus}
-                    </div>
-                  )}
-                </td>
-                <td>
-                  <Button
-                    variant="outline-warning"
-                    size="sm"
-                    title="View"
-                    onClick={() => handleShow(item)}
-                  >
-                    👁
-                  </Button>
-                  <Button
-                    variant="link"
-                    className={styles.editBtn}
-                    title="Edit"
-                    onClick={() => {
-                      setSelectedCase(item);
-                      setActiveFormType("UTP");
-                      setIsAddingNew(true);
-                    }}
-                    disabled={
-                      item.CaseStatus === "Draft" &&
-                      item.Author?.Id !== currentUser?.Id
-                    }
-                  >
-                    ✏️
-                  </Button>
-                </td>
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>UTP ID</th>
+                <th>Tax Matter</th>
+                <th>Tax Type</th>
+                <th>Entity</th>
+                <th>Tax Authority</th>
+                <th>Tax Year</th>
+                <th>Approval Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedData.map((item) => (
+                <tr key={item.ID}>
+                  <td>{item.UTPId}</td>
+                  <td>{item.CaseNumber?.CorrespondenceType}</td>
+                  <td>{item.TaxType}</td>
+                  <td>{item.CaseNumber?.Entity}</td>
+                  <td>{item.CaseNumber?.TaxAuthority}</td>
+                  <td>{item.CaseNumber?.TaxYear}</td>
+                  <td>
+                    {item.ApprovalStatus && (
+                      <div
+                        style={{
+                          backgroundColor:
+                            item.ApprovalStatus === "Approved"
+                              ? "#5ebd74"
+                              : "#20a5bb",
+                          color: "white",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {item.ApprovalStatus}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <Button
+                      variant="outline-warning"
+                      size="sm"
+                      title="View"
+                      onClick={() => handleShow(item)}
+                    >
+                      👁
+                    </Button>
+                    <Button
+                      variant="link"
+                      className={styles.editBtn}
+                      title="Edit"
+                      onClick={() => {
+                        setSelectedCase(item);
+                        setActiveFormType("UTP");
+                        setIsAddingNew(true);
+                      }}
+                      disabled={
+                        item.CaseStatus === "Draft" &&
+                        item.Author?.Id !== currentUser?.Id
+                      }
+                    >
+                      ✏️
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <Pagination
           currentPage={utpPage}
           totalPages={totalPages}

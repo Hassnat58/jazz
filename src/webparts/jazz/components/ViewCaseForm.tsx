@@ -179,6 +179,8 @@ const ViewCaseOffcanvas: React.FC<{
               <strong>Issued By:</strong>
             </td>
             <td>{data.IssuedBy}</td>
+          </tr>
+          <tr>
             <td>
               <strong>Brief Description:</strong>
             </td>
