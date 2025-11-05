@@ -185,9 +185,10 @@
 
 /* Add this wrapper to enable internal scroll */
 .tableWrapper {
-  max-height: 500px; /* adjust height as needed */
+  max-height: 600px; /* adjust height as needed */
   border-radius: 8px;
   overflow-y: auto;
+  height: 600px;
 }
 
 /* Table styling */
