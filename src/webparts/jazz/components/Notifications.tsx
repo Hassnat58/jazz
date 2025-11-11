@@ -119,7 +119,7 @@ const Notifications: React.FC<NotificationsProps> = ({
             : [],
         status: item.Status?.toLowerCase() === "read" ? "read" : "unread",
       }));
-      console.log(items);
+      // console.log(items);
 
       setNotifications(mapped);
     } catch (err) {

@@ -337,7 +337,6 @@ const TabbedTables: React.FC<{
           "TaxAuthority",
           "Hearingdate",
           "GrossExposure",
-          "GrossTaxDemanded",
           "CaseStatus",
           "Author/Title",
           "Editor/Title",
@@ -352,7 +351,6 @@ const TabbedTables: React.FC<{
           "Email",
           "Exposure_x0020_Issues",
           "PendingAuthority",
-          "CorrespondenceType",
           "IssuedBy",
           "DocumentReferenceNumber",
           "BriefDescription",
@@ -362,7 +360,6 @@ const TabbedTables: React.FC<{
           "LawyerAssigned0",
           "LawyerEmail",
           "ApprovalStatus",
-          "TaxExposure",
           "ApprovedBy",
           "ApprovedDate",
           "Created",
@@ -387,12 +384,8 @@ const TabbedTables: React.FC<{
           "Title",
           "GMLRID",
           "GRSCode",
-          "ERMUniqueNumbering",
           "GrossExposure",
-          "PLExposure",
           "EBITDAExposureExists",
-          "CashFlowExposure",
-          "PaymentType/Title",
           "Status",
           "Author/Title",
           "Editor/Title",
@@ -408,13 +401,8 @@ const TabbedTables: React.FC<{
           "CaseNumber/TaxYear",
           "CaseNumber/CorrespondenceType",
           "CaseNumber/FinancialYear",
-          "ERMCategory",
-          "UTPCategory",
           "UTPDate",
           "Modified",
-          "Amount",
-          "PaymentGLCode",
-          "ProvisionGLCode",
           "ApprovedBy",
           "ApprovedDate",
           "ApprovalStatus",
@@ -632,17 +620,17 @@ const TabbedTables: React.FC<{
     const handleFilterChange = (key: string, value: string | undefined) => {
       const updatedFilters = { ...filters, [key]: value ?? "" };
       setFilters(updatedFilters);
-      console.log("🔍 Filtering by:", key, "=", value);
+      // console.log("🔍 Filtering by:", key, "=", value);
 
       const filtered = casesData.filter((item) => {
         const caseNum = item.Title;
 
-        console.log(
-          "🧾 CaseNum:",
-          caseNum,
-          "| CaseNumber filter:",
-          updatedFilters.caseNumber
-        );
+        // console.log(
+        //   "🧾 CaseNum:",
+        //   caseNum,
+        //   "| CaseNumber filter:",
+        //   updatedFilters.caseNumber
+        // );
 
         // ✅ Make exact match instead of partial (prevents IT-FBR-1 matching IT-FBR-163)
         const matchesCaseNumber =

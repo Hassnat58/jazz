@@ -371,12 +371,12 @@ const UTPForm: React.FC<UTPFormProps> = ({
         GMLRID: selectedCase?.GMLRID || null,
       };
 
-      console.log(
-        "Prefilling form: CaseNumber =",
-        caseNumberStr,
-        "caseOptions keys:",
-        caseOptions.map((o) => o.key)
-      );
+      // console.log(
+      //   "Prefilling form: CaseNumber =",
+      //   caseNumberStr,
+      //   "caseOptions keys:",
+      //   caseOptions.map((o) => o.key)
+      // );
 
       // reset now — caseOptions already includes an injected option from the previous effect
       reset(prefilled);

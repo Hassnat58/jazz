@@ -137,10 +137,10 @@ const ViewUTPForm: React.FC<{
               <strong>GRS Code:</strong>
             </td>
             <td>{data.GRSCode}</td>
-            <td>
+            {/* <td>
               <strong>ERM Unique No:</strong>
             </td>
-            <td>{data.ERMUniqueNumbering}</td>
+            <td>{data.ERMUniqueNumbering}</td> */}
             <td>
               <strong>UTP Date:</strong>
             </td>

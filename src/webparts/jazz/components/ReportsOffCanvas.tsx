@@ -148,7 +148,7 @@ const ReportsOffCanvas: React.FC<Props> = ({ show, handleClose, caseData }) => {
               </td>
               <td>{caseData.lawyer}</td>
             </tr>
-            <tr>
+            {/* <tr>
               <td>
                 <strong>Gross Tax Demanded:</strong>
               </td>
@@ -157,7 +157,7 @@ const ReportsOffCanvas: React.FC<Props> = ({ show, handleClose, caseData }) => {
                 <strong>Email - Title:</strong>
               </td>
               <td>{caseData.type}</td>
-            </tr>
+            </tr> */}
             <tr>
               <td>
                 <strong>Hearing Date:</strong>

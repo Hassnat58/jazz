@@ -93,7 +93,7 @@ const reportConfig: Record<
       { header: "Cash flow exposure PKR", field: "cashFlowExposurePKR" },
       { header: "P&L exposure PKR", field: "plExposurePKR" },
       { header: "EBITDA exposure PKR", field: "ebitdaExposurePKR" },
-      { header: "ERM unique numbering", field: "ermUniqueNumbering" },
+      // { header: "ERM unique numbering", field: "ermUniqueNumbering" },
       { header: "Case Number", field: "caseNumber" },
     ],
   },
@@ -500,7 +500,7 @@ const ReportsTable: React.FC<{
           // exposures (only TaxExposure exists for now)
           taxExposureScn: item.TaxExposureScn || "", // "Tax exposure SCN" (placeholder)
           taxExposureOrder: item.TaxExposureOrder || "", // "Tax exposure Order" (placeholder)
-          amount: formatAmount(item.TaxExposure) || "", // "Tax Exposure"
+          // amount: formatAmount(item.TaxExposure) || "", // "Tax Exposure"
 
           // tax period dates (placeholders)
           taxPeriodStart: item.TaxPeriodStartDate
@@ -534,7 +534,7 @@ const ReportsTable: React.FC<{
           hcDocumentNumber: item.DocumentReferenceNumber || "", // "HC Document Number"
 
           // placeholders for not in object
-          billigInfo: item.BilligInfo || item.Jurisdiction || "", // "Billing Information"
+          // billigInfo: item.BilligInfo || item.Jurisdiction || "", // "Billing Information"
           reviewSntatusLp: item.eviewSntatusLp || "", // "Review Status LP"
           briefDescription: item.BriefDescription || "",
           // "In UTP"
@@ -717,6 +717,7 @@ const ReportsTable: React.FC<{
         let grandCurr = 0;
         let grandPrev = 0;
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const [taxType, items] of Object.entries(groupedByTaxType) as [
           string,
           any[]
@@ -1401,21 +1402,21 @@ const ReportsTable: React.FC<{
               (utp.GrossExposure || 0) - utp.Amount || 0
             ),
 
-            ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
+            // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
             caseNumber: utp?.CaseNumber?.Title || "",
           };
 
           const relatedIssues = utpIssues.filter(
             (issue) => issue.UTPId === utp.Id
           );
-          console.log(
-            utp.Id,
-            utpIssues,
-            rawData,
-            latestIssues,
-            relatedIssues,
-            "dekhloo"
-          );
+          // console.log(
+          //   utp.Id,
+          //   utpIssues,
+          //   rawData,
+          //   latestIssues,
+          //   relatedIssues,
+          //   "dekhloo"
+          // );
 
           if (relatedIssues.length === 0) return [mainRow];
 
@@ -1478,7 +1479,7 @@ const ReportsTable: React.FC<{
               (issue.GrossTaxExposure || 0) - issue.Amount || 0
             ),
 
-            ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
+            // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
             caseNumber: utp?.CaseNumber?.Title || "",
           }));
 

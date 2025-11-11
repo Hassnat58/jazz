@@ -56,8 +56,8 @@ const LOVForm: React.FC<LOVFormProps> = ({
         .top(5000)();
 
       setAllItems(items);
-      console.log("All Items:", items);
-      console.log("Editing:", editItem.Title, editItem.Form);
+      // console.log("All Items:", items);
+      // console.log("Editing:", editItem.Title, editItem.Form);
 
       const filtered = items.filter((i) => i.Title === editItem.Title);
 
