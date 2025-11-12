@@ -21,17 +21,8 @@ const LOVManagement: React.FC<{ SpfxContext: any }> = ({ SpfxContext }) => {
     try {
       const items = await sp.web.lists
         .getByTitle("LOVData1")
-        .items.select(
-          "ID",
-          "Title",
-          "Value",
-          "Status",
-          "Form",
-          "Parent/Title",
-          "Parent/ID",
-          "Parent/Value"
-        )
-        .expand("Parent")
+        .items.select("ID", "Title", "Value", "Status", "Form")
+        .top(50000)
         .orderBy("ID", false)(); // we still fetch ordered by ID
 
       // ✅ distinct titles logic stays exactly the same

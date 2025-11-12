@@ -27,11 +27,9 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({
           "Author/Id",
           "Author/Title",
           "Editor/Id",
-          "Editor/Title",
-          "LawyerAssigned/Id",
-          "LawyerAssigned/Title"
+          "Editor/Title"
         )
-        .expand("Author", "Editor", "LawyerAssigned")
+        .expand("Author", "Editor")
         .filter("CaseStatus eq 'Pending' and ApprovalStatus eq 'Pending'")
         .orderBy("ID", false)();
       const items2 = await sp.web.lists
