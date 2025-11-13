@@ -232,7 +232,7 @@ const TabbedTables: React.FC<{
       try {
         // Get current user
         const user = await sp.web.currentUser();
-        setCurrentUser(user); // store full object
+        setCurrentUser(user);
 
         // Get role entry for this user
         const items = await sp.web.lists
@@ -246,17 +246,27 @@ const TabbedTables: React.FC<{
           setUserRole(roles);
         } else {
           console.log("No roles found for user");
+          setUserRole([]); // explicitly set to empty
         }
       } catch (error) {
         console.error("Error fetching role:", error);
+        setUserRole([]); // ensure defined even on error
       }
     };
 
     fetchUserRole();
   }, []);
+
+  // Handle visibility
   const hideReports =
-    userRole.includes("Manager") && !userRole.includes("Admin");
-  const visibleTabs = hideReports ? tabs.filter((t) => t !== "Reports") : tabs;
+    userRole.includes("manager") && !userRole.includes("admin");
+
+  const visibleTabs =
+    userRole.length === 0
+      ? ["Dashboard"] // show only Dashboard if no role
+      : hideReports
+      ? tabs.filter((t) => t !== "Reports")
+      : tabs;
 
   // helper functions for filters
   const getFinancialYearOptions = (): IDropdownOption[] => {
@@ -1105,8 +1115,11 @@ const TabbedTables: React.FC<{
                         setExisting(true);
                       }}
                       disabled={
-                        item.CaseStatus === "Draft" &&
-                        item.Author?.Id !== currentUser?.Id
+                        !(
+                          userRole.includes("admin") ||
+                          (item.CaseStatus === "Draft" &&
+                            item.Author?.Id === currentUser?.Id)
+                        )
                       }
                     >
                       ✏️
@@ -1619,8 +1632,11 @@ const TabbedTables: React.FC<{
                         setIsAddingNew(true);
                       }}
                       disabled={
-                        item.CaseStatus === "Draft" &&
-                        item.Author?.Id !== currentUser?.Id
+                        !(
+                          userRole.includes("admin") ||
+                          (item.Status === "Draft" &&
+                            item.Author?.Id === currentUser?.Id)
+                        )
                       }
                     >
                       ✏️
@@ -2157,8 +2173,11 @@ const TabbedTables: React.FC<{
                         setIsAddingNew(true);
                       }}
                       disabled={
-                        item.CaseStatus === "Draft" &&
-                        item.Author?.Id !== currentUser?.Id
+                        !(
+                          userRole.includes("admin") ||
+                          (item.Status === "Draft" &&
+                            item.Author?.Id === currentUser?.Id)
+                        )
                       }
                     >
                       ✏️
