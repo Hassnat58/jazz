@@ -48,7 +48,7 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
           title="Power BI Report"
           width="100%"
           height="100%"
-          src="https://app.powerbi.com/view?r=eyJrIjoiOTk0MGUwNDctYzU3Yy00ODI5LWFjZmUtNGNmYWEzYWNhMTBmIiwidCI6IjFhMTdmYjkzLWI5ZTgtNDMzZC05NDE4LTU2NDU1ZWE1NTczYSIsImMiOjN9"
+          src="https://app.powerbi.com/reportEmbed?reportId=e731074b-9bdc-41dc-acea-945d2c27adc0&autoAuth=true&ctid=5764b349-a60c-4df1-8cf5-62d06dd5b2c3"
           frameBorder="0"
           allowFullScreen={true}
         />
