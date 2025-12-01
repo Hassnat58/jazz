@@ -651,21 +651,30 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   // 🔸 Compute next Case ID for new item
   useEffect(() => {
-    if (!selectedCase || (selectedCase.Email && !selectedCase.ID)) {
+    if (!selectedCase || (selectedCase.Email && !selectedCase.ID))
       (async () => {
         try {
           const items = await sp.web.lists
             .getByTitle("Cases")
-            .items.top(1)
-            .orderBy("ID", false)(); // descending
+            .items.select("Title")
+            .top(1)
+            .orderBy("ID", false)(); // last created row
 
-          const lastId = items.length > 0 ? items[0].ID : 0;
-          setNextCaseNumber(lastId + 1);
+          let lastCaseNumber = 0;
+
+          if (items.length > 0 && items[0].Title) {
+            // Extract numeric part from title (CASE-0057 → 57)
+            const match = items[0].Title.match(/\d+$/);
+            if (match) {
+              lastCaseNumber = parseInt(match[0], 10);
+            }
+          }
+
+          setNextCaseNumber(lastCaseNumber + 1);
         } catch (err) {
-          console.error("Failed to fetch next case number:", err);
+          console.error("Error computing next case #:", err);
         }
       })();
-    }
   }, [selectedCase, notiID]);
 
   // 🔸 Submit
@@ -695,29 +704,21 @@ const CaseForm: React.FC<CaseFormProps> = ({
     // 🔹 Title logic
     let finalTitle: string;
 
-    if (existing) {
-      // Editing mode
+    if (!existing) {
+      // NEW CASE → Generate from previous case number
+      finalTitle = `${prefix}${String(nextCaseNumber)}`;
+    } else {
+      // EDITING CASE
+      finalTitle = selectedCase.Title;
       if (cleanData.ParentCaseId) {
-        // Use Parent Case formatted title (linked case)
         const parentCase = casesOptions.find(
           (opt) => opt.key.toString() === cleanData.ParentCaseId.toString()
         );
-        finalTitle = parentCase
-          ? parentCase.text
-          : `${prefix}${nextCaseNumber}`;
-      } else {
-        // No parent selected → use the current (selected) case ID
-        // If selectedCase.ID exists use it; otherwise fall back to nextCaseNumber
-        const currentId =
-          selectedCase &&
-          (selectedCase.ID || selectedCase.Id || selectedCase.id)
-            ? selectedCase.Title
-            : nextCaseNumber?.toString() || "0";
-        finalTitle = `${currentId}`;
+
+        if (parentCase) {
+          finalTitle = parentCase.text;
+        }
       }
-    } else {
-      // New case
-      finalTitle = `${prefix}${nextCaseNumber}`;
     }
 
     const itemData: any = {
@@ -907,7 +908,12 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   const financialComboRef = React.useRef<IComboBox>(null);
   const taxComboRef = React.useRef<IComboBox>(null);
-  const requiredFields = ["Tax Type", "Tax Authority", "Entity"];
+  const requiredFields = [
+    "Tax Type",
+    "Tax Authority",
+    "Entity",
+    "Date Received",
+  ];
   const handleParentCaseSelect = async (
     parentKey: string | number | undefined
   ) => {
@@ -1602,63 +1608,82 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   key={field.name}
                   name={field.name as string}
                   control={control}
-                  render={({ field: f }) => (
-                    <div
-                      className="date-picker-wrapper"
-                      style={{
-                        position: "relative",
-                        display: "flex",
-                        alignItems: "center",
-                        width: "100%",
-                      }}
-                    >
-                      <DatePicker
-                        label={field.label}
-                        value={f.value}
-                        placeholder="Select a date"
-                        componentRef={datePickerRef}
-                        onSelectDate={(date) => f.onChange(date)}
-                        allowTextInput
-                        // 🧩 Prevent the calendar popup from closing or shifting the form
-                        calloutProps={{
-                          preventDismissOnScroll: true,
-                          // Ensures calendar stays fixed to viewport
-                          doNotLayer: false,
-                          // Keeps focus within popup to stop layout shift
-                          setInitialFocus: true,
-                        }}
-                        styles={{
-                          root: { width: "100%" },
-                          textField: { width: "100%" },
-                        }}
-                        // 🧩 Prevent parent scroll/focus behavior when clicking calendar icon
-                        onClick={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                      />
+                  rules={
+                    requiredFields.includes(field.label)
+                      ? { required: `${field.label} is required` }
+                      : {}
+                  }
+                  render={({ field: f, fieldState: { error } }) => {
+                    const isRequired = requiredFields.includes(field.label);
+                    const labelWithStar = isRequired
+                      ? `${field.label} *`
+                      : field.label;
 
-                      {f.value && (
-                        <button
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()} // Prevent losing focus
-                          onClick={() => f.onChange(undefined)}
-                          style={{
-                            position: "absolute",
-                            right: 22,
-                            top: "69%",
-                            transform: "translateY(-50%)",
-                            border: "none",
-                            background: "transparent",
-                            cursor: "pointer",
-                            fontSize: "16px",
-                            color: "#888",
-                            lineHeight: 1,
+                    return (
+                      <div
+                        className="date-picker-wrapper"
+                        style={{
+                          position: "relative",
+                          display: "flex",
+                          flexDirection: "column",
+                          width: "100%",
+                        }}
+                      >
+                        <DatePicker
+                          label={labelWithStar}
+                          value={f.value}
+                          placeholder="Select a date"
+                          componentRef={datePickerRef}
+                          onSelectDate={(date) => f.onChange(date)}
+                          allowTextInput
+                          calloutProps={{
+                            preventDismissOnScroll: true,
+                            doNotLayer: false,
+                            setInitialFocus: true,
                           }}
-                        >
-                          ✖
-                        </button>
-                      )}
-                    </div>
-                  )}
+                          styles={{
+                            root: { width: "100%" },
+                            textField: { width: "100%" },
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onFocus={(e) => e.stopPropagation()}
+                        />
+
+                        {/* Clear button */}
+                        {f.value && (
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => f.onChange(undefined)}
+                            style={{
+                              position: "absolute",
+                              right: 22,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              border: "none",
+                              background: "transparent",
+                              cursor: "pointer",
+                              fontSize: "16px",
+                              color: "#888",
+                              lineHeight: 1,
+                              zIndex: 2,
+                            }}
+                          >
+                            ✖
+                          </button>
+                        )}
+
+                        {/* Error message */}
+                        {error && (
+                          <span
+                            style={{ color: "red", fontSize: 12, marginTop: 2 }}
+                          >
+                            {error.message}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }}
                 />
               );
 

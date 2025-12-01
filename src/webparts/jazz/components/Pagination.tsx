@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import * as React from "react";
 // import "bootstrap-icons/font/bootstrap-icons.css";
 import "../assets/css/bootstrap.min.css";
@@ -19,6 +20,43 @@ const Pagination: React.FC<PaginationProps> = ({
   itemsPerPage,
   onPageChange,
 }) => {
+  // Generate smart page numbers
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5; // how many pages to show around current page
+
+    if (totalPages <= 20) {
+      // small data → show full pages
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    // Always show first
+    pages.push(1);
+
+    // Left ellipsis
+    if (currentPage > maxVisible) {
+      pages.push("...");
+    }
+
+    // Middle pages
+    const start = Math.max(2, currentPage - 2);
+    const end = Math.min(totalPages - 1, currentPage + 2);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    // Right ellipsis
+    if (currentPage < totalPages - maxVisible + 1) {
+      pages.push("...");
+    }
+
+    // Always show last
+    pages.push(totalPages);
+
+    return pages;
+  };
+
   return (
     <div className="tablePagination">
       <div className="pageCount">
@@ -27,6 +65,7 @@ const Pagination: React.FC<PaginationProps> = ({
           totalItems
         )} of ${totalItems} items`}
       </div>
+
       <div className="pagination">
         <button
           type="button"
@@ -35,17 +74,20 @@ const Pagination: React.FC<PaginationProps> = ({
         >
           Previous
         </button>
+
         <div className="paginationCount">
-          {Array.from({ length: totalPages }, (_, index) => (
+          {getPageNumbers().map((page, index) => (
             <span
               key={index}
-              className={currentPage === index + 1 ? "active" : ""}
-              onClick={() => onPageChange(index + 1)}
+              className={page === currentPage ? "active" : ""}
+              onClick={() => typeof page === "number" && onPageChange(page)}
+              style={{ cursor: page === "..." ? "default" : "pointer" }}
             >
-              {index + 1}
+              {page}
             </span>
           ))}
         </div>
+
         <button
           type="button"
           disabled={currentPage === totalPages}
