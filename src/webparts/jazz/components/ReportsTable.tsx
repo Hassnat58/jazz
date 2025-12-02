@@ -410,6 +410,29 @@ const ReportsTable: React.FC<{
 
     return Object.values(latestMap);
   };
+  async function fetchPaged(query: any) {
+    let all: any[] = [];
+
+    // Execute first request
+    let response: any = await query();
+
+    all = response ?? []; // ← handle undefined
+
+    // Paging loop
+    while (response["@odata.nextLink"]) {
+      const nextResponse = await fetch(response["@odata.nextLink"], {
+        method: "GET",
+        headers: { Accept: "application/json;odata=nometadata" },
+      });
+      response = await nextResponse.json();
+      console.log(response, 'heree');
+
+      all = [...all, ...(response.value ?? [])]; // ← handle undefined
+    }
+
+    return all;
+  }
+
   const normalizeData = async (
     reportType: string,
     rawData: any[],
@@ -419,10 +442,10 @@ const ReportsTable: React.FC<{
       case "Litigation":
         const sp1 = spfi().using(SPFx(SpfxContext));
         const latestICases = await getLatestCaseIssues(rawData);
-        const utpIssues1 = await sp1.web.lists
+        const utpIssues1 = await fetchPaged(sp1.web.lists
           .getByTitle("UTPData")
           .items.expand("CaseNumber") // lookup field
-          .select("Id,UTPId,CaseNumber/Id")();
+          .select("Id,UTPId,CaseNumber/Id").top(5000));
 
         // Map Litigation.Id → UTP row
         const utpMap = new Map(utpIssues1.map((u) => [u.CaseNumber?.Id, u]));
@@ -475,7 +498,7 @@ const ReportsTable: React.FC<{
             hcDocumentNumber: item.DocumentReferenceNumber || "",
 
             billingInfo: item.BilligInfo || "",
-            reviewStatusLp: "Peview Pending",
+            reviewStatusLp: "Review Pending",
             grossExp: formatAmount(item.GrossExposure) || "",
 
             // ✅ now links UTPId if exists
@@ -632,7 +655,7 @@ const ReportsTable: React.FC<{
         }, {});
 
         // ---------- STEP 3: Fetch UTP Tax Issues + GL Code ----------
-        const utpIssues = await sp.web.lists
+        const utpIssues = await fetchPaged(sp.web.lists
           .getByTitle("UTP Tax Issue")
           .items.select(
             "Id",
@@ -643,7 +666,7 @@ const ReportsTable: React.FC<{
             "ProvisionGLCode",
             "UTP/Id"
           )
-          .expand("UTP")();
+          .expand("UTP").top(5000));
 
         // ---------- STEP 4: Group Issues by UTP SharePoint Id ----------
         const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
@@ -803,11 +826,11 @@ const ReportsTable: React.FC<{
         prevYear = prev.getFullYear();
 
         // ---------- STEP 2: Fetch UTP + Issues ----------
-        const utpItems = await sp3.web.lists
+        const utpItems = await fetchPaged(sp3.web.lists
           .getByTitle("UTPData")
-          .items.select("Id", "UTPId", "UTPDate", "TaxType")();
+          .items.select("Id", "UTPId", "UTPDate", "TaxType").top(5000));
 
-        const utpIssues = await sp3.web.lists
+        const utpIssues = await fetchPaged(sp3.web.lists
           .getByTitle("UTP Tax Issue")
           .items.select(
             "Id",
@@ -822,7 +845,7 @@ const ReportsTable: React.FC<{
             "UTP/UTPDate",
             "UTP/TaxType"
           )
-          .expand("UTP")();
+          .expand("UTP").top(5000));
 
         // ---------- STEP 3: Find latest UTP per month ----------
         const latestByMonth = utpItems.reduce((acc: any, utp: any) => {
@@ -1108,7 +1131,7 @@ const ReportsTable: React.FC<{
         }, {});
 
         // ---------- STEP 3: Fetch UTP Tax Issues (GRS from here) ----------
-        const utpIssues = await sp.web.lists
+        const utpIssues = await fetchPaged(sp.web.lists
           .getByTitle("UTP Tax Issue")
           .items.select(
             "Id",
@@ -1118,7 +1141,7 @@ const ReportsTable: React.FC<{
             "GRSCode",
             "UTP/Id"
           )
-          .expand("UTP")();
+          .expand("UTP").top(5000));
 
         // ---------- STEP 4: Group Issues by UTP Id ----------
         const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
@@ -1240,7 +1263,7 @@ const ReportsTable: React.FC<{
         }, {});
 
         // ---------- STEP 3: Fetch UTP Tax Issues + GL Code ----------
-        const utpIssues = await sp.web.lists
+        const utpIssues = await fetchPaged(sp.web.lists
           .getByTitle("UTP Tax Issue")
           .items.select(
             "Id",
@@ -1251,7 +1274,7 @@ const ReportsTable: React.FC<{
             "ProvisionGLCode",
             "UTP/Id"
           )
-          .expand("UTP")();
+          .expand("UTP").top(5000));
 
         // ---------- STEP 4: Group Issues by UTP SharePoint Id ----------
         const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
@@ -1340,10 +1363,10 @@ const ReportsTable: React.FC<{
         }));
       default: // UTPData
         const sp = spfi().using(SPFx(SpfxContext));
-        let utpQuery = sp.web.lists
+        let utpQuery: any = await fetchPaged(sp.web.lists
           .getByTitle("UTP Tax Issue")
           .items.expand("UTP")
-          .select("*,UTP/Id,UTP/Title");
+          .select("*,UTP/Id,UTP/Title").top(5000));
 
         if (filter.category) {
           // ✅ Apply filter only when risk category is selected
@@ -1395,8 +1418,8 @@ const ReportsTable: React.FC<{
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : utp.RiskCategory === "Probable"
-                ? 0
-                : utp.GrossExposure || 0
+                  ? 0
+                  : utp.GrossExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (utp.GrossExposure || 0) - utp.Amount || 0
@@ -1407,7 +1430,7 @@ const ReportsTable: React.FC<{
           };
 
           const relatedIssues = utpIssues.filter(
-            (issue) => issue.UTPId === utp.Id
+            (issue: any) => issue.UTPId === utp.Id
           );
           // console.log(
           //   utp.Id,
@@ -1420,7 +1443,7 @@ const ReportsTable: React.FC<{
 
           if (relatedIssues.length === 0) return [mainRow];
 
-          const issueRows = relatedIssues.map((issue, index) => ({
+          const issueRows = relatedIssues.map((issue: any, index: number) => ({
             ...utp,
             utpId: `${utp.UTPId}-${String.fromCharCode(97 + index)}`, // exists (currently null in your data)
             mlrClaimId: utp.GMLRID, // mapping from GMLRID
@@ -1472,8 +1495,8 @@ const ReportsTable: React.FC<{
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : issue.RiskCategory === "Probable"
-                ? 0
-                : issue.GrossTaxExposure || 0
+                  ? 0
+                  : issue.GrossTaxExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (issue.GrossTaxExposure || 0) - issue.Amount || 0
@@ -1517,7 +1540,7 @@ const ReportsTable: React.FC<{
       const listName = await getListName(reportType);
       if (listName === "UTPData") {
         // 1️⃣ Fetch UTPData items and expand CaseNumber lookup
-        items = await sp.web.lists
+        items = await fetchPaged(sp.web.lists
           .getByTitle(listName)
           .items.select(
             "*",
@@ -1532,7 +1555,7 @@ const ReportsTable: React.FC<{
             "CaseNumber/TaxYear"
           )
           .expand("CaseNumber")
-          .filter(` ApprovalStatus eq 'Approved'`)();
+          .filter(` ApprovalStatus eq 'Approved'`).top(5000));
 
         // 2️⃣ Extract unique Case IDs (no Set used)
         const caseIdsArray = items
@@ -1548,10 +1571,10 @@ const ReportsTable: React.FC<{
           const caseFilter = caseIds.map((id) => `Id eq ${id}`).join(" or ");
 
           // 4️⃣ Fetch BriefDescription separately from Cases list
-          const caseDetails = await sp.web.lists
+          const caseDetails = await fetchPaged(sp.web.lists
             .getByTitle("Cases")
             .items.select("Id", "BriefDescription")
-            .filter(`${caseFilter}`)();
+            .filter(`${caseFilter}`).top(5000));
 
           // 5️⃣ Merge BriefDescription into UTPData items
           items = items.map((item) => {
@@ -1566,10 +1589,10 @@ const ReportsTable: React.FC<{
               },
             };
           });
-          const utpTaxIssues = await sp.web.lists
+          const utpTaxIssues = await fetchPaged(sp.web.lists
             .getByTitle("UTP Tax Issue")
             .items.select("Id", "UTP/Id", "RiskCategory")
-            .expand("UTP")();
+            .expand("UTP").top(5000));
           const riskMap = utpTaxIssues.reduce((acc, issue) => {
             const utpId = issue?.UTP?.Id;
             if (!utpId) return acc;
@@ -1587,9 +1610,11 @@ const ReportsTable: React.FC<{
           }));
         }
       } else {
-        items = await sp.web.lists
+        items = await fetchPaged(sp.web.lists
           .getByTitle(listName)
-          .items.filter(` ApprovalStatus eq 'Approved'`)();
+          .items.filter(` ApprovalStatus eq 'Approved'`).top(5000));
+
+
       }
       if (reportType === "ActiveCases") {
         const today = new Date();
@@ -1665,10 +1690,10 @@ const ReportsTable: React.FC<{
 
   useEffect(() => {
     const fetchLOVs = async () => {
-      const items = await sp.web.lists
+      const items = await fetchPaged(sp.web.lists
         .getByTitle("LOVData1")
         .items.select("Id", "Title", "Value", "Status")
-        .top(5000)();
+        .top(5000));
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
       activeItems.forEach((item) => {
@@ -1687,58 +1712,44 @@ const ReportsTable: React.FC<{
     const updatedFilters = { ...filters, [key]: value };
     setFilters(updatedFilters);
 
-    const normalizeDate = (date: Date) => {
+    const normalizeDate = (date: Date | string) => {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
       return d;
     };
 
-    // STEP 1: Date filter (if selected)
-    let workingData = [...data];
-    if (updatedFilters.dateRangeStart || updatedFilters.dateRangeEnd) {
-      const start = updatedFilters.dateRangeStart
-        ? normalizeDate(new Date(updatedFilters.dateRangeStart))
-        : null;
-      const end = updatedFilters.dateRangeEnd
-        ? normalizeDate(new Date(updatedFilters.dateRangeEnd))
-        : null;
+    // STEP 1: Prepare date filter
+    const start = updatedFilters.dateRangeStart ? normalizeDate(updatedFilters.dateRangeStart) : null;
+    const end = updatedFilters.dateRangeEnd ? normalizeDate(updatedFilters.dateRangeEnd) : null;
 
-      workingData = data.filter((item) => {
+    if (!start && !end) {
+      setDateRange([null, null]);
+    }
+
+    // STEP 2: Filter data by date (only if start or end exist)
+    let workingData = [...data];
+    if (start || start && end) {
+
+      workingData = workingData.filter((item) => {
         let itemDate: Date | null = null;
 
-        if (reportType === "Litigation") {
-          itemDate = item.DateReceived
-            ? normalizeDate(new Date(item.DateReceived))
-            : null;
-        } else if (reportType === "ActiveCases") {
-          itemDate = item.DateofCompliance
-            ? normalizeDate(new Date(item.DateofCompliance))
-            : null;
-        } else {
-          itemDate = item.UTPDate
-            ? normalizeDate(new Date(item.UTPDate))
-            : null;
-        }
+        if (reportType === "Litigation") itemDate = item.DateReceived ? normalizeDate(item.DateReceived) : null;
+        else if (reportType === "ActiveCases") itemDate = item.DateofCompliance ? normalizeDate(item.DateofCompliance) : null;
+        else itemDate = item.UTPDate ? normalizeDate(item.UTPDate) : null;
 
+        // If item has no date, include it only if no filter range
         if (!itemDate) return false;
+
         if (start && itemDate < start) return false;
         if (end && itemDate > end) return false;
+
         return true;
       });
     }
 
-    // STEP 2: Apply latest logic (based on reportType)
+    // STEP 3: Apply latest data logic
     let latestData: any[] = [];
-    if (
-      [
-        "UTP",
-        "Provisions1",
-        "Provisions2",
-        "Provisions3",
-        "Contingencies",
-        "ERM",
-      ].includes(reportType)
-    ) {
+    if (["UTP", "Provisions1", "Provisions2", "Provisions3", "Contingencies", "ERM"].includes(reportType)) {
       latestData = await getLatestUTPIssues(workingData);
     } else if (["Litigation", "ActiveCases"].includes(reportType)) {
       latestData = await getLatestCaseIssues(workingData);
@@ -1746,41 +1757,24 @@ const ReportsTable: React.FC<{
       latestData = workingData;
     }
 
-    // STEP 3: Apply other filters
+    // STEP 4: Apply other filters dynamically
     const filtered = latestData.filter((item) => {
-      if (
-        [
-          "UTP",
-          "Provisions1",
-          "Provisions2",
-          "Provisions3",
-          "Contingencies",
-          "ERM",
-        ].includes(reportType)
-      ) {
+      if (["UTP", "Provisions1", "Provisions2", "Provisions3", "Contingencies", "ERM"].includes(reportType)) {
         return (
-          (!updatedFilters.category ||
-            item.RiskCategoryList?.includes(updatedFilters.category)) &&
-          (!updatedFilters.financialYear ||
-            item.CaseNumber?.FinancialYear === updatedFilters.financialYear) &&
-          (!updatedFilters.taxYear ||
-            item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
-          (!updatedFilters.taxType ||
-            item.CaseNumber?.TaxType === updatedFilters.taxType) &&
-          (!updatedFilters.entity ||
-            item.CaseNumber?.Entity === updatedFilters.entity)
+          (!updatedFilters.category || item.RiskCategoryList?.includes(updatedFilters.category)) &&
+          (!updatedFilters.financialYear || item.CaseNumber?.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.taxYear || item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxType || item.CaseNumber?.TaxType === updatedFilters.taxType) &&
+          (!updatedFilters.entity || item.CaseNumber?.Entity === updatedFilters.entity)
         );
       }
 
       if (["Litigation", "ActiveCases"].includes(reportType)) {
         return (
-          (!updatedFilters.taxYear ||
-            item.TaxYear === updatedFilters.taxYear) &&
-          (!updatedFilters.taxAuthority ||
-            item.TaxAuthority === updatedFilters.taxAuthority) &&
+          (!updatedFilters.taxYear || item.TaxYear === updatedFilters.taxYear) &&
+          (!updatedFilters.taxAuthority || item.TaxAuthority === updatedFilters.taxAuthority) &&
           (!updatedFilters.entity || item.Entity === updatedFilters.entity) &&
-          (!updatedFilters.financialYear ||
-            item.FinancialYear === updatedFilters.financialYear) &&
+          (!updatedFilters.financialYear || item.FinancialYear === updatedFilters.financialYear) &&
           (!updatedFilters.taxType || item.TaxType === updatedFilters.taxType)
         );
       }
@@ -1788,11 +1782,13 @@ const ReportsTable: React.FC<{
       return true;
     });
 
+    // STEP 5: Normalize and update filtered data
     setLoading(true);
     const dataf = await normalizeData(reportType, filtered, updatedFilters);
     setFilteredData(dataf);
     setLoading(false);
   };
+
 
   const handleFilterChangeDate = async (value1: string, value2: string) => {
     const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
@@ -1809,8 +1805,8 @@ const ReportsTable: React.FC<{
           reportType === "Litigation"
             ? item.DateReceived
             : reportType === "ActiveCases"
-            ? item.DateofCompliance
-            : item.UTPDate;
+              ? item.DateofCompliance
+              : item.UTPDate;
 
         const itemDate = itemDateRaw ? new Date(itemDateRaw) : null;
         if (!itemDate) return false;
@@ -1853,7 +1849,7 @@ const ReportsTable: React.FC<{
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-                updatedFilters.financialYear) &&
+              updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -1944,7 +1940,7 @@ const ReportsTable: React.FC<{
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-                updatedFilters.financialYear) &&
+              updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -1983,9 +1979,9 @@ const ReportsTable: React.FC<{
     reportType
   )
     ? filteredData.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-      )
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    )
     : filteredData;
 
   return (
@@ -2035,9 +2031,16 @@ const ReportsTable: React.FC<{
               if (update[1]) handleFilterChange("dateRangeEnd", newEnd);
 
               // If both are cleared
-              if (!update[0] && !update[1]) {
+              if (!update[0] || !update[0] && !update[1]) {
+                setFilters((prev) => ({
+                  ...prev,
+                  dateRangeStart: "",
+                  dateRangeEnd: "",
+                  dateStart: "",
+                  dateEnd: "",
+                }));
+                setDateRange([null, null]);
                 handleFilterChange("dateRangeStart", "");
-                handleFilterChange("dateRangeEnd", "");
               }
             }}
             // isClearable
@@ -2050,6 +2053,9 @@ const ReportsTable: React.FC<{
                 : styles.customDay
             }
             isClearable={true}
+            showYearDropdown
+            showMonthDropdown
+            dropdownMode="select"
           />
         </div>
         <div className={styles.filterField}>
@@ -2202,9 +2208,9 @@ const ReportsTable: React.FC<{
                   selected={
                     filters.taxYear
                       ? (() => {
-                          const [month, year] = filters.taxYear.split("/");
-                          return new Date(Number(year), Number(month) - 1, 1);
-                        })()
+                        const [month, year] = filters.taxYear.split("/");
+                        return new Date(Number(year), Number(month) - 1, 1);
+                      })()
                       : null
                   }
                   onChange={(date: Date | null) => {
@@ -2281,10 +2287,10 @@ const ReportsTable: React.FC<{
                   selected={
                     filters.financialYear
                       ? (() => {
-                          const [month, year] =
-                            filters.financialYear.split("/");
-                          return new Date(Number(year), Number(month) - 1, 1);
-                        })()
+                        const [month, year] =
+                          filters.financialYear.split("/");
+                        return new Date(Number(year), Number(month) - 1, 1);
+                      })()
                       : null
                   }
                   onChange={(date: Date | null) => {
