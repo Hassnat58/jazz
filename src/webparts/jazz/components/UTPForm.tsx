@@ -478,6 +478,22 @@ const UTPForm: React.FC<UTPFormProps> = ({
     if (val === undefined || val === null || val === "") return null;
     return val;
   };
+  // 🔹 Get last used UTP number (based on previous UTPId)
+  const getLastUTPNumber = async () => {
+    const lastItem = await sp.web.lists
+      .getByTitle("UTPData")
+      .items.select("UTPId")
+      .orderBy("ID", false) // latest item
+      .top(1)();
+
+    if (!lastItem.length || !lastItem[0].UTPId) return 1;
+
+    const lastUTPId = lastItem[0].UTPId; // e.g. "UTP-IT-FBR-25"
+    const parts = lastUTPId.split("-");
+    const lastNumber = Number(parts[parts.length - 1]);
+
+    return isNaN(lastNumber) ? 1 : lastNumber + 1;
+  };
 
   const submitForm = async (isDraft: boolean) => {
     if (isSubmitting) return;
@@ -540,26 +556,32 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
         itemId = result.ID;
       } else {
-        // ✅ Creating first-time UTP — generate a new UTPId
+        // STEP 1: Create item first (without UTPId)
         const result = await sp.web.lists
           .getByTitle("UTPData")
           .items.add(itemData);
 
         itemId = result.ID;
 
+        // STEP 2: Get next UTP number based on previous UTPId
+        const nextNumber = await getLastUTPNumber();
+
+        // STEP 3: Build UTPId
         const selectedCaseItem = allCases.find(
           (c) => String(c.Id) === String(data.CaseNumber)
         );
+
         const taxAuth = selectedCaseItem?.TaxAuthority || "N/A";
         const taxtype =
           selectedCaseItem?.TaxType === "Income Tax"
             ? "IT"
             : selectedCaseItem?.TaxType === "Sales Tax"
             ? "ST"
-            : "";
+            : "XX";
 
-        const generatedUTPId = `UTP-${taxtype}-${taxAuth}-${itemId}`;
+        const generatedUTPId = `UTP-${taxtype}-${taxAuth}-${nextNumber}`;
 
+        // STEP 4: Update item with generated UTPId
         await sp.web.lists.getByTitle("UTPData").items.getById(itemId).update({
           UTPId: generatedUTPId,
         });
