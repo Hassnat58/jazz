@@ -54,6 +54,26 @@ interface ExistingAttachmentWithRename {
   newName: string;
   isRenamed: boolean;
 }
+interface FormData {
+  UTPId?: string;
+  UTPDate: Date;
+  GMLRID?: string;
+  TaxType?: string;
+  CaseNumber?: any;
+
+  // Allow dynamic keys for your entries
+  [
+    key:
+      | `Amount_${number}`
+      | `ContigencyNote_${number}`
+      | `GRSCode_${number}`
+      | `UTPCategory_${number}`
+      | `ERMCategory_${number}`
+      | `ProvisionGLCode_${number}`
+      | `PaymentGLCode_${number}`
+  ]: any;
+}
+
 const UTPForm: React.FC<UTPFormProps> = ({
   SpfxContext,
   onCancel,
@@ -62,7 +82,11 @@ const UTPForm: React.FC<UTPFormProps> = ({
   loadUtpData,
 }) => {
   const { control, handleSubmit, reset, getValues, watch, setValue } =
-    useForm();
+    useForm<FormData>({
+      defaultValues: {
+        UTPDate: new Date(), // initial default
+      },
+    });
 
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
@@ -720,7 +744,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
     };
 
     loadDefaults();
-  }, [selectedCase]);
+  }, [selectedCase, reset]);
 
   const datePickerRef = React.useRef<IDatePicker>(null);
 
@@ -1719,7 +1743,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
             <Controller
               name="UTPDate"
               control={control}
-              render={({ field }) => (
+              rules={{ required: "UTP Date is required" }}
+              render={({ field, fieldState }) => (
                 <div
                   style={{
                     position: "relative",
@@ -1729,7 +1754,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 >
                   <DatePicker
                     label="UTP Date"
-                    value={field.value}
+                    value={field.value ?? null}
+                    isRequired={true}
                     calloutProps={{
                       preventDismissOnScroll: true,
                       // Ensures calendar stays fixed to viewport
@@ -1739,7 +1765,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     }}
                     onSelectDate={(date) => {
                       if (date) {
-                        field.onChange(date);
+                        field.onChange(date ?? null);
                         datePickerRef.current?.focus();
 
                         const today = new Date();
@@ -1788,7 +1814,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     <button
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => field.onChange(undefined)}
+                      onClick={() => field.onChange(null)}
                       style={{
                         position: "absolute",
                         right: "30px",
@@ -1807,6 +1833,11 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       ✖
                     </button>
                   )}
+                  {/* {fieldState.error && (
+                    <span style={{ color: "red" }}>
+                      {fieldState.error.message}
+                    </span>
+                  )} */}
 
                   {/* Dialog for previous-month selection */}
                   <Dialog
