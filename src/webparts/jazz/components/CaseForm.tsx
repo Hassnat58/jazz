@@ -407,57 +407,6 @@ const CaseForm: React.FC<CaseFormProps> = ({
     return filtered;
   }, [caseSearch, casesOptions, taxType]);
 
-  // const filterLovOptions = (
-  //   options: any[],
-  //   filters: any,
-  //   getID: (val: any) => string | null,
-  //   lovOptions: Record<string, any[]>
-  // ) => {
-  //   // if no parentId on any option → just return as-is
-  //   if (!options.some((opt) => opt.parentId)) return options;
-
-  //   // collect all selected keys across filters
-  //   const selectedParentIds = Object.keys(filters)
-  //     .map((key) => getID(filters[key]))
-  //     .filter(Boolean);
-
-  //   console.log(
-  //     "Selected Parent IDs:",
-  //     selectedParentIds,
-  //     "Options:",
-  //     options
-  //   );
-
-  //   // filter by matching parentId
-  //   const filtered = options.filter((opt) =>
-  //     selectedParentIds.includes(String(opt.parentId))
-  //   );
-
-  //   console.log("Filtered Options:", filtered);
-
-  //   // if no match → fallback to all
-  //   return filtered.length > 0 ? filtered : options;
-  // };
-
-  // 🔸 Apply dynamic prefix to dropdown texts
-
-  // const caseNumberOptions = React.useMemo(() => {
-  //   return filteredCaseOptions.map((opt) => {
-  //     // const authority = opt.data?.taxAuthority || "Unknown";
-  //     // const taxType = opt.data?.taxType;
-  //     // let prefix = "CN";
-  //     // if (taxType === "Income Tax")
-  //     //   // prefix = "IT";
-  //     // else if (taxType === "Sales Tax")
-  //     //   // prefix = "ST";
-
-  //     return {
-  //       key: opt.key, // use the original case ID
-  //       text: opt.data?.title,
-  //     };
-  //   });
-  // }, [filteredCaseOptions]);
-
   const getFileExtension = (filename: string): string => {
     const lastDotIndex = filename.lastIndexOf(".");
     return lastDotIndex !== -1 ? filename.substring(lastDotIndex) : "";
@@ -1044,6 +993,23 @@ const CaseForm: React.FC<CaseFormProps> = ({
     }
   };
 
+  const allowedAuthorities: Record<string, string[]> = {
+    "Income Tax": ["FBR", "AJK"],
+  };
+
+  const filteredTaxAuthorityOptions = React.useMemo(() => {
+    const all = lovOptions["Tax Authority"] || [];
+    if (!taxType) return all;
+
+    if (allowedAuthorities[taxType]) {
+      return all.filter((opt) =>
+        allowedAuthorities[taxType].includes(opt.text)
+      );
+    }
+
+    return all;
+  }, [lovOptions, taxType]);
+
   return (
     <>
       <form
@@ -1159,6 +1125,53 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
             if (field.type === "dropdown") {
               const internalName = fieldMapping[field.label];
+              if (field.label === "Tax Authority") {
+                // const internalName = fieldMapping[field.label];
+
+                return (
+                  <Controller
+                    key={field.label}
+                    name={internalName}
+                    control={control}
+                    render={({ field: f, fieldState }) => (
+                      <div style={{ position: "relative" }}>
+                        <Dropdown
+                          label="Tax Authority"
+                          options={filteredTaxAuthorityOptions} // 👈 USE FILTERED OPTIONS HERE
+                          selectedKey={f.value ?? null}
+                          onChange={(_, option) => {
+                            f.onChange(option ? option.key : null);
+                          }}
+                          placeholder="Select Tax Authority"
+                          errorMessage={fieldState?.error?.message}
+                        />
+
+                        {/* Clear button */}
+                        {f.value && (
+                          <button
+                            type="button"
+                            onClick={() => f.onChange(null)}
+                            style={{
+                              position: "absolute",
+                              right: 30,
+                              top: "50px",
+                              transform: "translateY(-50%)",
+                              border: "none",
+                              background: "transparent",
+                              cursor: "pointer",
+                              fontSize: "16px",
+                              color: "#888",
+                            }}
+                          >
+                            ✖
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  />
+                );
+              }
+
               if (field.label === "Financial Year") {
                 if (taxType === "Sales Tax") {
                   return (
@@ -1429,6 +1442,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   );
                 }
               }
+
               if (field.label === "Tax Consultant Assigned") {
                 const internalName = fieldMapping[field.label];
                 if (!internalName) return null;

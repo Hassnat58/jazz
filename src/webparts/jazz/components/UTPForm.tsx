@@ -488,7 +488,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
     if (!lastItem.length || !lastItem[0].UTPId) return 1;
 
-    const lastUTPId = lastItem[0].UTPId; // e.g. "UTP-IT-FBR-25"
+    const lastUTPId = lastItem[0].UTPId;
     const parts = lastUTPId.split("-");
     const lastNumber = Number(parts[parts.length - 1]);
 
@@ -691,8 +691,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
             AmountContested: amountContested,
             Rate: rate,
             GrossTaxExposure: grossTaxExposure,
-            PaymentType: entry.PaymentType || null, // ✅
-            Amount: entry.amount || null, // ✅
+            PaymentType: entry.PaymentType || null,
+            Amount: entry.amount || null,
             EBITDA: entry.EBITDA || null,
             GRSCode: entry.GRSCode || null,
             ProvisionGLCode: entry.ProvisionGLCode || null,
