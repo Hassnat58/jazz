@@ -286,25 +286,27 @@ const ReportsTable: React.FC<{
     doc.setFontSize(14);
     doc.text(`${type} Report`, 40, 30);
 
-    autoTable(doc, {
-      startY: 50,
-      head: [headers],
-      body: rows,
-      styles: {
-        fontSize: 8,
-        cellPadding: 4,
-        halign: "left",
-        valign: "middle",
-      },
-      headStyles: {
+   autoTable(doc, {
+  startY: 50,
+  head: [headers],
+  body: rows,
+  styles: {
+    fontSize: 7,
+    cellPadding: 4,
+    halign: "left",
+    valign: "middle",
+  },
+   headStyles: {
         fillColor: [22, 160, 133], // teal header
         textColor: 255,
         fontStyle: "bold",
       },
-      alternateRowStyles: {
-        fillColor: [240, 240, 240],
-      },
-    });
+  columnStyles: {
+    // Replace "scnOrderSummary" with your actual field name or index
+    [headers.indexOf("SCN/Order Summary")]: { cellWidth: 70 }, 
+  },
+});
+
 
     doc.save(`${type}_Report.pdf`);
   };
