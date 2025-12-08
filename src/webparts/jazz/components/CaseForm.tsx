@@ -600,30 +600,34 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   // 🔸 Compute next Case ID for new item
   useEffect(() => {
-    if (!selectedCase || (selectedCase.Email && !selectedCase.ID))
+    if (!selectedCase || (selectedCase.Email && !selectedCase.ID)) {
       (async () => {
         try {
+          // Get last 200 titles (safe performance)
           const items = await sp.web.lists
             .getByTitle("Cases")
             .items.select("Title")
-            .top(1)
-            .orderBy("ID", false)(); // last created row
+            .top(200)
+            .orderBy("ID", false)();
 
-          let lastCaseNumber = 0;
+          let maxNumber = 0;
 
-          if (items.length > 0 && items[0].Title) {
-            // Extract numeric part from title (CASE-0057 → 57)
-            const match = items[0].Title.match(/\d+$/);
-            if (match) {
-              lastCaseNumber = parseInt(match[0], 10);
+          items.forEach((item) => {
+            if (item.Title) {
+              const match = item.Title.match(/\d+$/);
+              if (match) {
+                const num = parseInt(match[0], 10);
+                if (num > maxNumber) maxNumber = num;
+              }
             }
-          }
+          });
 
-          setNextCaseNumber(lastCaseNumber + 1);
+          setNextCaseNumber(maxNumber + 1);
         } catch (err) {
           console.error("Error computing next case #:", err);
         }
       })();
+    }
   }, [selectedCase, notiID]);
 
   // 🔸 Submit
@@ -1672,7 +1676,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                             style={{
                               position: "absolute",
                               right: 22,
-                              top: "50%",
+                              top: "48px",
                               transform: "translateY(-50%)",
                               border: "none",
                               background: "transparent",
@@ -1919,7 +1923,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     borderRadius: "4px",
                     backgroundColor: "#fff7ed",
                     width: "fit-content", // ⬅️ added
-                    maxWidth: "100%", // ⬅️ optional safeguard
+                    maxWidth: "100%",
                   }}
                 >
                   <button

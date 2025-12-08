@@ -480,19 +480,25 @@ const UTPForm: React.FC<UTPFormProps> = ({
   };
   // 🔹 Get last used UTP number (based on previous UTPId)
   const getLastUTPNumber = async () => {
-    const lastItem = await sp.web.lists
+    const items = await sp.web.lists
       .getByTitle("UTPData")
       .items.select("UTPId")
-      .orderBy("ID", false) // latest item
-      .top(1)();
+      .top(5000)(); // fetch all items or max needed
 
-    if (!lastItem.length || !lastItem[0].UTPId) return 1;
+    let maxNumber = 0;
 
-    const lastUTPId = lastItem[0].UTPId;
-    const parts = lastUTPId.split("-");
-    const lastNumber = Number(parts[parts.length - 1]);
+    items.forEach((item) => {
+      if (item.UTPId) {
+        // extract last number from pattern UTP-IT-FBR-123
+        const match = item.UTPId.match(/(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNumber) maxNumber = num;
+        }
+      }
+    });
 
-    return isNaN(lastNumber) ? 1 : lastNumber + 1;
+    return maxNumber + 1;
   };
 
   const submitForm = async (isDraft: boolean) => {
@@ -750,16 +756,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
   useEffect(() => {
     const loadDefaults = async () => {
       if (!selectedCase) {
-        // Only for new item
-        const lastItem = await sp.web.lists
-          .getByTitle("UTPData")
-          .items.orderBy("ID", false)
-          .top(1)();
-
-        const nextId = lastItem.length > 0 ? lastItem[0].ID + 1 : 1;
+        const nextNumber = await getLastUTPNumber();
 
         reset({
-          UTPId: `UTP-${nextId}`,
+          UTPId: `UTP-${nextNumber}`,
           UTPDate: new Date(),
         });
       }
