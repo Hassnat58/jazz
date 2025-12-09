@@ -49,7 +49,7 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
       const updateData: any = {
         ApprovalStatus: decision,
         [caseData.type === "utp" ? "Status" : "CaseStatus"]: statusValue,
-        [caseData.type === "utp" ? "Description" : "Comments"]: comments,
+        [caseData.type === "utp" ? "Comments" : "Comments"]: comments,
       };
 
       // ✅ Add ApprovedBy and ApprovedDate only when Approved
@@ -172,7 +172,7 @@ const ManagerDetailsDrawer: React.FC<Props> = ({
           </div>
         </Form.Group>
         <Form.Group className="mt-3">
-          <Form.Label className="text-danger fw-semibold">* </Form.Label>
+          
           Comments
           <Form.Control
             as="textarea"

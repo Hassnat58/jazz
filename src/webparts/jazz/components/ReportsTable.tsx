@@ -1375,19 +1375,23 @@ const ReportsTable: React.FC<{
         }));
       default: // UTPData
         const sp = spfi().using(SPFx(SpfxContext));
-        let utpQuery: any = await fetchPaged(
-          sp.web.lists
-            .getByTitle("UTP Tax Issue")
-            .items.expand("UTP")
-            .select("*,UTP/Id,UTP/Title")
-            .top(5000)
-        );
+        let utpItems = await fetchPaged(
+  sp.web.lists
+    .getByTitle("UTP Tax Issue")
+    .items.expand("UTP")
+    .select("*,UTP/Id,UTP/Title")
+    .top(5000)
+);
 
-        if (filter.category) {
-          // ✅ Apply filter only when risk category is selected
-          utpQuery = utpQuery.filter(`RiskCategory eq '${filter.category}'`);
-        }
-        const utpIssues = await utpQuery();
+// now filter in JS
+if (filter.category) {
+  utpItems = utpItems.filter(
+    (item) => item.RiskCategory === filter.category
+  );
+}
+
+const utpIssues = utpItems;
+
         const latestIssues = await getLatestUTPIssues(rawData);
         const merged = latestIssues.flatMap((utp: any) => {
           const mainRow = {
@@ -1586,14 +1590,13 @@ const ReportsTable: React.FC<{
 
         if (caseIds.length > 0) {
           // 3️⃣ Build filter string like: Id eq 1 or Id eq 2 or Id eq 3
-          const caseFilter = caseIds.map((id) => `Id eq ${id}`).join(" or ");
+          // const caseFilter = caseIds.map((id) => `Id eq ${id}`).join(" or ");
 
           // 4️⃣ Fetch BriefDescription separately from Cases list
           const caseDetails = await fetchPaged(
             sp.web.lists
               .getByTitle("Cases")
               .items.select("Id", "BriefDescription")
-              .filter(`${caseFilter}`)
               .top(5000)
           );
 
@@ -1659,6 +1662,8 @@ const ReportsTable: React.FC<{
 
         handleFilterChangeDate2(newStart, newEnd, items);
       } else {
+        console.log(items,'hhh');
+        
         items_updated = await normalizeData(reportType, items, "");
         setFilteredData(items_updated);
       }

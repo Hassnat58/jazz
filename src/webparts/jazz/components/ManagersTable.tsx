@@ -74,7 +74,7 @@ const ManagersTable: React.FC<{ SpfxContext: any }> = ({
         TaxType: item.CaseNumber?.TaxType || "-",
         consultant: item.CaseNumber?.TaxConsultantAssigned || "-",
         description:
-          item.CaseNumber?.BriefDescription || item.Description || "-",
+          item.CaseNumber?.BriefDescription || item.Comments || "-",
         approvalStatus: item.ApprovalStatus || "Pending",
         type: "utp",
         created: new Date(item.Created),
