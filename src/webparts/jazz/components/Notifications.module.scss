@@ -93,3 +93,23 @@
   font-size: 14px;
   border: 1px solid #ddd;
 }
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  border: 1px solid #78797c;
+  border-radius: 10px;
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th {
+  background-color: #57585b;
+  color: white;
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px;
+  border: 1px solid #f2f3f1;
+}
