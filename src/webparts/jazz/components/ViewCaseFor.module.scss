@@ -107,3 +107,90 @@
     }
   }
 }
+.historySection {
+  margin-top: 30px;
+  padding: 20px;
+  background: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+
+  h4 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    border-left: 4px solid #d0021b; // Jazz red accent
+    padding-left: 10px;
+    color: #222;
+  }
+}
+
+.historyCard {
+  // background: #fff;
+  // padding: 18px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  // border: 1px solid #e0e0e0;
+  // box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    border-color: #c8c8c8;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+
+  h5 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #444;
+  }
+
+  .historyMeta {
+    font-size: 13px;
+    margin-bottom: 10px;
+    color: #666;
+  }
+
+  .historyAttachments {
+    margin-top: 12px;
+
+    h6 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .fileList {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+
+      .fileItem {
+        background: #f9f9f9;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+
+        img {
+          width: 20px;
+          height: 20px;
+        }
+
+        a {
+          font-size: 16px;
+          text-decoration: none;
+          color: #444;
+
+          &:hover {
+            color: #d0021b;
+          }
+        }
+      }
+    }
+  }
+}

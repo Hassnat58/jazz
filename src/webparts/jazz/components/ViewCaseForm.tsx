@@ -10,6 +10,8 @@ import xlsIcon from "../assets/xls.png";
 import imageIcon from "../assets/image.png";
 import genericIcon from "../assets/document.png"; // fallback
 import { spfi, SPFx } from "@pnp/sp";
+// import jsPDF from "jspdf";
+// import html2canvas from "html2canvas";
 
 const ViewCaseOffcanvas: React.FC<{
   show: boolean;
@@ -20,6 +22,9 @@ const ViewCaseOffcanvas: React.FC<{
 }> = ({ show, onClose, caseData: data, attachments, SpfxContext }) => {
   if (!data) return null;
   const [taxIssueEntries, setTaxIssueEntries] = React.useState<any[]>([]);
+  const [caseHistory, setCaseHistory] = React.useState<any[]>([]);
+  const [historyTaxIssues, setHistoryTaxIssues] = React.useState<any>({});
+  const [historyAttachments, setHistoryAttachments] = React.useState<any>({});
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -65,13 +70,111 @@ const ViewCaseOffcanvas: React.FC<{
     return `${prefix}-${authority}-${parentCaseId}`;
   };
 
+  React.useEffect(() => {
+    const loadHistory = async () => {
+      if (!data?.Title) return;
+
+      try {
+        const list = sp.web.lists.getByTitle("Cases");
+
+        // Load items with same Title (newest → oldest)
+        const sameTitleItems = await list.items
+          .filter(`Title eq '${data.Title.replace(/'/g, "''")}'`)
+          .select("*", "Author/Title", "Editor/Title")
+          .expand("Author", "Editor")
+          .orderBy("ID", false)();
+
+        // Only older versions
+        const previousVersions = sameTitleItems.filter((i) => i.Id < data.Id);
+        setCaseHistory(previousVersions);
+
+        //----------------------------------------
+        // LOAD TAX ISSUES (Per Version)
+        //----------------------------------------
+        const taxIssueMap: any = {};
+
+        for (const version of previousVersions) {
+          const issues = await sp.web.lists
+            .getByTitle("Tax Issues")
+            .items.filter(`CaseId eq ${version.Id}`)();
+
+          taxIssueMap[version.Id] = issues;
+        }
+
+        setHistoryTaxIssues(taxIssueMap);
+
+        //----------------------------------------
+        // LOAD ATTACHMENTS (Per Version)
+        //----------------------------------------
+        const attachmentMap: any = {};
+
+        for (const version of previousVersions) {
+          const files = await sp.web.lists
+            .getByTitle("Core Data Repositories")
+            .items.filter(`CaseId eq ${version.Id}`)
+            .select("File/Name", "File/ServerRelativeUrl", "ID")
+            .expand("File")();
+
+          attachmentMap[version.Id] = files.map((f: any) => ({
+            FileName: f.File?.Name,
+            Url: f.File?.ServerRelativeUrl,
+            Id: f.Id,
+          }));
+        }
+
+        setHistoryAttachments(attachmentMap);
+      } catch (err) {
+        console.error("Error loading history:", err);
+      }
+    };
+
+    loadHistory();
+  }, [data]);
+
   // const formattedCaseNumber = getFormattedCaseNumber(
   //   data.TaxType,
   //   data.TaxAuthority,
   //   data.ParentCaseId
   // );
 
+  // const generatePDF = async () => {
+  //   const element = document.getElementById("pdf-container");
+  //   if (!element) return;
+
+  //   const canvas = await html2canvas(element, {
+  //     scale: 2,
+  //     scrollY: -window.scrollY,
+  //   });
+
+  //   const imgData = canvas.toDataURL("image/jpeg", 0.98);
+  //   const pdf = new jsPDF("p", "mm", "a4");
+
+  //   const pageWidth = pdf.internal.pageSize.getWidth();
+  //   const pageHeight = pdf.internal.pageSize.getHeight();
+
+  //   const imgWidth = pageWidth;
+  //   const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  //   let heightLeft = imgHeight;
+  //   let position = 0;
+
+  //   pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+  //   heightLeft -= pageHeight;
+
+  //   while (heightLeft > 0) {
+  //     pdf.addPage();
+  //     position = -imgHeight + heightLeft;
+
+  //     pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+
+  //     heightLeft -= pageHeight;
+  //   }
+
+  //   pdf.save(`Case-${data?.Title}.pdf`);
+  // };
+
   return (
+    // <div id="pdf-container">
     <div className={styles.viewCaseContainer}>
       <div className={styles.header}>
         <img src={jazzLogo} alt="Jazz Logo" className={styles.logo} />
@@ -91,15 +194,7 @@ const ViewCaseOffcanvas: React.FC<{
             <td>
               <strong>Case No:</strong>
             </td>
-            <td>
-              {data.ParentCaseId
-                ? getFormattedCaseNumber(
-                    data.TaxType,
-                    data.TaxAuthority,
-                    data.ParentCaseId
-                  )
-                : data.Title}
-            </td>
+            <td>{data.Title}</td>
             <td>
               <strong>Entity:</strong>
             </td>
@@ -333,7 +428,226 @@ const ViewCaseOffcanvas: React.FC<{
           </tbody>
         </table>
       </div>
+      {caseHistory.length > 0 && (
+        <div className={styles.historySection}>
+          <h4>Previous Versions History</h4>
+
+          {caseHistory.map((item) => (
+            <div key={item.Id} className={styles.historyCard}>
+              <h5>
+                Version ID:{item.Title}-{item.Id} — Modified:{" "}
+                {new Date(item.Modified).toLocaleString()}
+              </h5>
+
+              <table className={styles.detailTable}>
+                <tbody>
+                  <tr>
+                    <td>
+                      <strong>Case No:</strong>
+                    </td>
+                    <td>
+                      {item.ParentCaseId
+                        ? getFormattedCaseNumber(
+                            item.TaxType,
+                            item.TaxAuthority,
+                            item.ParentCaseId
+                          )
+                        : item.Title}
+                    </td>
+                    <td>
+                      <strong>Entity:</strong>
+                    </td>
+                    <td>{item.Entity}</td>
+                    <td>
+                      <strong>Tax Authority:</strong>
+                    </td>
+                    <td>{item.TaxAuthority}</td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <strong>Notice/Order Type:</strong>
+                    </td>
+                    <td>{item.CorrespondenceType}</td>
+                    <td>
+                      <strong>Tax Type:</strong>
+                    </td>
+                    <td>{item.TaxType}</td>
+                    <td>
+                      <strong>Tax Consultant:</strong>
+                    </td>
+                    <td>{item.TaxConsultantAssigned}</td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <strong>Date of Document:</strong>
+                    </td>
+                    <td>{item.Dateofdocument?.split("T")[0]}</td>
+                    <td>
+                      <strong>Date Received:</strong>
+                    </td>
+                    <td>{item.DateReceived?.split("T")[0]}</td>
+                    <td>
+                      <strong>Financial Year:</strong>
+                    </td>
+                    <td>{item.FinancialYear}</td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <strong>Date of Compliance:</strong>
+                    </td>
+                    <td>{item.DateofCompliance?.split("T")[0]}</td>
+                    <td>
+                      <strong>Lawyer Assigned:</strong>
+                    </td>
+                    <td>{item.LawyerAssigned0}</td>
+                    <td>
+                      <strong>Gross Exposure:</strong>
+                    </td>
+                    <td>{item.GrossExposure}</td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <strong>Hearing Date:</strong>
+                    </td>
+                    <td>{item.Hearingdate?.split("T")[0]}</td>
+                    <td>
+                      <strong>Pending Authority:</strong>
+                    </td>
+                    <td>{item.PendingAuthority}</td>
+                    <td>
+                      <strong>Email - Title:</strong>
+                    </td>
+                    <td>{item.Email}</td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <strong>Tax Year:</strong>
+                    </td>
+                    <td>{item.TaxYear}</td>
+                    <td>
+                      <strong>Issued By:</strong>
+                    </td>
+                    <td>{item.IssuedBy}</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>Brief Description:</strong>
+                    </td>
+                    <td colSpan={5}>{item.BriefDescription}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* TAX ISSUES SECTION */}
+              <h6>Tax Issues</h6>
+              {historyTaxIssues[item.Id]?.length > 0 ? (
+                <table className={styles.taxIssueTable}>
+                  <thead>
+                    <tr>
+                      <th>Issue</th>
+                      <th>Amount Contested</th>
+                      <th>Rate</th>
+                      <th>Gross Exposure</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyTaxIssues[item.Id].map((issue: any) => (
+                      <tr key={issue.Id}>
+                        <td>{issue.Title}</td>
+                        <td>{issue.AmountContested}</td>
+                        <td>{issue.Rate}</td>
+                        <td>{issue.GrossTaxExposure}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p>No Tax Issues.</p>
+              )}
+
+              <h6>Attachments</h6>
+              <div className={styles.fileList}>
+                {historyAttachments[item.Id]?.length > 0 ? (
+                  historyAttachments[item.Id].map((file: any) => {
+                    const extension = file.FileName.split(".")
+                      .pop()
+                      ?.toLowerCase();
+                    let iconPath = genericIcon;
+
+                    switch (extension) {
+                      case "pdf":
+                        iconPath = pdfIcon;
+                        break;
+                      case "doc":
+                      case "docx":
+                        iconPath = wordIcon;
+                        break;
+                      case "xls":
+                      case "xlsx":
+                        iconPath = xlsIcon;
+                        break;
+                      case "png":
+                      case "jpg":
+                      case "jpeg":
+                        iconPath = imageIcon;
+                        break;
+                    }
+
+                    return (
+                      <div className={styles.fileItem} key={file.Id}>
+                        <img
+                          src={iconPath}
+                          alt={extension + " file"}
+                          style={{
+                            width: "24px",
+                            height: "24px",
+                            objectFit: "contain",
+                          }}
+                        />
+                        <span>{file.FileName}</span>
+
+                        <a
+                          href={file.Url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-outline-secondary btn-sm"
+                          download
+                        >
+                          ⬇
+                        </a>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p>No attachments.</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
+    // <button
+    //   onClick={generatePDF}
+    //   style={{
+    //     backgroundColor: "#FFD700",
+    //     color: "black",
+    //     padding: "10px 20px",
+    //     border: "none",
+    //     borderRadius: "6px",
+    //     fontWeight: "bold",
+    //     cursor: "pointer",
+    //     marginTop: "20px",
+    //   }}
+    // >
+    //   Download PDF
+    // </button>
+    // </div>
   );
 };
 

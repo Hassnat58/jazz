@@ -1,3 +1,3 @@
 export interface IJazzManagersProps {
-  SpfxContext:any
+  SpfxContext: any;
 }

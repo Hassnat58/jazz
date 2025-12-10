@@ -4,13 +4,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from "react";
 import styles from "../components/ViewCaseFor.module.scss";
-import jazzLogo from "../assets/jazz-logo.png";
-import pdfIcon from "../assets/pdf.png";
-import wordIcon from "../assets/word.png";
-import xlsIcon from "../assets/xls.png";
-import imageIcon from "../assets/image.png";
-import genericIcon from "../assets/document.png"; // fallback
+import jazzLogo from "../../jazz/assets/jazz-logo.png";
+import pdfIcon from "../../jazz/assets/pdf.png";
+import wordIcon from "../../jazz/assets/word.png";
+import xlsIcon from "../../jazz/assets/xls.png";
+import imageIcon from "../../jazz/assets/image.png";
+import genericIcon from "../../jazz/assets/document.png"; // fallback
 import { spfi, SPFx } from "@pnp/sp";
+// import jsPDF from "jspdf";
+// import html2canvas from "html2canvas";
 const ViewUTPForm: React.FC<{
   show: boolean;
   onClose: () => void;
@@ -21,6 +23,11 @@ const ViewUTPForm: React.FC<{
   if (!data) return null;
   const [utpTaxIssueEntries, setUtpTaxIssueEntries] = React.useState<any[]>([]);
   const [cashflowExposure, setCashflowExposure] = React.useState<number>(0);
+  const [utpHistory, setUtpHistory] = React.useState<any[]>([]);
+  const [historyUtpIssues, setHistoryUtpIssues] = React.useState<any>({});
+  const [historyUtpAttachments, setHistoryUtpAttachments] = React.useState<any>(
+    {}
+  );
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -86,7 +93,104 @@ const ViewUTPForm: React.FC<{
     fetchUtpTaxIssues();
   }, [data?.Id]);
 
+  React.useEffect(() => {
+    const loadHistory = async () => {
+      if (!data?.UTPId) return;
+
+      try {
+        const list = sp.web.lists.getByTitle("UTPData");
+
+        // Load all versions for the same UTP
+        const versions = await list.items
+          .filter(`UTPId eq '${data.UTPId}'`)
+          .select("*", "Author/Title", "Editor/Title")
+          .expand("Author", "Editor")
+          .orderBy("ID", false)();
+
+        // Only previous versions (smaller IDs)
+        const previousVersions = versions.filter((i) => i.Id < data.Id);
+        setUtpHistory(previousVersions);
+
+        //------------------------------
+        // LOAD UTP ISSUES (Per Version)
+        //------------------------------
+        const utpIssueMap: any = {};
+        for (const version of previousVersions) {
+          const issues = await sp.web.lists
+            .getByTitle("UTP Tax Issue")
+            .items.filter(`UTPId eq ${version.Id}`)();
+
+          utpIssueMap[version.Id] = issues;
+        }
+        setHistoryUtpIssues(utpIssueMap);
+
+        //------------------------------
+        // LOAD ATTACHMENTS (Per Version)
+        //------------------------------
+
+        const attachmentMap: any = {};
+
+        for (const version of previousVersions) {
+          const files = await sp.web.lists
+            .getByTitle("Core Data Repositories")
+            .items.filter(`UTPId eq ${version.Id}`)
+            .select("File/Name", "File/ServerRelativeUrl", "ID")
+            .expand("File")();
+
+          attachmentMap[version.Id] = files.map((f: any) => ({
+            FileName: f.File?.Name,
+            Url: f.File?.ServerRelativeUrl,
+            Id: f.Id,
+          }));
+        }
+
+        setHistoryUtpAttachments(attachmentMap);
+      } catch (err) {
+        console.error("Error loading UTP history:", err);
+      }
+    };
+
+    loadHistory();
+  }, [data]);
+
+  // const generatePDF = async () => {
+  //   const element = document.getElementById("pdf-container");
+  //   if (!element) return;
+
+  //   const canvas = await html2canvas(element, {
+  //     scale: 2,
+  //     scrollY: -window.scrollY,
+  //   });
+
+  //   const imgData = canvas.toDataURL("image/jpeg", 0.98);
+  //   const pdf = new jsPDF("p", "mm", "a4");
+
+  //   const pageWidth = pdf.internal.pageSize.getWidth();
+  //   const pageHeight = pdf.internal.pageSize.getHeight();
+
+  //   const imgWidth = pageWidth;
+  //   const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  //   let heightLeft = imgHeight;
+  //   let position = 0;
+
+  //   pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+  //   heightLeft -= pageHeight;
+
+  //   while (heightLeft > 0) {
+  //     pdf.addPage();
+  //     position = -imgHeight + heightLeft;
+
+  //     pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+
+  //     heightLeft -= pageHeight;
+  //   }
+
+  //   pdf.save(`Case-${data?.UTPId}.pdf`);
+  // };
+
   return (
+    // <div id="pdf-container">
     <div className={styles.viewCaseContainer}>
       <div className={styles.header}>
         <img src={jazzLogo} alt="Jazz Logo" className={styles.logo} />
@@ -154,7 +258,9 @@ const ViewUTPForm: React.FC<{
               <strong>Gross Exposure:</strong>
             </td>
             <td>
-              {data.GrossExposure.toLocaleString("en-US", { style: "decimal" })}
+              {data.GrossExposure.toLocaleString("en-US", {
+                style: "decimal",
+              })}
             </td>
             <td>
               <strong>EBITDA Exposure Exist:</strong>
@@ -165,7 +271,9 @@ const ViewUTPForm: React.FC<{
             </td>
             <td colSpan={5}>
               {cashflowExposure
-                ? cashflowExposure.toLocaleString("en-US", { style: "decimal" })
+                ? cashflowExposure.toLocaleString("en-US", {
+                    style: "decimal",
+                  })
                 : "—"}
             </td>
           </tr>
@@ -386,6 +494,243 @@ const ViewUTPForm: React.FC<{
           </tbody>
         </table>
       </div>
+
+      {utpHistory.length > 0 && (
+        <div className={styles.historySection}>
+          <h4>UTP Previous Versions History</h4>
+
+          {utpHistory.map((item) => (
+            <div key={item.Id} className={styles.historyCard}>
+              <h5>
+                Version ID: {item.UTPId}-{item.Id} — Modified:{" "}
+                {new Date(item.Modified).toLocaleString()}
+              </h5>
+
+              <table className={styles.detailTable}>
+                <tbody>
+                  <tr>
+                    <td>
+                      <strong>UTP ID:</strong>
+                    </td>
+                    <td>{item.UTPId}</td>
+                    <td>
+                      <strong>Entity:</strong>
+                    </td>
+                    <td>{item.CaseNumber?.Entity}</td>
+                    <td>
+                      <strong>Pending Authority:</strong>
+                    </td>
+                    <td>{item.CaseNumber?.PendingAuthority}</td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <strong>Tax Type:</strong>
+                    </td>
+                    <td>{item.TaxType}</td>
+                    <td>
+                      <strong>Tax Year:</strong>
+                    </td>
+                    <td>{item.CaseNumber?.TaxYear}</td>
+                    <td>
+                      <strong>UTP Category:</strong>
+                    </td>
+                    <td>{item.UTPCategory}</td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <strong>GRS Code:</strong>
+                    </td>
+                    <td>{item.GRSCode}</td>
+                    <td>
+                      <strong>UTP Date:</strong>
+                    </td>
+                    <td>
+                      {item.UTPDate
+                        ? new Date(item.UTPDate).toLocaleDateString()
+                        : ""}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <strong>Gross Exposure:</strong>
+                    </td>
+                    <td>{item.GrossExposure}</td>
+                    <td>
+                      <strong>EBITDA Exposure Exist:</strong>
+                    </td>
+                    <td>{item.EBITDAExposureExists ? "Yes" : "No"}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* UTP Issues */}
+              <h6>UTP Tax Issues</h6>
+              {historyUtpIssues[item.Id]?.length > 0 ? (
+                <table className={styles.taxIssueTable}>
+                  <thead>
+                    <tr>
+                      <th>Issue Contested</th>
+                      <th>Amount Contested</th>
+                      <th>Rate</th>
+                      <th>Gross Exposure</th>
+                      <th>Risk Category</th>
+                      <th>Contingency Note</th>
+                      <th>Payment Type</th>
+                      <th>Amount</th>
+                      <th>EBITDA</th>
+                      <th>GRS Code</th>
+                      <th>Payment GL Code</th>
+                      <th>Provision GL Code</th>
+                      <th>UTP Category</th>
+                      <th>ERM Category</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {historyUtpIssues[item.Id].map((issue: any) => (
+                      <tr key={issue.Id}>
+                        <td>{issue.TaxIssue || issue.Title || "-"}</td>
+                        <td style={{ textAlign: "right" }}>
+                          {issue.AmountContested
+                            ? Number(issue.AmountContested).toLocaleString()
+                            : "-"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {issue.Rate
+                            ? `${Number(issue.Rate).toFixed(2)}%`
+                            : "-"}
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          {issue.GrossTaxExposure
+                            ? Number(issue.GrossTaxExposure).toLocaleString()
+                            : "-"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {issue.RiskCategory || "-"}
+                        </td>
+                        <td>{issue.ContigencyNote || "-"}</td>
+                        <td style={{ textAlign: "center" }}>
+                          {issue.PaymentType || "-"}
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          {issue.Amount
+                            ? Number(issue.Amount).toLocaleString()
+                            : "-"}
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          {issue.EBITDA || "-"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {issue.GRSCode || "-"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {issue.PaymentGlCode || "-"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {issue.ProvisionGlCode || "-"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {issue.UTPCategory || "-"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {issue.ERMCategory || "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p>No UTP Tax Issues.</p>
+              )}
+
+              {/* ATTACHMENTS */}
+              <h6>Attachments</h6>
+              <div className={styles.fileList}>
+                {historyUtpAttachments[item.Id]?.length > 0 ? (
+                  historyUtpAttachments[item.Id].map((file: any) => {
+                    const extension = file.FileName.split(".")
+                      .pop()
+                      ?.toLowerCase();
+                    let iconPath = genericIcon;
+
+                    switch (extension) {
+                      case "pdf":
+                        iconPath = pdfIcon;
+                        break;
+                      case "doc":
+                      case "docx":
+                        iconPath = wordIcon;
+                        break;
+                      case "xls":
+                      case "xlsx":
+                        iconPath = xlsIcon;
+                        break;
+                      case "png":
+                      case "jpg":
+                      case "jpeg":
+                        iconPath = imageIcon;
+                        break;
+                    }
+
+                    // Handle size only if backend sends Size
+                    const size = file.Size
+                      ? file.Size > 1024 * 1024
+                        ? (file.Size / (1024 * 1024)).toFixed(2) + " MB"
+                        : (file.Size / 1024).toFixed(2) + " KB"
+                      : null;
+
+                    return (
+                      <div className={styles.fileItem} key={file.Id}>
+                        <img
+                          src={iconPath}
+                          alt={extension + " file"}
+                          style={{
+                            width: "24px",
+                            height: "24px",
+                            objectFit: "contain",
+                          }}
+                        />
+                        <span>{file.FileName}</span>
+                        {size && <span>{size}</span>}
+                        <a
+                          href={file.Url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-outline-secondary btn-sm"
+                          download
+                        >
+                          ⬇
+                        </a>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p>No attachments.</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* </div> */}
+      {/* <button
+        onClick={generatePDF}
+        style={{
+          backgroundColor: "#FFD700",
+          color: "black",
+          padding: "10px 20px",
+          border: "none",
+          borderRadius: "6px",
+          fontWeight: "bold",
+          cursor: "pointer",
+          marginTop: "20px",
+        }}
+      >
+        Download PDF
+      </button> */}
     </div>
   );
 };

@@ -1376,21 +1376,21 @@ const ReportsTable: React.FC<{
       default: // UTPData
         const sp = spfi().using(SPFx(SpfxContext));
         let utpItems = await fetchPaged(
-  sp.web.lists
-    .getByTitle("UTP Tax Issue")
-    .items.expand("UTP")
-    .select("*,UTP/Id,UTP/Title")
-    .top(5000)
-);
+          sp.web.lists
+            .getByTitle("UTP Tax Issue")
+            .items.expand("UTP")
+            .select("*,UTP/Id,UTP/Title")
+            .top(5000)
+        );
 
-// now filter in JS
-if (filter.category) {
-  utpItems = utpItems.filter(
-    (item) => item.RiskCategory === filter.category
-  );
-}
+        // now filter in JS
+        if (filter.category) {
+          utpItems = utpItems.filter(
+            (item) => item.RiskCategory === filter.category
+          );
+        }
 
-const utpIssues = utpItems;
+        const utpIssues = utpItems;
 
         const latestIssues = await getLatestUTPIssues(rawData);
         const merged = latestIssues.flatMap((utp: any) => {
@@ -1662,8 +1662,8 @@ const utpIssues = utpItems;
 
         handleFilterChangeDate2(newStart, newEnd, items);
       } else {
-        console.log(items,'hhh');
-        
+        console.log(items, "hhh");
+
         items_updated = await normalizeData(reportType, items, "");
         setFilteredData(items_updated);
       }
