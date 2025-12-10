@@ -8,7 +8,7 @@ import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
 import jazzLogo from "../assets/jazz-logo.png";
-import { Offcanvas, Button, Badge, Row, Col } from "react-bootstrap";
+import { Offcanvas, Button, Row, Col } from "react-bootstrap";
 import styles from "./Notifications.module.scss";
 import pdfIcon from "../assets/pdf.png";
 import wordIcon from "../assets/word.png";
@@ -127,17 +127,17 @@ const Notifications: React.FC<NotificationsProps> = ({
     }
   };
 
-  const deleteNotification = async (id: number) => {
-    try {
-      const sp = spfi().using(SPFx(SpfxContext));
-      await sp.web.lists.getByTitle("Inbox").items.getById(id).delete();
+  // const deleteNotification = async (id: number) => {
+  //   try {
+  //     const sp = spfi().using(SPFx(SpfxContext));
+  //     await sp.web.lists.getByTitle("Inbox").items.getById(id).delete();
 
-      alert("Notification deleted");
-      fetchInboxData(); // refresh the list
-    } catch (err) {
-      console.error("Error deleting notification:", err);
-    }
-  };
+  //     alert("Notification deleted");
+  //     fetchInboxData(); // refresh the list
+  //   } catch (err) {
+  //     console.error("Error deleting notification:", err);
+  //   }
+  // };
   useEffect(() => {
     fetchInboxData();
   }, []);
@@ -166,6 +166,9 @@ const Notifications: React.FC<NotificationsProps> = ({
     setSelectedNotification(notification);
     setShow(true);
   };
+const filteredNotifications = notifications.filter(
+  (n) => filter === "all" || n.status === filter
+);
 
   return (
     <div className={styles.notificationsContainer}>
@@ -184,9 +187,67 @@ const Notifications: React.FC<NotificationsProps> = ({
           Submited
         </button>
       </div>
+<div className={styles.tableWrapper}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              
+                <th >From</th>
+                <th >Subject</th>
+
+                <th >Date</th>
+                <th >Action</th>
+
+             
+            </tr>
+          </thead>
+        <tbody>
+  {filteredNotifications.length === 0 ? (
+    <tr>
+      <td colSpan={4} style={{ textAlign: "center" }}>
+        No Data Available
+      </td>
+    </tr>
+  ) : (
+    filteredNotifications.map((n, idx) => (
+      <tr key={idx}>
+        <td >{n.from }</td>
+        <td>{n.title}</td>
+        <td>{new Date(n.date).toLocaleDateString()}</td>
+        <td>
+          <Button
+            variant="outline-warning"
+            size="sm"
+            className="me-2"
+            onClick={() => {
+              setNotiID(n.id);
+              handleView(n);
+            }}
+          >
+            👁
+          </Button>
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
+
+        </table>
+{/* 
+        {selectedCase && (
+          <CorrespondenceDetailOffCanvas
+            show={show}
+            handleClose={() => setShow(false)}
+            caseData={selectedCase}
+          />
+        )} */}
+      </div>
+
+
+
 
       {/* Notification List */}
-      {notifications
+      {/* {notifications
         .filter((n) => filter === "all" || n.status === filter)
         .map((n) => (
           <div
@@ -198,7 +259,7 @@ const Notifications: React.FC<NotificationsProps> = ({
                 {n.from ? n.from[0].toUpperCase() : "?"}
               </div>
               <div>
-                <h6 className="mb-1">{n.title}</h6>
+                <h6 >{n.title}</h6>
                 <p className="mb-0">{n.description}</p>
               </div>
             </div>
@@ -232,7 +293,7 @@ const Notifications: React.FC<NotificationsProps> = ({
               </div>
             </div>
           </div>
-        ))}
+        ))} */}
 
       {/* Offcanvas */}
       <Offcanvas
