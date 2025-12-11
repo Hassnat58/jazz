@@ -2545,7 +2545,7 @@ const TabbedTables: React.FC<{
         onHide={handleClose}
         placement="end"
         style={{
-          width: activeTab === "UTP Dashboard" ? "1395px" : "850px",
+          width: activeTab === "UTP Dashboard" ? "1500px" : "850px",
         }}
       >
         <Offcanvas.Header closeButton>
