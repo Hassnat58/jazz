@@ -137,6 +137,7 @@ const TabbedTables: React.FC<{
     taxType: "",
     taxAuthority: "",
     caseNumber: "",
+    utpId: "",
   });
   const [filteredUtpData, setFilteredUtpData] = useState<any[]>([]);
   const [activeFormType, setActiveFormType] = useState<
@@ -150,6 +151,9 @@ const TabbedTables: React.FC<{
   const [currentUser, setCurrentUser] = useState<any>(null);
   const itemsPerPage = 10;
   const [loading, setLoading] = useState<boolean>(false);
+  const [utpIdOptions, setUtpIdOptions] = useState<
+    { key: number; text: string }[]
+  >([]);
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -263,7 +267,7 @@ const TabbedTables: React.FC<{
 
   const visibleTabs =
     userRole.length === 0
-      ? ["Dashboard"] // show only Dashboard if no role
+      ? [] // ❌ show nothing
       : hideReports
       ? tabs.filter((t) => t !== "Reports")
       : tabs;
@@ -423,6 +427,15 @@ const TabbedTables: React.FC<{
         .expand("Author", "Editor", "CaseNumber")();
       setUtpData(items);
       setFilteredUtpData(items);
+      const unique = new Map<string, { key: number; text: string }>();
+
+      items.forEach((item) => {
+        if (item.UTPId && !unique.has(item.UTPId)) {
+          unique.set(item.UTPId, { key: item.ID, text: item.UTPId });
+        }
+      });
+
+      setUtpIdOptions(Array.from(unique.values()));
     } catch (err) {
       console.error("Error fetching data from UTP list:", err);
     }
@@ -618,6 +631,7 @@ const TabbedTables: React.FC<{
       taxType: "",
       taxAuthority: "",
       caseNumber: "",
+      utpId: "",
     });
   }, [activeTab]);
 
@@ -1674,6 +1688,11 @@ const TabbedTables: React.FC<{
           : item.Title || "";
 
         // ✅ exact match instead of includes
+        const matchesUtpId =
+          !updatedFilters.utpId ||
+          (item.UTPId &&
+            item.UTPId.toLowerCase().trim() ===
+              updatedFilters.utpId.toLowerCase().trim());
         const matchesCaseNumber =
           !updatedFilters.caseNumber ||
           caseNum.trim().toLowerCase() ===
@@ -1694,6 +1713,7 @@ const TabbedTables: React.FC<{
           item.CaseNumber?.Entity === updatedFilters.entity;
 
         return (
+          matchesUtpId &&
           matchesCaseNumber &&
           // matchesCategory &&
           matchesFinancialYear &&
@@ -1761,7 +1781,70 @@ const TabbedTables: React.FC<{
                 style={{
                   position: "absolute",
                   right: 20,
-                  top: "75%",
+                  top: "50px",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#888",
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
+
+          {/* 🔥 UTP ID Filter */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <ComboBox
+              label="UTP ID"
+              placeholder="Select or type UTP ID"
+              allowFreeform
+              autoComplete="on"
+              useComboBoxAsMenuWidth
+              options={utpIdOptions || []}
+              text={utpFilters.utpId || ""}
+              selectedKey={
+                utpFilters.utpId
+                  ? utpIdOptions.find((opt) => opt.text === utpFilters.utpId)
+                      ?.key || null
+                  : null
+              }
+              onInputValueChange={(newText) => {
+                handleUtpFilterChange("utpId", newText || "");
+              }}
+              onChange={(_, option, __, value) => {
+                const newValue = option ? option.text : value || "";
+                handleUtpFilterChange("utpId", newValue);
+              }}
+              styles={{
+                root: { width: "200px" },
+                container: { width: "200px" },
+                callout: {
+                  width: "100%",
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                optionsContainerWrapper: {
+                  maxHeight: 5 * 36,
+                  overflowY: "auto",
+                },
+                input: { width: "100%" },
+              }}
+            />
+
+            {utpFilters.utpId && (
+              <button
+                type="button"
+                onClick={() => {
+                  handleUtpFilterChange("utpId", "");
+                  setFilteredUtpData(utpData);
+                }}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: "50px",
                   transform: "translateY(-50%)",
                   border: "none",
                   background: "transparent",
@@ -2106,6 +2189,7 @@ const TabbedTables: React.FC<{
                 taxType: "",
                 taxAuthority: "",
                 caseNumber: "",
+                utpId: "",
               });
               setFilteredUtpData(utpData);
               setUtpPage(1);
@@ -2308,61 +2392,85 @@ const TabbedTables: React.FC<{
           <img src={logo} alt="Jazz Logo" className={styles.logo} />
           <h1 className={styles.lmsHeading}>LMS</h1>
         </div>
-        {visibleTabs.map((tab) => (
-          <button
-            type="button"
-            key={tab}
-            className={`${styles.tab} ${
-              !showLOVManagement &&
-              !showManageRole &&
-              !showConsultantManagement &&
-              !showLawyerManagement &&
-              activeTab === tab
-                ? styles.activeTab
-                : ""
-            }`}
-            onClick={() => {
-              setActiveTab(tab);
-              setIsAddingNew(false);
-              setSelectedCase(null);
-              setActiveFormType(null);
-              setNotiID(null);
-              setShowLOVManagement(false);
-              setShowManageRole(false);
-              setShowConsultantManagement(false);
-              setShowLawyerManagement(false);
-              setUtpFilters({
-                entity: "",
-                taxType: "",
-                taxAuthority: "",
-                taxYear: "",
-                financialYear: "",
-                category: "",
-                caseNumber: "",
-              });
-              setCorrespondenceFilters({
-                Entity: "",
-                category: "",
-                financialYear: "",
-                taxYear: "",
-                taxType: "",
-                taxAuthority: "",
-                caseNumber: "",
-              });
-              setFilters({
-                Entity: "",
-                taxType: "",
-                taxAuthority: "",
-                taxYear: "",
-                financialYear: "",
-                category: "",
-                caseNumber: "",
-              });
+        {visibleTabs.length === 0 ? (
+          <div
+            style={{
+              padding: "20px",
+              textAlign: "center",
+              color: "#b30000",
+              fontWeight: "600",
+              fontSize: "18px",
             }}
           >
-            {tab}
-          </button>
-        ))}
+            You do not have access.
+          </div>
+        ) : (
+          visibleTabs.map((tab) => (
+            <button
+              type="button"
+              key={tab}
+              className={`${styles.tab} ${
+                !showLOVManagement &&
+                !showManageRole &&
+                !showConsultantManagement &&
+                !showLawyerManagement &&
+                activeTab === tab
+                  ? styles.activeTab
+                  : ""
+              }`}
+              onClick={() => {
+                setActiveTab(tab);
+                setIsAddingNew(false);
+                setSelectedCase(null);
+                setActiveFormType(null);
+                setNotiID(null);
+
+                // Reset flags
+                setShowLOVManagement(false);
+                setShowManageRole(false);
+                setShowConsultantManagement(false);
+                setShowLawyerManagement(false);
+
+                // Reset UTP filters
+                setUtpFilters({
+                  entity: "",
+                  taxType: "",
+                  taxAuthority: "",
+                  taxYear: "",
+                  financialYear: "",
+                  category: "",
+                  caseNumber: "",
+                  utpId: "",
+                });
+
+                // Reset correspondence filters
+                setCorrespondenceFilters({
+                  Entity: "",
+                  category: "",
+                  financialYear: "",
+                  taxYear: "",
+                  taxType: "",
+                  taxAuthority: "",
+                  caseNumber: "",
+                });
+
+                // Reset filters
+                setFilters({
+                  Entity: "",
+                  taxType: "",
+                  taxAuthority: "",
+                  taxYear: "",
+                  financialYear: "",
+                  category: "",
+                  caseNumber: "",
+                });
+              }}
+            >
+              {tab}
+            </button>
+          ))
+        )}
+
         <div className={styles.navIcons}>
           {userPhoto ? (
             <img src={userPhoto} alt="User" className={styles.userPhoto} />

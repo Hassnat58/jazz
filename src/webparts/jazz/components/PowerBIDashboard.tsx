@@ -12,37 +12,62 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
 }) => {
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [isManager, setIsManager] = React.useState(false);
+  const [hasRole, setHasRole] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     const loadUserInfo = async () => {
       try {
         const sp = spfi().using(SPFx(SpfxContext));
-
-        // Get current user
         const currentUser = await sp.web.currentUser();
 
-        // Get user role
         const roles = await sp.web.lists
           .getByTitle("Role")
           .items.filter(`Person/Id eq ${currentUser.Id}`)
           .select("Role", "Person/Id")
           .expand("Person")();
 
-        const hasAdminRole = roles.some((r: any) => r.Role === "Admin");
-        setIsAdmin(hasAdminRole);
+        const anyRole = roles.length > 0;
+        setHasRole(anyRole);
 
-        const hasManagerRole = roles.some((r: any) => r.Role === "Manager");
-        setIsManager(hasManagerRole);
+        setIsAdmin(roles.some((r: any) => r.Role === "Admin"));
+        setIsManager(roles.some((r: any) => r.Role === "Manager"));
       } catch (err) {
         console.error("Error loading user info:", err);
+        setHasRole(false);
+      } finally {
+        setLoading(false);
       }
     };
 
     loadUserInfo();
   }, [SpfxContext]);
 
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: "50px" }}>Loading...</div>
+    );
+  }
+
+  if (!hasRole) {
+    return (
+      <div
+        style={{
+          padding: "20px",
+          textAlign: "center",
+          color: "black",
+          fontWeight: "600",
+          fontSize: "18px",
+        }}
+      >
+        You do not have access.
+      </div>
+    );
+  }
+
   return (
     <>
+      {/* Power BI Dashboard */}
       <div style={{ width: "100%", height: "800px", marginBottom: "30px" }}>
         <iframe
           title="Power BI Report"
@@ -53,6 +78,8 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
           allowFullScreen={true}
         />
       </div>
+
+      {/* Managers Table only for Admin / Manager */}
       {(isAdmin || isManager) && <ManagersTable SpfxContext={SpfxContext} />}
     </>
   );
