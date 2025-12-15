@@ -566,21 +566,25 @@ const ReportsTable: React.FC<{
         const now = new Date();
         let effectiveCurrentMonth: number;
         let effectiveCurrentYear: number;
-        let prevMonth: number;
-        let prevYear: number;
+        // let prevMonth: number;
+        // let prevYear: number;
+       
+        
 
         // --- Case 1: Month selector chosen ---
         if (filter.dateStart) {
-          const selectedMonth = new Date(filter.dateStart); // e.g., "2025-07-01"
+          const selectedMonth = new Date(filter.dateEnd); // e.g., "2025-07-01"
           effectiveCurrentMonth = selectedMonth.getMonth();
           effectiveCurrentYear = selectedMonth.getFullYear();
-          const prev = new Date(
-            effectiveCurrentYear,
-            effectiveCurrentMonth - 1,
-            1
-          );
-          prevMonth = prev.getMonth();
-          prevYear = prev.getFullYear();
+          // const prev = new Date(
+          //   effectiveCurrentYear,
+          //   effectiveCurrentMonth - 1,
+          //   1
+          // );
+          // prevMonth = prev.getMonth();
+          // prevYear = prev.getFullYear();
+          // console.log(prevMonth,prevYear);
+          
         }
 
         // --- Case 2: Date range selected ---
@@ -588,68 +592,76 @@ const ReportsTable: React.FC<{
           const end = new Date(filter.dateRangeEnd);
           effectiveCurrentMonth = end.getMonth();
           effectiveCurrentYear = end.getFullYear();
-          const prev = new Date(
-            effectiveCurrentYear,
-            effectiveCurrentMonth - 1,
-            1
-          );
-          prevMonth = prev.getMonth();
-          prevYear = prev.getFullYear();
+          // const prev = new Date(
+          //   effectiveCurrentYear,
+          //   effectiveCurrentMonth - 1,
+          //   1
+          // );
+          // prevMonth = prev.getMonth();
+          // prevYear = prev.getFullYear();
         }
 
         // --- Case 3: Nothing selected (system date fallback) ---
         else {
           effectiveCurrentMonth = now.getMonth();
           effectiveCurrentYear = now.getFullYear();
-          const prev = new Date(
-            effectiveCurrentYear,
-            effectiveCurrentMonth - 1,
-            1
-          );
-          prevMonth = prev.getMonth();
-          prevYear = prev.getFullYear();
+          // const prev = new Date(
+          //   effectiveCurrentYear,
+          //   effectiveCurrentMonth - 1,
+          //   1
+          // );
+          // prevMonth = prev.getMonth();
+          // prevYear = prev.getFullYear();
         }
 
         // ---------- STEP 2: Pick latest UTP per month (same date => higher ID) ----------
-        const latestByMonth = rawData.reduce((acc: any, utp: any) => {
-          const d = new Date(utp.UTPDate);
-          const month = d.getMonth();
-          const year = d.getFullYear();
-          const id = utp.UTPId;
-          if (!id) return acc;
-          if (!acc[id]) acc[id] = {};
+      // ---------- STEP 2: Pick latest UTP version ON OR BEFORE the target month ----------
+const latestByMonth = rawData.reduce((acc: any, utp: any) => {
+  const d = new Date(utp.UTPDate);
+  const id = utp.UTPId;
+  if (!id) return acc;
 
-          // Current month logic
-          if (
-            month === effectiveCurrentMonth &&
-            year === effectiveCurrentYear
-          ) {
-            const curr = acc[id].current;
-            if (
-              !curr ||
-              d > new Date(curr.UTPDate) ||
-              (d.getTime() === new Date(curr.UTPDate).getTime() &&
-                utp.Id > curr.Id)
-            ) {
-              acc[id].current = utp;
-            }
-          }
+  if (!acc[id]) acc[id] = { current: null, previous: null };
 
-          // Previous month logic
-          else if (month === prevMonth && year === prevYear) {
-            const prev = acc[id].previous;
-            if (
-              !prev ||
-              d > new Date(prev.UTPDate) ||
-              (d.getTime() === new Date(prev.UTPDate).getTime() &&
-                utp.Id > prev.Id)
-            ) {
-              acc[id].previous = utp;
-            }
-          }
+ const isLater = (a: any, b: any) => {
+  if (!a) return true;
 
-          return acc;
-        }, {});
+  const dateA = new Date(a.UTPDate);
+  const dateB = new Date(b.UTPDate);
+
+  if (dateB > dateA) return true;
+
+  // same date → pick higher ID
+  if (dateA.getTime() === dateB.getTime()) {
+    return b.Id > a.Id;
+  }
+
+  return false;
+};
+
+
+  // ===== CURRENT (latest ≤ current target) =====
+  const currTarget = new Date(effectiveCurrentYear, effectiveCurrentMonth + 1, 0);
+
+  if (d <= currTarget) {
+    if (isLater(acc[id].current, utp)) {
+      acc[id].current = utp;
+    }
+  }
+
+  // ===== PREVIOUS (latest < current.UTPDate) =====
+  const currDate = acc[id].current ? new Date(acc[id].current.UTPDate) : null;
+
+  if (currDate && d < currDate) {
+    if (isLater(acc[id].previous, utp)) {
+      acc[id].previous = utp;
+    }
+  }
+
+  return acc;
+}, {});
+
+
 
         // ---------- STEP 3: Fetch UTP Tax Issues + GL Code ----------
         const utpIssues = await fetchPaged(
@@ -683,6 +695,8 @@ const ReportsTable: React.FC<{
         for (const [utpId, { current, previous }] of Object.entries(
           latestByMonth
         ) as [string, { current?: any; previous?: any }][]) {
+          console.log(current,previous,utpId);
+          
           const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
           const previousIssues = previous
             ? issuesByUtp[previous?.Id] || []
@@ -801,8 +815,8 @@ const ReportsTable: React.FC<{
         const now = new Date();
         let effectiveCurrentMonth: number;
         let effectiveCurrentYear: number;
-        let prevMonth: number;
-        let prevYear: number;
+        // let prevMonth: number;
+        // let prevYear: number;
 
         if (filter.dateStart) {
           const selectedMonth = new Date(filter.dateStart);
@@ -817,13 +831,13 @@ const ReportsTable: React.FC<{
           effectiveCurrentYear = now.getFullYear();
         }
 
-        const prev = new Date(
-          effectiveCurrentYear,
-          effectiveCurrentMonth - 1,
-          1
-        );
-        prevMonth = prev.getMonth();
-        prevYear = prev.getFullYear();
+        // const prev = new Date(
+        //   effectiveCurrentYear,
+        //   effectiveCurrentMonth - 1,
+        //   1
+        // );
+        // prevMonth = prev.getMonth();
+        // prevYear = prev.getFullYear();
 
         // ---------- STEP 2: Fetch UTP + Issues ----------
         const utpItems = await fetchPaged(
@@ -854,38 +868,47 @@ const ReportsTable: React.FC<{
         );
 
         // ---------- STEP 3: Find latest UTP per month ----------
-        const latestByMonth = utpItems.reduce((acc: any, utp: any) => {
-          const d = new Date(utp.UTPDate);
-          const month = d.getMonth();
-          const year = d.getFullYear();
-          const key = utp.UTPId;
-          if (!key) return acc;
-          if (!acc[key]) acc[key] = {};
+      // ---------- STEP 3: Find latest UTP current + previous using NEW logic ----------
+const latestByUtp = utpItems.reduce((acc: any, utp: any) => {
+  const d = new Date(utp.UTPDate);
+  const id = utp.UTPId;
 
-          if (
-            month === effectiveCurrentMonth &&
-            year === effectiveCurrentYear
-          ) {
-            const curr = acc[key].current;
-            if (
-              !curr ||
-              d > new Date(curr.UTPDate) ||
-              (d.getTime() === new Date(curr.UTPDate).getTime() &&
-                utp.Id > curr.Id)
-            )
-              acc[key].current = utp;
-          } else if (month === prevMonth && year === prevYear) {
-            const prev = acc[key].previous;
-            if (
-              !prev ||
-              d > new Date(prev.UTPDate) ||
-              (d.getTime() === new Date(prev.UTPDate).getTime() &&
-                utp.Id > prev.Id)
-            )
-              acc[key].previous = utp;
-          }
-          return acc;
-        }, {});
+  if (!id) return acc;
+  if (!acc[id]) acc[id] = { current: null, previous: null };
+
+  const isLater = (a: any, b: any) => {
+    if (!a) return true;
+    const aDate = new Date(a.UTPDate);
+    const bDate = new Date(b.UTPDate);
+
+    if (bDate > aDate) return true;
+    if (bDate.getTime() === aDate.getTime()) return b.Id > a.Id;
+
+    return false;
+  };
+
+  // target = last day of selected current month
+  const target = new Date(effectiveCurrentYear, effectiveCurrentMonth + 1, 0);
+
+  // ---------- Pick CURRENT ----------
+  if (d <= target) {
+    if (isLater(acc[id].current, utp)) {
+      acc[id].current = utp;
+    }
+  }
+
+  // ---------- Pick PREVIOUS ----------
+  if (acc[id].current) {
+    const currDate = new Date(acc[id].current.UTPDate);
+    if (d < currDate) {
+      if (isLater(acc[id].previous, utp)) {
+        acc[id].previous = utp;
+      }
+    }
+  }
+
+  return acc;
+}, {});
 
         // ---------- STEP 4: Group issues by UTP Id ----------
         const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
@@ -897,134 +920,76 @@ const ReportsTable: React.FC<{
         }, {});
 
         // ---------- STEP 5: Collect all issues for latest UTPs ----------
-        const mergedIssues: any[] = [];
-        for (const { current, previous } of Object.values(
-          latestByMonth
-        ) as any[]) {
-          if (current && issuesByUtp[current.Id]) {
-            mergedIssues.push(
-              ...issuesByUtp[current.Id].map((i: any) => ({
-                ...i,
-                month: effectiveCurrentMonth,
-                year: effectiveCurrentYear,
-              }))
-            );
-          }
-          if (previous && issuesByUtp[previous.Id]) {
-            mergedIssues.push(
-              ...issuesByUtp[previous.Id].map((i: any) => ({
-                ...i,
-                month: prevMonth,
-                year: prevYear,
-              }))
-            );
-          }
-        }
+       // ---------- STEP 5: Merge issues for ALL current + previous ----------
+const mergedIssues: any[] = [];
+
+for (const { current, previous } of Object.values(latestByUtp) as any[]) {
+  if (current && issuesByUtp[current.Id]) {
+    mergedIssues.push(
+      ...issuesByUtp[current.Id].map((i: any) => ({
+        ...i,
+        isCurrent: true,
+        UTPDate: current.UTPDate
+      }))
+    );
+  }
+
+  if (previous && issuesByUtp[previous.Id]) {
+    mergedIssues.push(
+      ...issuesByUtp[previous.Id].map((i: any) => ({
+        ...i,
+        isCurrent: false,
+        UTPDate: previous.UTPDate
+      }))
+    );
+  }
+}
+
 
         // ---------- STEP 6: Helper ----------
-        const sumBy = (
-          month: number,
-          year: number,
-          condition?: (r: any) => boolean
-        ) =>
-          mergedIssues
-            .filter(
-              (r) =>
-                r.month === month &&
-                r.year === year &&
-                (!condition || condition(r))
-            )
-            .reduce((sum, r) => sum + (Number(r.Amount) || 0), 0);
-        const sumBy2 = (
-          month: number,
-          year: number,
-          condition?: (r: any) => boolean
-        ) =>
-          mergedIssues
-            .filter(
-              (r) =>
-                r.month === month &&
-                r.year === year &&
-                (!condition || condition(r))
-            )
-            .reduce((sum, r) => sum + (Number(r.GrossTaxExposure) || 0), 0);
+    const sumBy = (isCurrent: boolean, condition?: (r: any) => boolean) =>
+  mergedIssues
+    .filter(r => r.isCurrent === isCurrent && (!condition || condition(r)))
+    .reduce((s, r) => s + Number(r.Amount || 0), 0);
+
+const sumBy2 = (isCurrent: boolean, condition?: (r: any) => boolean) =>
+  mergedIssues
+    .filter(r => r.isCurrent === isCurrent && (!condition || condition(r)))
+    .reduce((s, r) => s + Number(r.GrossTaxExposure || 0), 0);
 
         // ---------- STEP 7: Compute values ----------
         // Total Exposure (all records)
-        const totalCurr = sumBy2(effectiveCurrentMonth, effectiveCurrentYear);
-        const totalPrev = sumBy2(prevMonth, prevYear);
+       // Total Exposure
+const totalCurr = sumBy2(true);
+const totalPrev = sumBy2(false);
 
-        // Payments under Protest
-        const pupCurr = sumBy(
-          effectiveCurrentMonth,
-          effectiveCurrentYear,
-          (r) => r.PaymentType === "Payment under Protest"
-        );
-        const pupPrev = sumBy(
-          prevMonth,
-          prevYear,
-          (r) => r.PaymentType === "Payment under Protest"
-        );
+// Payments under protest
+const pupCurr = sumBy(true, r => r.PaymentType === "Payment under Protest");
+const pupPrev = sumBy(false, r => r.PaymentType === "Payment under Protest");
 
-        // Admitted Tax
-        const admittedCurr = sumBy(
-          effectiveCurrentMonth,
-          effectiveCurrentYear,
-          (r) => r.PaymentType === "Admitted Tax"
-        );
-        const admittedPrev = sumBy(
-          prevMonth,
-          prevYear,
-          (r) => r.PaymentType === "Admitted Tax"
-        );
+// Admitted
+const admittedCurr = sumBy(true, r => r.PaymentType === "Admitted Tax");
+const admittedPrev = sumBy(false, r => r.PaymentType === "Admitted Tax");
 
-        // Cashflow Exposure = Total Exposure - Payments under Protest - Admitted Tax
-        const cashCurr = totalCurr - pupCurr - admittedCurr;
-        const cashPrev = totalPrev - pupPrev - admittedPrev;
+// Cashflow
+const cashCurr = totalCurr - pupCurr - admittedCurr;
+const cashPrev = totalPrev - pupPrev - admittedPrev;
 
-        // Total Provisions = sum of exposures where RiskCategory = Probable
-        const provCurr = mergedIssues
-          .filter(
-            (r) =>
-              r.month === effectiveCurrentMonth &&
-              r.year === effectiveCurrentYear &&
-              r.RiskCategory === "Probable"
-          )
-          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
-        const provPrev = mergedIssues
-          .filter(
-            (r) =>
-              r.month === prevMonth &&
-              r.year === prevYear &&
-              r.RiskCategory === "Probable"
-          )
-          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
+// Provisions (Probable only)
+const provCurr = sumBy2(true, r => r.RiskCategory === "Probable");
+const provPrev = sumBy2(false, r => r.RiskCategory === "Probable");
 
-        // P&L Exposure = Total Exposure - Total Provisions
-        const plCurr = totalCurr - provCurr;
-        const plPrev = totalPrev - provPrev;
+// P&L Exposure
+const plCurr = totalCurr - provCurr;
+const plPrev = totalPrev - provPrev;
 
-        // EBITDA Exposure (only where EBITDA = "Above Ebitda")
-        const ebitdaCurr = mergedIssues
-          .filter(
-            (r) =>
-              r.month === effectiveCurrentMonth &&
-              r.year === effectiveCurrentYear &&
-              r.EBITDA === "Above EBITDA"
-          )
-          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
-        const ebitdaPrev = mergedIssues
-          .filter(
-            (r) =>
-              r.month === prevMonth &&
-              r.year === prevYear &&
-              r.EBITDA === "Above Ebitda"
-          )
-          .reduce((s, r) => s + (Number(r.GrossTaxExposure) || 0), 0);
+// EBITDA Exposure
+const ebitdaCurr = sumBy2(true, r => r.EBITDA === "Above EBITDA");
+const ebitdaPrev = sumBy2(false, r => r.EBITDA === "Above EBITDA");
 
-        // Unprovided IT Exposure = EBITDA Exposure - P&L Exposure
-        const unprovidedCurr = ebitdaCurr - plCurr;
-        const unprovidedPrev = ebitdaPrev - plPrev;
+// Unprovided
+const unprovidedCurr = ebitdaCurr - plCurr;
+const unprovidedPrev = ebitdaPrev - plPrev;
 
         // ---------- STEP 8: Final Result ----------
         const results3 = [
@@ -1098,7 +1063,7 @@ const ReportsTable: React.FC<{
         let effectiveCurrentYear: number;
 
         if (filter.dateStart) {
-          const selectedMonth = new Date(filter.dateStart);
+          const selectedMonth = new Date(filter.dateEnd);
           effectiveCurrentMonth = selectedMonth.getMonth();
           effectiveCurrentYear = selectedMonth.getFullYear();
         } else if (filter.dateRangeStart && filter.dateRangeEnd) {
@@ -1111,30 +1076,50 @@ const ReportsTable: React.FC<{
         }
 
         // ---------- STEP 2: Pick latest UTP per current month ----------
-        const latestCurrentMonth = rawData.reduce((acc: any, utp: any) => {
-          const d = new Date(utp.UTPDate);
-          const month = d.getMonth();
-          const year = d.getFullYear();
-          const id = utp.UTPId;
-          if (!id) return acc;
+        const latestByMonth = rawData.reduce((acc: any, utp: any) => {
+  const d = new Date(utp.UTPDate);
+  const id = utp.UTPId;
+  if (!id) return acc;
 
-          if (
-            month === effectiveCurrentMonth &&
-            year === effectiveCurrentYear
-          ) {
-            const existing = acc[id];
-            if (
-              !existing ||
-              d > new Date(existing.UTPDate) ||
-              (d.getTime() === new Date(existing.UTPDate).getTime() &&
-                utp.Id > existing.Id)
-            ) {
-              acc[id] = utp;
-            }
-          }
+  if (!acc[id]) acc[id] = { current: null, previous: null };
 
-          return acc;
-        }, {});
+ const isLater = (a: any, b: any) => {
+  if (!a) return true;
+
+  const dateA = new Date(a.UTPDate);
+  const dateB = new Date(b.UTPDate);
+
+  if (dateB > dateA) return true;
+
+  // same date → pick higher ID
+  if (dateA.getTime() === dateB.getTime()) {
+    return b.Id > a.Id;
+  }
+
+  return false;
+};
+
+
+  // ===== CURRENT (latest ≤ current target) =====
+  const currTarget = new Date(effectiveCurrentYear, effectiveCurrentMonth + 1, 0);
+
+  if (d <= currTarget) {
+    if (isLater(acc[id].current, utp)) {
+      acc[id].current = utp;
+    }
+  }
+
+  // ===== PREVIOUS (latest < current.UTPDate) =====
+  const currDate = acc[id].current ? new Date(acc[id].current.UTPDate) : null;
+
+  if (currDate && d < currDate) {
+    if (isLater(acc[id].previous, utp)) {
+      acc[id].previous = utp;
+    }
+  }
+
+  return acc;
+}, {});
 
         // ---------- STEP 3: Fetch UTP Tax Issues (GRS from here) ----------
         const utpIssues = await fetchPaged(
@@ -1165,15 +1150,18 @@ const ReportsTable: React.FC<{
         const results: any[] = [];
         let grandCurr = 0;
 
-        for (const [utpId, current] of Object.entries(latestCurrentMonth) as [
+        for (const [utpId, {current}] of Object.entries(latestByMonth) as [
           string,
           any
         ][]) {
           const issues = issuesByUtp[current?.Id] || [];
 
+
           for (const issue of issues) {
             // only probable cases
             if (issue.RiskCategory !== "Probable") continue;
+        
+            
 
             const currAmt = issue.GrossTaxExposure || 0;
             if (currAmt === 0) continue;
@@ -1210,8 +1198,8 @@ const ReportsTable: React.FC<{
         const now = new Date();
         let effectiveCurrentMonth: number;
         let effectiveCurrentYear: number;
-        let prevMonth: number;
-        let prevYear: number;
+        // let prevMonth: number;
+        // let prevYear: number;
 
         if (filter.dateStart) {
           const selectedMonth = new Date(filter.dateStart);
@@ -1226,50 +1214,59 @@ const ReportsTable: React.FC<{
           effectiveCurrentYear = now.getFullYear();
         }
 
-        const prev = new Date(
-          effectiveCurrentYear,
-          effectiveCurrentMonth - 1,
-          1
-        );
-        prevMonth = prev.getMonth();
-        prevYear = prev.getFullYear();
+        // const prev = new Date(
+        //   effectiveCurrentYear,
+        //   effectiveCurrentMonth - 1,
+        //   1
+        // );
+        // prevMonth = prev.getMonth();
+        // prevYear = prev.getFullYear();
 
         // ---------- STEP 2: Pick latest UTP per month ----------
         const latestByMonth = rawData.reduce((acc: any, utp: any) => {
-          const d = new Date(utp.UTPDate);
-          const month = d.getMonth();
-          const year = d.getFullYear();
-          const id = utp.UTPId;
-          if (!id) return acc;
-          if (!acc[id]) acc[id] = {};
+  const d = new Date(utp.UTPDate);
+  const id = utp.UTPId;
+  if (!id) return acc;
 
-          if (
-            month === effectiveCurrentMonth &&
-            year === effectiveCurrentYear
-          ) {
-            const curr = acc[id].current;
-            if (
-              !curr ||
-              d > new Date(curr.UTPDate) ||
-              (d.getTime() === new Date(curr.UTPDate).getTime() &&
-                utp.Id > curr.Id)
-            ) {
-              acc[id].current = utp;
-            }
-          } else if (month === prevMonth && year === prevYear) {
-            const prevU = acc[id].previous;
-            if (
-              !prevU ||
-              d > new Date(prevU.UTPDate) ||
-              (d.getTime() === new Date(prevU.UTPDate).getTime() &&
-                utp.Id > prevU.Id)
-            ) {
-              acc[id].previous = utp;
-            }
-          }
+  if (!acc[id]) acc[id] = { current: null, previous: null };
 
-          return acc;
-        }, {});
+ const isLater = (a: any, b: any) => {
+  if (!a) return true;
+
+  const dateA = new Date(a.UTPDate);
+  const dateB = new Date(b.UTPDate);
+
+  if (dateB > dateA) return true;
+
+  // same date → pick higher ID
+  if (dateA.getTime() === dateB.getTime()) {
+    return b.Id > a.Id;
+  }
+
+  return false;
+};
+
+
+  // ===== CURRENT (latest ≤ current target) =====
+  const currTarget = new Date(effectiveCurrentYear, effectiveCurrentMonth + 1, 0);
+
+  if (d <= currTarget) {
+    if (isLater(acc[id].current, utp)) {
+      acc[id].current = utp;
+    }
+  }
+
+  // ===== PREVIOUS (latest < current.UTPDate) =====
+  const currDate = acc[id].current ? new Date(acc[id].current.UTPDate) : null;
+
+  if (currDate && d < currDate) {
+    if (isLater(acc[id].previous, utp)) {
+      acc[id].previous = utp;
+    }
+  }
+
+  return acc;
+}, {});
 
         // ---------- STEP 3: Fetch UTP Tax Issues + GL Code ----------
         const utpIssues = await fetchPaged(
@@ -1764,6 +1761,7 @@ const ReportsTable: React.FC<{
 
     // STEP 2: Filter data by date (only if start or end exist)
     let workingData = [...data];
+       
     if (start || (start && end)) {
       workingData = workingData.filter((item) => {
         let itemDate: Date | null = null;
@@ -1880,6 +1878,21 @@ const ReportsTable: React.FC<{
         if (endDate && itemDate > endDate) return false;
         return true;
       });
+    }else{
+        if (reportType === "ActiveCases") {
+    const today = new Date();
+    const next30 = new Date();
+    next30.setDate(today.getDate() + 30);
+
+    workingData = data.filter((item) => {
+      const itemDate = item.DateofCompliance
+        ? new Date(item.DateofCompliance)
+        : null;
+
+      if (!itemDate) return false;
+      return itemDate >= today && itemDate <= next30;
+    });
+  }
     }
 
     // STEP 2: Apply latest version logic
@@ -2041,7 +2054,7 @@ const ReportsTable: React.FC<{
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  const paginatedData = ["Litigation", "UTP", "ActiveCases"].includes(
+  const paginatedData = ["Litigation", "UTP", "ActiveCases","Provisions2","Contingencies"].includes(
     reportType
   )
     ? filteredData.slice(
@@ -2139,7 +2152,7 @@ const ReportsTable: React.FC<{
                 setFilters(updatedFilters);
                 setDateRange([null, null]);
                 const startUTC = new Date(
-                  Date.UTC(date.getFullYear(), date.getMonth(), 1)
+                  Date.UTC(1990, date.getMonth(), 1)
                 );
                 const endUTC = new Date(
                   Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)
@@ -2623,7 +2636,7 @@ const ReportsTable: React.FC<{
           />
         )}
       </div>
-      {["Litigation", "UTP", "ActiveCases"].includes(reportType) && (
+      {["Litigation", "UTP", "ActiveCases","Provisions2","Contingencies"].includes(reportType) && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
