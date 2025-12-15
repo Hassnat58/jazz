@@ -166,9 +166,9 @@ const Notifications: React.FC<NotificationsProps> = ({
     setSelectedNotification(notification);
     setShow(true);
   };
-const filteredNotifications = notifications.filter(
-  (n) => filter === "all" || n.status === filter
-);
+  const filteredNotifications = notifications.filter(
+    (n) => filter === "all" || n.status === filter
+  );
 
   return (
     <div className={styles.notificationsContainer}>
@@ -187,53 +187,49 @@ const filteredNotifications = notifications.filter(
           Submited
         </button>
       </div>
-<div className={styles.tableWrapper}>
+      <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
             <tr>
-              
-                <th >From</th>
-                <th >Subject</th>
+              <th>From</th>
+              <th>Subject</th>
 
-                <th >Date</th>
-                <th >Action</th>
-
-             
+              <th>Date</th>
+              <th>Action</th>
             </tr>
           </thead>
-        <tbody>
-  {filteredNotifications.length === 0 ? (
-    <tr>
-      <td colSpan={4} style={{ textAlign: "center" }}>
-        No Data Available
-      </td>
-    </tr>
-  ) : (
-    filteredNotifications.map((n, idx) => (
-      <tr key={idx}>
-        <td >{n.from }</td>
-        <td>{n.title}</td>
-        <td>{new Date(n.date).toLocaleDateString()}</td>
-        <td>
-          <Button
-            variant="outline-warning"
-            size="sm"
-            className="me-2"
-            onClick={() => {
-              setNotiID(n.id);
-              handleView(n);
-            }}
-          >
-            👁
-          </Button>
-        </td>
-      </tr>
-    ))
-  )}
-</tbody>
-
+          <tbody>
+            {filteredNotifications.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={{ textAlign: "center" }}>
+                  No Data Available
+                </td>
+              </tr>
+            ) : (
+              filteredNotifications.map((n, idx) => (
+                <tr key={idx}>
+                  <td>{n.from}</td>
+                  <td>{n.title}</td>
+                  <td>{new Date(n.date).toLocaleDateString()}</td>
+                  <td>
+                    <Button
+                      variant="outline-warning"
+                      size="sm"
+                      className="me-2"
+                      onClick={() => {
+                        setNotiID(n.id);
+                        handleView(n);
+                      }}
+                    >
+                      👁
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
         </table>
-{/* 
+        {/* 
         {selectedCase && (
           <CorrespondenceDetailOffCanvas
             show={show}
@@ -242,9 +238,6 @@ const filteredNotifications = notifications.filter(
           />
         )} */}
       </div>
-
-
-
 
       {/* Notification List */}
       {/* {notifications
