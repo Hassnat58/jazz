@@ -448,6 +448,7 @@ const ReportsTable: React.FC<{
             .getByTitle("UTPData")
             .items.expand("CaseNumber") // lookup field
             .select("Id,UTPId,CaseNumber/Id")
+            .orderBy("Id", false)
             .top(5000)
         );
 
@@ -677,6 +678,7 @@ const latestByMonth = rawData.reduce((acc: any, utp: any) => {
               "UTP/Id"
             )
             .expand("UTP")
+            .orderBy("Id", false)
             .top(5000)
         );
 
@@ -844,6 +846,7 @@ const latestByMonth = rawData.reduce((acc: any, utp: any) => {
           sp3.web.lists
             .getByTitle("UTPData")
             .items.select("Id", "UTPId", "UTPDate", "TaxType")
+            .orderBy("Id", false)
             .top(5000)
         );
 
@@ -864,6 +867,7 @@ const latestByMonth = rawData.reduce((acc: any, utp: any) => {
               "UTP/TaxType"
             )
             .expand("UTP")
+            .orderBy("Id", false)
             .top(5000)
         );
 
@@ -1134,6 +1138,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
               "UTP/Id"
             )
             .expand("UTP")
+            .orderBy("Id", false)
             .top(5000)
         );
 
@@ -1282,6 +1287,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
               "UTP/Id"
             )
             .expand("UTP")
+            .orderBy("Id", false)
             .top(5000)
         );
 
@@ -1377,6 +1383,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
             .getByTitle("UTP Tax Issue")
             .items.expand("UTP")
             .select("*,UTP/Id,UTP/Title")
+            .orderBy("Id", false)
             .top(5000)
         );
 
@@ -1573,6 +1580,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
             )
             .expand("CaseNumber")
             .filter(` ApprovalStatus eq 'Approved'`)
+            .orderBy("Id", false)
             .top(5000)
         );
 
@@ -1594,6 +1602,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
             sp.web.lists
               .getByTitle("Cases")
               .items.select("Id", "BriefDescription")
+              .orderBy("Id", false)
               .top(5000)
           );
 
@@ -1615,6 +1624,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
               .getByTitle("UTP Tax Issue")
               .items.select("Id", "UTP/Id", "RiskCategory")
               .expand("UTP")
+              .orderBy("Id", false)
               .top(5000)
           );
           const riskMap = utpTaxIssues.reduce((acc, issue) => {
@@ -1638,6 +1648,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
           sp.web.lists
             .getByTitle(listName)
             .items.filter(` ApprovalStatus eq 'Approved'`)
+            .orderBy("Id", false)
             .top(5000)
         );
       }
@@ -1721,6 +1732,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
         sp.web.lists
           .getByTitle("LOVData1")
           .items.select("Id", "Title", "Value", "Status")
+          .orderBy("Id", false)
           .top(5000)
       );
       const activeItems = items.filter((item) => item.Status === "Active");
@@ -2054,7 +2066,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  const paginatedData = ["Litigation", "UTP", "ActiveCases","Provisions2","Contingencies"].includes(
+  const paginatedData = ["Litigation", "UTP", "ActiveCases"].includes(
     reportType
   )
     ? filteredData.slice(
@@ -2151,13 +2163,14 @@ const unprovidedPrev = ebitdaPrev - plPrev;
                 };
                 setFilters(updatedFilters);
                 setDateRange([null, null]);
-                const startUTC = new Date(
+                  // Date.UTC(date.getFullYear(), date.getMonth(), 1)
+                const startUTC = reportType=="ActiveCases" ? new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1)):new Date(
                   Date.UTC(1990, date.getMonth(), 1)
                 );
                 const endUTC = new Date(
                   Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)
                 );
-                const newStart = startUTC.toISOString().split("T")[0];
+                const newStart = startUTC?.toISOString().split("T")[0];
                 const newEnd = endUTC.toISOString().split("T")[0];
 
                 handleFilterChangeDate(newStart, newEnd);
@@ -2636,7 +2649,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
           />
         )}
       </div>
-      {["Litigation", "UTP", "ActiveCases","Provisions2","Contingencies"].includes(reportType) && (
+      {["Litigation", "UTP", "ActiveCases"].includes(reportType) && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}

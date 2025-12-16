@@ -15,6 +15,7 @@ import wordIcon from "../assets/word.png";
 import xlsIcon from "../assets/xls.png";
 import imageIcon from "../assets/image.png";
 import genericIcon from "../assets/document.png"; // fallback
+import Pagination from "./Pagination";
 
 interface Notification {
   id: number;
@@ -51,6 +52,8 @@ const Notifications: React.FC<NotificationsProps> = ({
   const [show, setShow] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("unread");
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
+
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
   //     const fetchCaseByNotification = async (notiId: number) => {
@@ -89,11 +92,15 @@ const Notifications: React.FC<NotificationsProps> = ({
 
   const fetchInboxData = async () => {
     try {
+      setLoading(true);
       const sp = spfi().using(SPFx(SpfxContext));
-      const items = await sp.web.lists
-        .getByTitle("Inbox")
-        .items.select("*")
-        .expand("AttachmentFiles")();
+     const items = await sp.web.lists
+  .getByTitle("Inbox")
+  .items
+  .select("*")
+  .expand("AttachmentFiles")
+  .orderBy("Id", false) // false = DESC
+  .top(5000)();
 
       const mapped: Notification[] = items.map((item: any) => ({
         id: item.Id,
@@ -122,9 +129,11 @@ const Notifications: React.FC<NotificationsProps> = ({
       // console.log(items);
 
       setNotifications(mapped);
-    } catch (err) {
-      console.error("Error fetching Inbox list:", err);
-    }
+    }catch (err) {
+    console.error("Error fetching Inbox list:", err);
+  } finally {
+    setLoading(false); 
+  }
   };
 
   // const deleteNotification = async (id: number) => {
@@ -166,10 +175,17 @@ const Notifications: React.FC<NotificationsProps> = ({
     setSelectedNotification(notification);
     setShow(true);
   };
-  const filteredNotifications = notifications.filter(
-    (n) => filter === "all" || n.status === filter
-  );
+const filteredNotifications = notifications.filter(
+  (n) => filter === "all" || n.status === filter
+);
+  const [casesPage, setCasesPage] = useState(1);
+  const itemsPerPage = 10;
 
+  const totalPages = Math.ceil(filteredNotifications.length / itemsPerPage);
+  const paginatedData = filteredNotifications.slice(
+    (casesPage - 1) * itemsPerPage,
+    casesPage * itemsPerPage
+  );
   return (
     <div className={styles.notificationsContainer}>
       {/* Tabs */}
@@ -198,38 +214,53 @@ const Notifications: React.FC<NotificationsProps> = ({
               <th>Action</th>
             </tr>
           </thead>
-          <tbody>
-            {filteredNotifications.length === 0 ? (
-              <tr>
-                <td colSpan={4} style={{ textAlign: "center" }}>
-                  No Data Available
-                </td>
-              </tr>
-            ) : (
-              filteredNotifications.map((n, idx) => (
-                <tr key={idx}>
-                  <td>{n.from}</td>
-                  <td>{n.title}</td>
-                  <td>{new Date(n.date).toLocaleDateString()}</td>
-                  <td>
-                    <Button
-                      variant="outline-warning"
-                      size="sm"
-                      className="me-2"
-                      onClick={() => {
-                        setNotiID(n.id);
-                        handleView(n);
-                      }}
-                    >
-                      👁
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
+        <tbody>
+
+     {loading ? (
+    <tr>
+      <td colSpan={4} style={{ textAlign: "center", padding: "20px" }}>
+        Loading ...
+      </td>
+    </tr>
+  ) : filteredNotifications.length === 0 ? (
+    <tr>
+      <td colSpan={4} style={{ textAlign: "center" }}>
+        No Data Available
+      </td>
+    </tr>
+  ) : (
+    paginatedData.map((n, idx) => (
+      <tr key={idx}>
+        <td >{n.from }</td>
+        <td>{n.title}</td>
+        <td>{new Date(n.date).toLocaleDateString()}</td>
+        <td>
+          <Button
+            variant="outline-warning"
+            size="sm"
+            className="me-2"
+            onClick={() => {
+              setNotiID(n.id);
+              handleView(n);
+            }}
+          >
+            👁
+          </Button>
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
+
         </table>
-        {/* 
+          <Pagination
+                currentPage={casesPage}
+                totalPages={totalPages}
+                totalItems={filteredNotifications.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCasesPage}
+              />
+{/* 
         {selectedCase && (
           <CorrespondenceDetailOffCanvas
             show={show}
