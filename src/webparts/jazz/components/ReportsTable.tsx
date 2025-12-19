@@ -569,8 +569,6 @@ const ReportsTable: React.FC<{
         let effectiveCurrentYear: number;
         // let prevMonth: number;
         // let prevYear: number;
-       
-        
 
         // --- Case 1: Month selector chosen ---
         if (filter.dateStart) {
@@ -585,7 +583,6 @@ const ReportsTable: React.FC<{
           // prevMonth = prev.getMonth();
           // prevYear = prev.getFullYear();
           // console.log(prevMonth,prevYear);
-          
         }
 
         // --- Case 2: Date range selected ---
@@ -616,53 +613,56 @@ const ReportsTable: React.FC<{
         }
 
         // ---------- STEP 2: Pick latest UTP per month (same date => higher ID) ----------
-      // ---------- STEP 2: Pick latest UTP version ON OR BEFORE the target month ----------
-const latestByMonth = rawData.reduce((acc: any, utp: any) => {
-  const d = new Date(utp.UTPDate);
-  const id = utp.UTPId;
-  if (!id) return acc;
+        // ---------- STEP 2: Pick latest UTP version ON OR BEFORE the target month ----------
+        const latestByMonth = rawData.reduce((acc: any, utp: any) => {
+          const d = new Date(utp.UTPDate);
+          const id = utp.UTPId;
+          if (!id) return acc;
 
-  if (!acc[id]) acc[id] = { current: null, previous: null };
+          if (!acc[id]) acc[id] = { current: null, previous: null };
 
- const isLater = (a: any, b: any) => {
-  if (!a) return true;
+          const isLater = (a: any, b: any) => {
+            if (!a) return true;
 
-  const dateA = new Date(a.UTPDate);
-  const dateB = new Date(b.UTPDate);
+            const dateA = new Date(a.UTPDate);
+            const dateB = new Date(b.UTPDate);
 
-  if (dateB > dateA) return true;
+            if (dateB > dateA) return true;
 
-  // same date → pick higher ID
-  if (dateA.getTime() === dateB.getTime()) {
-    return b.Id > a.Id;
-  }
+            // same date → pick higher ID
+            if (dateA.getTime() === dateB.getTime()) {
+              return b.Id > a.Id;
+            }
 
-  return false;
-};
+            return false;
+          };
 
+          // ===== CURRENT (latest ≤ current target) =====
+          const currTarget = new Date(
+            effectiveCurrentYear,
+            effectiveCurrentMonth + 1,
+            0
+          );
 
-  // ===== CURRENT (latest ≤ current target) =====
-  const currTarget = new Date(effectiveCurrentYear, effectiveCurrentMonth + 1, 0);
+          if (d <= currTarget) {
+            if (isLater(acc[id].current, utp)) {
+              acc[id].current = utp;
+            }
+          }
 
-  if (d <= currTarget) {
-    if (isLater(acc[id].current, utp)) {
-      acc[id].current = utp;
-    }
-  }
+          // ===== PREVIOUS (latest < current.UTPDate) =====
+          const currDate = acc[id].current
+            ? new Date(acc[id].current.UTPDate)
+            : null;
 
-  // ===== PREVIOUS (latest < current.UTPDate) =====
-  const currDate = acc[id].current ? new Date(acc[id].current.UTPDate) : null;
+          if (currDate && d < currDate) {
+            if (isLater(acc[id].previous, utp)) {
+              acc[id].previous = utp;
+            }
+          }
 
-  if (currDate && d < currDate) {
-    if (isLater(acc[id].previous, utp)) {
-      acc[id].previous = utp;
-    }
-  }
-
-  return acc;
-}, {});
-
-
+          return acc;
+        }, {});
 
         // ---------- STEP 3: Fetch UTP Tax Issues + GL Code ----------
         const utpIssues = await fetchPaged(
@@ -697,8 +697,8 @@ const latestByMonth = rawData.reduce((acc: any, utp: any) => {
         for (const [utpId, { current, previous }] of Object.entries(
           latestByMonth
         ) as [string, { current?: any; previous?: any }][]) {
-          console.log(current,previous,utpId);
-          
+          console.log(current, previous, utpId);
+
           const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
           const previousIssues = previous
             ? issuesByUtp[previous?.Id] || []
@@ -872,47 +872,51 @@ const latestByMonth = rawData.reduce((acc: any, utp: any) => {
         );
 
         // ---------- STEP 3: Find latest UTP per month ----------
-      // ---------- STEP 3: Find latest UTP current + previous using NEW logic ----------
-const latestByUtp = utpItems.reduce((acc: any, utp: any) => {
-  const d = new Date(utp.UTPDate);
-  const id = utp.UTPId;
+        // ---------- STEP 3: Find latest UTP current + previous using NEW logic ----------
+        const latestByUtp = utpItems.reduce((acc: any, utp: any) => {
+          const d = new Date(utp.UTPDate);
+          const id = utp.UTPId;
 
-  if (!id) return acc;
-  if (!acc[id]) acc[id] = { current: null, previous: null };
+          if (!id) return acc;
+          if (!acc[id]) acc[id] = { current: null, previous: null };
 
-  const isLater = (a: any, b: any) => {
-    if (!a) return true;
-    const aDate = new Date(a.UTPDate);
-    const bDate = new Date(b.UTPDate);
+          const isLater = (a: any, b: any) => {
+            if (!a) return true;
+            const aDate = new Date(a.UTPDate);
+            const bDate = new Date(b.UTPDate);
 
-    if (bDate > aDate) return true;
-    if (bDate.getTime() === aDate.getTime()) return b.Id > a.Id;
+            if (bDate > aDate) return true;
+            if (bDate.getTime() === aDate.getTime()) return b.Id > a.Id;
 
-    return false;
-  };
+            return false;
+          };
 
-  // target = last day of selected current month
-  const target = new Date(effectiveCurrentYear, effectiveCurrentMonth + 1, 0);
+          // target = last day of selected current month
+          const target = new Date(
+            effectiveCurrentYear,
+            effectiveCurrentMonth + 1,
+            0
+          );
 
-  // ---------- Pick CURRENT ----------
-  if (d <= target) {
-    if (isLater(acc[id].current, utp)) {
-      acc[id].current = utp;
-    }
-  }
+          // ---------- Pick CURRENT ----------
+          if (d <= target) {
+            if (isLater(acc[id].current, utp)) {
+              acc[id].current = utp;
+            }
+          }
 
-  // ---------- Pick PREVIOUS ----------
-  if (acc[id].current) {
-    const currDate = new Date(acc[id].current.UTPDate);
-    if (d < currDate) {
-      if (isLater(acc[id].previous, utp)) {
-        acc[id].previous = utp;
-      }
-    }
-  }
+          // ---------- Pick PREVIOUS ----------
+          if (acc[id].current) {
+            const currDate = new Date(acc[id].current.UTPDate);
+            if (d < currDate) {
+              if (isLater(acc[id].previous, utp)) {
+                acc[id].previous = utp;
+              }
+            }
+          }
 
-  return acc;
-}, {});
+          return acc;
+        }, {});
 
         // ---------- STEP 4: Group issues by UTP Id ----------
         const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
@@ -924,76 +928,100 @@ const latestByUtp = utpItems.reduce((acc: any, utp: any) => {
         }, {});
 
         // ---------- STEP 5: Collect all issues for latest UTPs ----------
-       // ---------- STEP 5: Merge issues for ALL current + previous ----------
-const mergedIssues: any[] = [];
+        // ---------- STEP 5: Merge issues for ALL current + previous ----------
+        const mergedIssues: any[] = [];
 
-for (const { current, previous } of Object.values(latestByUtp) as any[]) {
-  if (current && issuesByUtp[current.Id]) {
-    mergedIssues.push(
-      ...issuesByUtp[current.Id].map((i: any) => ({
-        ...i,
-        isCurrent: true,
-        UTPDate: current.UTPDate
-      }))
-    );
-  }
+        for (const { current, previous } of Object.values(
+          latestByUtp
+        ) as any[]) {
+          if (current && issuesByUtp[current.Id]) {
+            mergedIssues.push(
+              ...issuesByUtp[current.Id].map((i: any) => ({
+                ...i,
+                isCurrent: true,
+                UTPDate: current.UTPDate,
+              }))
+            );
+          }
 
-  if (previous && issuesByUtp[previous.Id]) {
-    mergedIssues.push(
-      ...issuesByUtp[previous.Id].map((i: any) => ({
-        ...i,
-        isCurrent: false,
-        UTPDate: previous.UTPDate
-      }))
-    );
-  }
-}
-
+          if (previous && issuesByUtp[previous.Id]) {
+            mergedIssues.push(
+              ...issuesByUtp[previous.Id].map((i: any) => ({
+                ...i,
+                isCurrent: false,
+                UTPDate: previous.UTPDate,
+              }))
+            );
+          }
+        }
 
         // ---------- STEP 6: Helper ----------
-    const sumBy = (isCurrent: boolean, condition?: (r: any) => boolean) =>
-  mergedIssues
-    .filter(r => r.isCurrent === isCurrent && (!condition || condition(r)))
-    .reduce((s, r) => s + Number(r.Amount || 0), 0);
+        const sumBy = (isCurrent: boolean, condition?: (r: any) => boolean) =>
+          mergedIssues
+            .filter(
+              (r) => r.isCurrent === isCurrent && (!condition || condition(r))
+            )
+            .reduce((s, r) => s + Number(r.Amount || 0), 0);
 
-const sumBy2 = (isCurrent: boolean, condition?: (r: any) => boolean) =>
-  mergedIssues
-    .filter(r => r.isCurrent === isCurrent && (!condition || condition(r)))
-    .reduce((s, r) => s + Number(r.GrossTaxExposure || 0), 0);
+        const sumBy2 = (isCurrent: boolean, condition?: (r: any) => boolean) =>
+          mergedIssues
+            .filter(
+              (r) => r.isCurrent === isCurrent && (!condition || condition(r))
+            )
+            .reduce((s, r) => s + Number(r.GrossTaxExposure || 0), 0);
 
         // ---------- STEP 7: Compute values ----------
         // Total Exposure (all records)
-       // Total Exposure
-const totalCurr = sumBy2(true);
-const totalPrev = sumBy2(false);
+        // Total Exposure
+        const totalCurr = sumBy2(true);
+        const totalPrev = sumBy2(false);
 
-// Payments under protest
-const pupCurr = sumBy(true, r => r.PaymentType === "Payment under Protest");
-const pupPrev = sumBy(false, r => r.PaymentType === "Payment under Protest");
+        // Payments under protest
+        const pupCurr = sumBy(
+          true,
+          (r) => r.PaymentType === "Payment under Protest"
+        );
+        const pupPrev = sumBy(
+          false,
+          (r) => r.PaymentType === "Payment under Protest"
+        );
 
-// Admitted
-const admittedCurr = sumBy(true, r => r.PaymentType === "Admitted Tax");
-const admittedPrev = sumBy(false, r => r.PaymentType === "Admitted Tax");
+        // Admitted
+        const admittedCurr = sumBy(
+          true,
+          (r) => r.PaymentType === "Admitted Tax"
+        );
+        const admittedPrev = sumBy(
+          false,
+          (r) => r.PaymentType === "Admitted Tax"
+        );
 
-// Cashflow
-const cashCurr = totalCurr - pupCurr - admittedCurr;
-const cashPrev = totalPrev - pupPrev - admittedPrev;
+        // Cashflow
+        const cashCurr = totalCurr - pupCurr;
+        const cashPrev = totalPrev - pupPrev;
 
-// Provisions (Probable only)
-const provCurr = sumBy2(true, r => r.RiskCategory === "Probable");
-const provPrev = sumBy2(false, r => r.RiskCategory === "Probable");
+        // Provisions (Probable only)
+        const provCurr = sumBy2(true, (r) => r.RiskCategory === "Probable");
+        const provPrev = sumBy2(false, (r) => r.RiskCategory === "Probable");
 
-// P&L Exposure
-const plCurr = totalCurr - provCurr;
-const plPrev = totalPrev - provPrev;
+        // P&L Exposure
+        const plCurr = totalCurr - provCurr;
+        const plPrev = totalPrev - provPrev;
 
-// EBITDA Exposure
-const ebitdaCurr = sumBy2(true, r => r.EBITDA === "Above EBITDA");
-const ebitdaPrev = sumBy2(false, r => r.EBITDA === "Above EBITDA");
+        // EBITDA Exposure
+        const ebitdaCurr = mergedIssues
+          .filter((r) => r.isCurrent === true && r.UTP?.TaxType === "Sales Tax")
+          .reduce((s, r) => s + Number(r.PLExposure || 0), 0);
 
-// Unprovided
-const unprovidedCurr = ebitdaCurr - plCurr;
-const unprovidedPrev = ebitdaPrev - plPrev;
+        const ebitdaPrev = mergedIssues
+          .filter(
+            (r) => r.isCurrent === false && r.UTP?.TaxType === "Sales Tax"
+          )
+          .reduce((s, r) => s + Number(r.PLExposure || 0), 0);
+
+        // Unprovided
+        const unprovidedCurr = plCurr - ebitdaCurr;
+        const unprovidedPrev = plPrev - ebitdaPrev;
 
         // ---------- STEP 8: Final Result ----------
         const results3 = [
@@ -1081,49 +1109,54 @@ const unprovidedPrev = ebitdaPrev - plPrev;
 
         // ---------- STEP 2: Pick latest UTP per current month ----------
         const latestByMonth = rawData.reduce((acc: any, utp: any) => {
-  const d = new Date(utp.UTPDate);
-  const id = utp.UTPId;
-  if (!id) return acc;
+          const d = new Date(utp.UTPDate);
+          const id = utp.UTPId;
+          if (!id) return acc;
 
-  if (!acc[id]) acc[id] = { current: null, previous: null };
+          if (!acc[id]) acc[id] = { current: null, previous: null };
 
- const isLater = (a: any, b: any) => {
-  if (!a) return true;
+          const isLater = (a: any, b: any) => {
+            if (!a) return true;
 
-  const dateA = new Date(a.UTPDate);
-  const dateB = new Date(b.UTPDate);
+            const dateA = new Date(a.UTPDate);
+            const dateB = new Date(b.UTPDate);
 
-  if (dateB > dateA) return true;
+            if (dateB > dateA) return true;
 
-  // same date → pick higher ID
-  if (dateA.getTime() === dateB.getTime()) {
-    return b.Id > a.Id;
-  }
+            // same date → pick higher ID
+            if (dateA.getTime() === dateB.getTime()) {
+              return b.Id > a.Id;
+            }
 
-  return false;
-};
+            return false;
+          };
 
+          // ===== CURRENT (latest ≤ current target) =====
+          const currTarget = new Date(
+            effectiveCurrentYear,
+            effectiveCurrentMonth + 1,
+            0
+          );
 
-  // ===== CURRENT (latest ≤ current target) =====
-  const currTarget = new Date(effectiveCurrentYear, effectiveCurrentMonth + 1, 0);
+          if (d <= currTarget) {
+            if (isLater(acc[id].current, utp)) {
+              acc[id].current = utp;
+            }
+          }
 
-  if (d <= currTarget) {
-    if (isLater(acc[id].current, utp)) {
-      acc[id].current = utp;
-    }
-  }
+          // ===== PREVIOUS (latest < current.UTPDate) =====
+          const currDate = acc[id].current
+            ? new Date(acc[id].current.UTPDate)
+            : null;
 
-  // ===== PREVIOUS (latest < current.UTPDate) =====
-  const currDate = acc[id].current ? new Date(acc[id].current.UTPDate) : null;
+          if (currDate && d < currDate) {
+            if (isLater(acc[id].previous, utp)) {
+              acc[id].previous = utp;
+            }
+          }
 
-  if (currDate && d < currDate) {
-    if (isLater(acc[id].previous, utp)) {
-      acc[id].previous = utp;
-    }
-  }
-
-  return acc;
-}, {});
+          return acc;
+        }, {});
 
         // ---------- STEP 3: Fetch UTP Tax Issues (GRS from here) ----------
         const utpIssues = await fetchPaged(
@@ -1155,18 +1188,15 @@ const unprovidedPrev = ebitdaPrev - plPrev;
         const results: any[] = [];
         let grandCurr = 0;
 
-        for (const [utpId, {current}] of Object.entries(latestByMonth) as [
+        for (const [utpId, { current }] of Object.entries(latestByMonth) as [
           string,
           any
         ][]) {
           const issues = issuesByUtp[current?.Id] || [];
 
-
           for (const issue of issues) {
             // only probable cases
             if (issue.RiskCategory !== "Probable") continue;
-        
-            
 
             const currAmt = issue.GrossTaxExposure || 0;
             if (currAmt === 0) continue;
@@ -1229,49 +1259,54 @@ const unprovidedPrev = ebitdaPrev - plPrev;
 
         // ---------- STEP 2: Pick latest UTP per month ----------
         const latestByMonth = rawData.reduce((acc: any, utp: any) => {
-  const d = new Date(utp.UTPDate);
-  const id = utp.UTPId;
-  if (!id) return acc;
+          const d = new Date(utp.UTPDate);
+          const id = utp.UTPId;
+          if (!id) return acc;
 
-  if (!acc[id]) acc[id] = { current: null, previous: null };
+          if (!acc[id]) acc[id] = { current: null, previous: null };
 
- const isLater = (a: any, b: any) => {
-  if (!a) return true;
+          const isLater = (a: any, b: any) => {
+            if (!a) return true;
 
-  const dateA = new Date(a.UTPDate);
-  const dateB = new Date(b.UTPDate);
+            const dateA = new Date(a.UTPDate);
+            const dateB = new Date(b.UTPDate);
 
-  if (dateB > dateA) return true;
+            if (dateB > dateA) return true;
 
-  // same date → pick higher ID
-  if (dateA.getTime() === dateB.getTime()) {
-    return b.Id > a.Id;
-  }
+            // same date → pick higher ID
+            if (dateA.getTime() === dateB.getTime()) {
+              return b.Id > a.Id;
+            }
 
-  return false;
-};
+            return false;
+          };
 
+          // ===== CURRENT (latest ≤ current target) =====
+          const currTarget = new Date(
+            effectiveCurrentYear,
+            effectiveCurrentMonth + 1,
+            0
+          );
 
-  // ===== CURRENT (latest ≤ current target) =====
-  const currTarget = new Date(effectiveCurrentYear, effectiveCurrentMonth + 1, 0);
+          if (d <= currTarget) {
+            if (isLater(acc[id].current, utp)) {
+              acc[id].current = utp;
+            }
+          }
 
-  if (d <= currTarget) {
-    if (isLater(acc[id].current, utp)) {
-      acc[id].current = utp;
-    }
-  }
+          // ===== PREVIOUS (latest < current.UTPDate) =====
+          const currDate = acc[id].current
+            ? new Date(acc[id].current.UTPDate)
+            : null;
 
-  // ===== PREVIOUS (latest < current.UTPDate) =====
-  const currDate = acc[id].current ? new Date(acc[id].current.UTPDate) : null;
+          if (currDate && d < currDate) {
+            if (isLater(acc[id].previous, utp)) {
+              acc[id].previous = utp;
+            }
+          }
 
-  if (currDate && d < currDate) {
-    if (isLater(acc[id].previous, utp)) {
-      acc[id].previous = utp;
-    }
-  }
-
-  return acc;
-}, {});
+          return acc;
+        }, {});
 
         // ---------- STEP 3: Fetch UTP Tax Issues + GL Code ----------
         const utpIssues = await fetchPaged(
@@ -1321,8 +1356,18 @@ const unprovidedPrev = ebitdaPrev - plPrev;
             const currIssue = currentIssues[i];
             const prevIssue = previousIssues[i];
 
-            const currAmt = currIssue?.GrossTaxExposure || 0;
-            const prevAmt = prevIssue?.GrossTaxExposure || 0;
+            // const currAmt = currIssue?.GrossTaxExposure || 0;
+            // const prevAmt = prevIssue?.GrossTaxExposure || 0;
+            // ONLY Possible cases
+            const currAmt =
+              currIssue && currIssue.RiskCategory === "Possible"
+                ? currIssue.GrossTaxExposure || 0
+                : 0;
+
+            const prevAmt =
+              prevIssue && prevIssue.RiskCategory === "Possible"
+                ? prevIssue.GrossTaxExposure || 0
+                : 0;
 
             if (currAmt === 0 && prevAmt === 0) continue;
 
@@ -1390,7 +1435,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
         // now filter in JS
         if (filter.category) {
           utpItems = utpItems.filter(
-            (item) => item.RiskCategory === filter.category
+            (item) => item.RiskCategory === "Possible" //filter.category
           );
         }
 
@@ -1773,7 +1818,7 @@ const unprovidedPrev = ebitdaPrev - plPrev;
 
     // STEP 2: Filter data by date (only if start or end exist)
     let workingData = [...data];
-       
+
     if (start || (start && end)) {
       workingData = workingData.filter((item) => {
         let itemDate: Date | null = null;
@@ -1890,21 +1935,21 @@ const unprovidedPrev = ebitdaPrev - plPrev;
         if (endDate && itemDate > endDate) return false;
         return true;
       });
-    }else{
-        if (reportType === "ActiveCases") {
-    const today = new Date();
-    const next30 = new Date();
-    next30.setDate(today.getDate() + 30);
+    } else {
+      if (reportType === "ActiveCases") {
+        const today = new Date();
+        const next30 = new Date();
+        next30.setDate(today.getDate() + 30);
 
-    workingData = data.filter((item) => {
-      const itemDate = item.DateofCompliance
-        ? new Date(item.DateofCompliance)
-        : null;
+        workingData = data.filter((item) => {
+          const itemDate = item.DateofCompliance
+            ? new Date(item.DateofCompliance)
+            : null;
 
-      if (!itemDate) return false;
-      return itemDate >= today && itemDate <= next30;
-    });
-  }
+          if (!itemDate) return false;
+          return itemDate >= today && itemDate <= next30;
+        });
+      }
     }
 
     // STEP 2: Apply latest version logic
@@ -2163,10 +2208,11 @@ const unprovidedPrev = ebitdaPrev - plPrev;
                 };
                 setFilters(updatedFilters);
                 setDateRange([null, null]);
-                  // Date.UTC(date.getFullYear(), date.getMonth(), 1)
-                const startUTC = reportType=="ActiveCases" ? new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1)):new Date(
-                  Date.UTC(1990, date.getMonth(), 1)
-                );
+                // Date.UTC(date.getFullYear(), date.getMonth(), 1)
+                const startUTC =
+                  reportType == "ActiveCases"
+                    ? new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1))
+                    : new Date(Date.UTC(1990, date.getMonth(), 1));
                 const endUTC = new Date(
                   Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)
                 );
