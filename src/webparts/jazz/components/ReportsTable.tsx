@@ -722,7 +722,7 @@ const ReportsTable: React.FC<{
                 ? prevIssue.GrossTaxExposure || 0
                 : 0;
 
-            if (currAmt === 0 && prevAmt === 0) continue;
+            // if (currAmt === 0 && prevAmt === 0) continue;
 
             results.push({
               utpId,
@@ -1369,7 +1369,7 @@ const ReportsTable: React.FC<{
                 ? prevIssue.GrossTaxExposure || 0
                 : 0;
 
-            if (currAmt === 0 && prevAmt === 0) continue;
+            // if (currAmt === 0 && prevAmt === 0) continue;
 
             grandCurr += currAmt;
             grandPrev += prevAmt;
@@ -2111,7 +2111,7 @@ const ReportsTable: React.FC<{
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  const paginatedData = ["Litigation", "UTP", "ActiveCases"].includes(
+  const paginatedData = ["Litigation", "UTP", "ActiveCases","Contingencies"].includes(
     reportType
   )
     ? filteredData.slice(
@@ -2695,7 +2695,7 @@ const ReportsTable: React.FC<{
           />
         )}
       </div>
-      {["Litigation", "UTP", "ActiveCases"].includes(reportType) && (
+      {["Litigation", "UTP", "ActiveCases","Contingencies"].includes(reportType) && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
