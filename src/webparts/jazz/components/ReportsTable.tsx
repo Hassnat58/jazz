@@ -820,8 +820,11 @@ const ReportsTable: React.FC<{
         // let prevMonth: number;
         // let prevYear: number;
 
+        // When Month/Year is selected we pass a wide range (1990 → selected month).
+        // We must use the END date here so we respect the actual selected year/month,
+        // and effectively get data "from start to selected month".
         if (filter.dateStart) {
-          const selectedMonth = new Date(filter.dateStart);
+          const selectedMonth = new Date(filter.dateEnd);
           effectiveCurrentMonth = selectedMonth.getMonth();
           effectiveCurrentYear = selectedMonth.getFullYear();
         } else if (filter.dateRangeStart && filter.dateRangeEnd) {
@@ -1236,8 +1239,10 @@ const ReportsTable: React.FC<{
         // let prevMonth: number;
         // let prevYear: number;
 
+        // Same Month/Year handling as other reports: use the END date of the
+        // wide range so calculations are done up to the selected month.
         if (filter.dateStart) {
-          const selectedMonth = new Date(filter.dateStart);
+          const selectedMonth = new Date(filter.dateEnd);
           effectiveCurrentMonth = selectedMonth.getMonth();
           effectiveCurrentYear = selectedMonth.getFullYear();
         } else if (filter.dateRangeStart && filter.dateRangeEnd) {
@@ -1486,8 +1491,8 @@ const ReportsTable: React.FC<{
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : utp.RiskCategory === "Probable"
-                ? 0
-                : utp.GrossExposure || 0
+                  ? 0
+                  : utp.GrossExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (utp.GrossExposure || 0) - utp.Amount || 0
@@ -1563,8 +1568,8 @@ const ReportsTable: React.FC<{
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : issue.RiskCategory === "Probable"
-                ? 0
-                : issue.GrossTaxExposure || 0
+                  ? 0
+                  : issue.GrossTaxExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (issue.GrossTaxExposure || 0) - issue.Amount || 0
@@ -1926,8 +1931,8 @@ const ReportsTable: React.FC<{
           reportType === "Litigation"
             ? item.DateReceived
             : reportType === "ActiveCases"
-            ? item.DateofCompliance
-            : item.UTPDate;
+              ? item.DateofCompliance
+              : item.UTPDate;
 
         const itemDate = itemDateRaw ? new Date(itemDateRaw) : null;
         if (!itemDate) return false;
@@ -1985,7 +1990,7 @@ const ReportsTable: React.FC<{
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-                updatedFilters.financialYear) &&
+              updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -2076,7 +2081,7 @@ const ReportsTable: React.FC<{
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-                updatedFilters.financialYear) &&
+              updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -2111,13 +2116,13 @@ const ReportsTable: React.FC<{
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  const paginatedData = ["Litigation", "UTP", "ActiveCases","Contingencies"].includes(
+  const paginatedData = ["Litigation", "UTP", "ActiveCases", "Contingencies"].includes(
     reportType
   )
     ? filteredData.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-      )
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    )
     : filteredData;
 
   return (
@@ -2346,9 +2351,9 @@ const ReportsTable: React.FC<{
                   selected={
                     filters.taxYear
                       ? (() => {
-                          const [month, year] = filters.taxYear.split("/");
-                          return new Date(Number(year), Number(month) - 1, 1);
-                        })()
+                        const [month, year] = filters.taxYear.split("/");
+                        return new Date(Number(year), Number(month) - 1, 1);
+                      })()
                       : null
                   }
                   onChange={(date: Date | null) => {
@@ -2425,10 +2430,10 @@ const ReportsTable: React.FC<{
                   selected={
                     filters.financialYear
                       ? (() => {
-                          const [month, year] =
-                            filters.financialYear.split("/");
-                          return new Date(Number(year), Number(month) - 1, 1);
-                        })()
+                        const [month, year] =
+                          filters.financialYear.split("/");
+                        return new Date(Number(year), Number(month) - 1, 1);
+                      })()
                       : null
                   }
                   onChange={(date: Date | null) => {
@@ -2695,7 +2700,7 @@ const ReportsTable: React.FC<{
           />
         )}
       </div>
-      {["Litigation", "UTP", "ActiveCases","Contingencies"].includes(reportType) && (
+      {["Litigation", "UTP", "ActiveCases", "Contingencies"].includes(reportType) && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
