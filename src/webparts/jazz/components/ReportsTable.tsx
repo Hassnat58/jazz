@@ -1324,19 +1324,23 @@ const ReportsTable: React.FC<{
               "GrossTaxExposure",
               "ContigencyNote",
               "ProvisionGLCode",
-              "UTP/Id"
+              "UTP/Id",
+              "UTP/UTPId"
             )
+            .filter(`RiskCategory eq 'Possible'`)
             .expand("UTP")
             .orderBy("Id", false)
             .top(5000)
         );
+        console.log("Issue UTP", utpIssues);
 
         // ---------- STEP 4: Group Issues by UTP SharePoint Id ----------
         const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
-          const utpId = issue.UTP?.Id;
+          const utpId = issue.UTP?.UTPId;
           if (!utpId) return acc;
           if (!acc[utpId]) acc[utpId] = [];
           acc[utpId].push(issue);
+          console.log(issuesByUtp, "Issue by UTP");
           return acc;
         }, {});
 
@@ -1348,9 +1352,11 @@ const ReportsTable: React.FC<{
         for (const [utpId, { current, previous }] of Object.entries(
           latestByMonth
         ) as [string, { current?: any; previous?: any }][]) {
-          const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
+          const currentIssues = current
+            ? issuesByUtp[current?.UTPId] || []
+            : [];
           const previousIssues = previous
-            ? issuesByUtp[previous?.Id] || []
+            ? issuesByUtp[previous?.UTPId] || []
             : [];
           const maxLength = Math.max(
             currentIssues.length,
@@ -1364,11 +1370,12 @@ const ReportsTable: React.FC<{
             // const currAmt = currIssue?.GrossTaxExposure || 0;
             // const prevAmt = prevIssue?.GrossTaxExposure || 0;
             // ONLY Possible cases
+
             const currAmt =
               currIssue && currIssue.RiskCategory === "Possible"
                 ? currIssue.GrossTaxExposure || 0
                 : 0;
-
+            console.log(currAmt, "Current Gross");
             const prevAmt =
               prevIssue && prevIssue.RiskCategory === "Possible"
                 ? prevIssue.GrossTaxExposure || 0
@@ -1491,8 +1498,8 @@ const ReportsTable: React.FC<{
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : utp.RiskCategory === "Probable"
-                  ? 0
-                  : utp.GrossExposure || 0
+                ? 0
+                : utp.GrossExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (utp.GrossExposure || 0) - utp.Amount || 0
@@ -1568,8 +1575,8 @@ const ReportsTable: React.FC<{
               utp.CaseNumber?.TaxType === "Income Tax"
                 ? 0
                 : issue.RiskCategory === "Probable"
-                  ? 0
-                  : issue.GrossTaxExposure || 0
+                ? 0
+                : issue.GrossTaxExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
               (issue.GrossTaxExposure || 0) - issue.Amount || 0
@@ -1931,8 +1938,8 @@ const ReportsTable: React.FC<{
           reportType === "Litigation"
             ? item.DateReceived
             : reportType === "ActiveCases"
-              ? item.DateofCompliance
-              : item.UTPDate;
+            ? item.DateofCompliance
+            : item.UTPDate;
 
         const itemDate = itemDateRaw ? new Date(itemDateRaw) : null;
         if (!itemDate) return false;
@@ -1990,7 +1997,7 @@ const ReportsTable: React.FC<{
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-              updatedFilters.financialYear) &&
+                updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -2081,7 +2088,7 @@ const ReportsTable: React.FC<{
               item.RiskCategoryList?.includes(updatedFilters.category)) &&
             (!updatedFilters.financialYear ||
               item.CaseNumber?.FinancialYear ===
-              updatedFilters.financialYear) &&
+                updatedFilters.financialYear) &&
             (!updatedFilters.taxYear ||
               item.CaseNumber?.TaxYear === updatedFilters.taxYear) &&
             (!updatedFilters.taxType ||
@@ -2116,13 +2123,16 @@ const ReportsTable: React.FC<{
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  const paginatedData = ["Litigation", "UTP", "ActiveCases", "Contingencies"].includes(
-    reportType
-  )
+  const paginatedData = [
+    "Litigation",
+    "UTP",
+    "ActiveCases",
+    "Contingencies",
+  ].includes(reportType)
     ? filteredData.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    )
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      )
     : filteredData;
 
   return (
@@ -2351,9 +2361,9 @@ const ReportsTable: React.FC<{
                   selected={
                     filters.taxYear
                       ? (() => {
-                        const [month, year] = filters.taxYear.split("/");
-                        return new Date(Number(year), Number(month) - 1, 1);
-                      })()
+                          const [month, year] = filters.taxYear.split("/");
+                          return new Date(Number(year), Number(month) - 1, 1);
+                        })()
                       : null
                   }
                   onChange={(date: Date | null) => {
@@ -2430,10 +2440,10 @@ const ReportsTable: React.FC<{
                   selected={
                     filters.financialYear
                       ? (() => {
-                        const [month, year] =
-                          filters.financialYear.split("/");
-                        return new Date(Number(year), Number(month) - 1, 1);
-                      })()
+                          const [month, year] =
+                            filters.financialYear.split("/");
+                          return new Date(Number(year), Number(month) - 1, 1);
+                        })()
                       : null
                   }
                   onChange={(date: Date | null) => {
@@ -2700,7 +2710,9 @@ const ReportsTable: React.FC<{
           />
         )}
       </div>
-      {["Litigation", "UTP", "ActiveCases", "Contingencies"].includes(reportType) && (
+      {["Litigation", "UTP", "ActiveCases", "Contingencies"].includes(
+        reportType
+      ) && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
