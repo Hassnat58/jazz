@@ -31,7 +31,7 @@ const TaxExposureChart: React.FC<{ data: any[] }> = ({ data }) => {
           <Tooltip
             formatter={(value: number, name: string) => [
               value,
-              name === "Income Tax" ? "Income Tax" : "Sales Tax",
+              name === "IncomeTax" ? "Income Tax" : "Sales Tax",
             ]}
           />
 
