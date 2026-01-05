@@ -873,7 +873,6 @@ const ReportsTable: React.FC<{
             .orderBy("Id", false)
             .top(5000)
         );
-
         // ---------- STEP 3: Find latest UTP per month ----------
         // ---------- STEP 3: Find latest UTP current + previous using NEW logic ----------
         const latestByUtp = utpItems.reduce((acc: any, utp: any) => {
@@ -957,6 +956,7 @@ const ReportsTable: React.FC<{
             );
           }
         }
+        // console.log("Total Issues Found for Summation:", mergedIssues);
 
         // ---------- STEP 6: Helper ----------
         const sumBy = (isCurrent: boolean, condition?: (r: any) => boolean) =>
@@ -978,6 +978,8 @@ const ReportsTable: React.FC<{
         // Total Exposure
         const totalCurr = sumBy2(true);
         const totalPrev = sumBy2(false);
+
+        // console.log("totlat current", totalCurr);
 
         // Payments under protest
         const pupCurr = sumBy(

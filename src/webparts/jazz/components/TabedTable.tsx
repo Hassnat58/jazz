@@ -636,8 +636,18 @@ const TabbedTables: React.FC<{
   }, [activeTab]);
 
   const renderCorrespondenceTable = () => {
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-    const paginatedData = filteredData.slice(
+    // 👉 Keep ONLY the item with the largest ID for each Title
+    const uniqueByTitle = Object.values(
+      filteredData.reduce((acc: any, item: any) => {
+        if (!acc[item.Title] || acc[item.Title].ID < item.ID) {
+          acc[item.Title] = item;
+        }
+        return acc;
+      }, {})
+    ) as any[];
+
+    const totalPages = Math.ceil(uniqueByTitle.length / itemsPerPage);
+    const paginatedData = uniqueByTitle.slice(
       (casesPage - 1) * itemsPerPage,
       casesPage * itemsPerPage
     );
@@ -1149,7 +1159,7 @@ const TabbedTables: React.FC<{
         <Pagination
           currentPage={casesPage}
           totalPages={totalPages}
-          totalItems={casesData.length}
+          totalItems={uniqueByTitle.length}
           itemsPerPage={itemsPerPage}
           onPageChange={setCasesPage}
         />
@@ -1672,8 +1682,17 @@ const TabbedTables: React.FC<{
     );
   };
   const renderUTPTable = () => {
-    const totalPages = Math.ceil(utpData.length / itemsPerPage);
-    const paginatedData = filteredUtpData.slice(
+    const uniqueByTitle = Object.values(
+      filteredUtpData.reduce((acc: any, item: any) => {
+        if (!acc[item.UTPId] || acc[item.UTPId].ID < item.ID) {
+          acc[item.UTPId] = item;
+        }
+        return acc;
+      }, {})
+    ) as any[];
+
+    const totalPages = Math.ceil(uniqueByTitle.length / itemsPerPage);
+    const paginatedData = uniqueByTitle.slice(
       (utpPage - 1) * itemsPerPage,
       utpPage * itemsPerPage
     );
@@ -2275,7 +2294,7 @@ const TabbedTables: React.FC<{
         <Pagination
           currentPage={utpPage}
           totalPages={totalPages}
-          totalItems={utpData.length}
+          totalItems={uniqueByTitle.length}
           itemsPerPage={itemsPerPage}
           onPageChange={setUtpPage}
         />

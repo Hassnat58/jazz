@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 /* eslint-disable max-lines */
 /* eslint-disable promise/param-names */
 /* eslint-disable require-atomic-updates */
@@ -249,42 +250,63 @@ const UTPForm: React.FC<UTPFormProps> = ({
   }, [selectedTaxType, allCases, usedCaseNumbers, isEditMode, selectedCase]);
 
   const selectedCaseNumberId = watch("CaseNumber");
-  let cachedNextId: number | null = null;
+  // let cachedNextId: number | null = null;
 
-  const getNextUTPIdNumber = async (sp: any): Promise<number> => {
-    if (cachedNextId !== null) return cachedNextId;
+  // const getNextUTPIdNumber = async (sp: any): Promise<number> => {
+  //   if (cachedNextId !== null) return cachedNextId;
 
-    let retries = 3;
-    let delay = 2000;
+  //   let retries = 3;
+  //   let delay = 2000;
 
-    while (retries > 0) {
-      try {
-        const items = await sp.web.lists
-          .getByTitle("UTPData")
-          .items.select("ID")
-          .orderBy("ID", false)
-          .top(1)();
+  //   while (retries > 0) {
+  //     try {
+  //       const items = await sp.web.lists
+  //         .getByTitle("UTPData")
+  //         .items.select("ID")
+  //         .orderBy("ID", false)
+  //         .top(1)();
 
-        const lastId = items.length > 0 ? items[0].ID : 0;
-        cachedNextId = lastId + 1;
-        return cachedNextId ?? 1;
-      } catch (err: any) {
-        if (
-          err.status === 429 || // too many requests
-          err.status === 503 // service unavailable
-        ) {
-          console.warn(`SharePoint throttled, retrying in ${delay}ms`);
-          await new Promise((res) => setTimeout(res, delay));
-          retries--;
-          delay *= 2; // exponential backoff
-        } else {
-          throw err;
+  //       const lastId = items.length > 0 ? items[0].ID : 0;
+  //       cachedNextId = lastId + 1;
+  //       return cachedNextId ?? 1;
+  //     } catch (err: any) {
+  //       if (
+  //         err.status === 429 || // too many requests
+  //         err.status === 503 // service unavailable
+  //       ) {
+  //         console.warn(`SharePoint throttled, retrying in ${delay}ms`);
+  //         await new Promise((res) => setTimeout(res, delay));
+  //         retries--;
+  //         delay *= 2; // exponential backoff
+  //       } else {
+  //         throw err;
+  //       }
+  //     }
+  //   }
+
+  //   // fallback if all retries fail
+  //   return 1;
+  // };
+  const getLastUTPNumber = async () => {
+    const items = await sp.web.lists
+      .getByTitle("UTPData")
+      .items.select("UTPId")
+      .top(5000)(); // fetch all items or max needed
+
+    let maxNumber = 0;
+
+    items.forEach((item) => {
+      if (item.UTPId) {
+        // extract last number from pattern UTP-IT-FBR-123
+        const match = item.UTPId.match(/(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNumber) maxNumber = num;
         }
       }
-    }
+    });
 
-    // fallback if all retries fail
-    return 1;
+    return maxNumber + 1;
   };
 
   useEffect(() => {
@@ -299,7 +321,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
       const taxAuth = selectedCaseItem.TaxAuthority || "N/A";
       const taxtype = selectedCaseItem.TaxType === "Income Tax" ? "IT" : "ST";
 
-      const nextId = await getNextUTPIdNumber(sp);
+      const nextId = await getLastUTPNumber();
 
       setValue("UTPId", `UTP-${taxtype}-${taxAuth}-${nextId}`);
     };
@@ -479,27 +501,27 @@ const UTPForm: React.FC<UTPFormProps> = ({
     return val;
   };
   // 🔹 Get last used UTP number (based on previous UTPId)
-  const getLastUTPNumber = async () => {
-    const items = await sp.web.lists
-      .getByTitle("UTPData")
-      .items.select("UTPId")
-      .top(5000)(); // fetch all items or max needed
+  // const getLastUTPNumber = async () => {
+  //   const items = await sp.web.lists
+  //     .getByTitle("UTPData")
+  //     .items.select("UTPId")
+  //     .top(5000)(); // fetch all items or max needed
 
-    let maxNumber = 0;
+  //   let maxNumber = 0;
 
-    items.forEach((item) => {
-      if (item.UTPId) {
-        // extract last number from pattern UTP-IT-FBR-123
-        const match = item.UTPId.match(/(\d+)$/);
-        if (match) {
-          const num = parseInt(match[1], 10);
-          if (num > maxNumber) maxNumber = num;
-        }
-      }
-    });
+  //   items.forEach((item) => {
+  //     if (item.UTPId) {
+  //       // extract last number from pattern UTP-IT-FBR-123
+  //       const match = item.UTPId.match(/(\d+)$/);
+  //       if (match) {
+  //         const num = parseInt(match[1], 10);
+  //         if (num > maxNumber) maxNumber = num;
+  //       }
+  //     }
+  //   });
 
-    return maxNumber + 1;
-  };
+  //   return maxNumber + 1;
+  // };
 
   const submitForm = async (isDraft: boolean) => {
     if (isSubmitting) return;

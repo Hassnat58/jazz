@@ -635,133 +635,118 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const submitForm = async (isDraft: boolean) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    const data = getValues();
+
+    // Clean data object to remove any ID fields
+    const cleanData = { ...data };
+    delete cleanData.ID;
+    delete cleanData.Id;
+    delete cleanData.id;
+
+    const prefix = getCaseNumberPrefix();
+
+    // Pre-calculate gross exposure before creating case
+    const grossExposures = taxIssueEntries.map(
+      (entry) => entry.grossTaxExposure || 0
+    );
+    const totalGrossExposure =
+      grossExposures.length === 1
+        ? grossExposures[0]
+        : grossExposures.reduce((sum, val) => sum + val, 0);
+
+    // 🔹 Title logic
+    let finalTitle: string;
+
+    if (!existing) {
+      // NEW CASE → Generate from previous case number
+      finalTitle = `${prefix}${String(nextCaseNumber)}`;
+    } else {
+      // EDITING CASE
+      finalTitle = selectedCase.Title;
+      if (cleanData.ParentCaseId) {
+        const parentCase = casesOptions.find(
+          (opt) => opt.key.toString() === cleanData.ParentCaseId.toString()
+        );
+
+        if (parentCase) {
+          finalTitle = parentCase.text;
+        }
+      }
+    }
+
+    const itemData: any = {
+      Title: finalTitle,
+      IsDraft: isDraft,
+      CaseStatus: isDraft ? "Draft" : "Pending",
+      ApprovalStatus: isDraft ? "" : "Pending",
+      GrossExposure: totalGrossExposure,
+      ParentCaseId: existing
+        ? cleanData.ParentCaseId
+          ? Number(cleanData.ParentCaseId)
+          : null
+        : selectedCase && selectedCase.ID
+        ? Number(selectedCase.ID)
+        : null,
+    };
+
+    // dropdowns - ensure string values
+    dropdownFields.forEach((field) => {
+      const key = fieldMapping[field];
+      const value = cleanData[key];
+      itemData[key] =
+        typeof value === "string"
+          ? value
+          : value?.text || value?.Value || value?.toString?.() || "";
+    });
+
+    // inputs
+    inputFields.forEach(({ name }) => {
+      itemData[name] = cleanData[name]?.toString() || "";
+    });
+
+    // dates
+    dateFields.forEach(({ name }) => {
+      const val = cleanData[name as keyof typeof cleanData];
+      if (val instanceof Date && !isNaN(val.getTime())) {
+        itemData[name] = val.toISOString();
+      } else if (typeof val === "string" && val.trim() !== "") {
+        const parsed = new Date(val);
+        itemData[name] = isNaN(parsed.getTime()) ? null : parsed.toISOString();
+      } else {
+        itemData[name] = null;
+      }
+    });
+
+    // multiline
+    multilineFields.forEach(({ name }) => {
+      itemData[name] = cleanData[name]?.toString() || "";
+    });
+
+    itemData["ConsultantEmail"] = cleanData["ConsultantEmail"] || "";
+    itemData["LawyerEmail"] = cleanData["LawyerEmail"] || "";
+    delete itemData.ID;
+    delete itemData.Id;
+    delete itemData.id;
 
     try {
-      const data = getValues();
-
-      // ---------------- CLEAN DATA ----------------
-      const cleanData = { ...data };
-      delete cleanData.ID;
-      delete cleanData.Id;
-      delete cleanData.id;
-
-      const prefix = getCaseNumberPrefix();
-
-      // ---------------- GROSS EXPOSURE ----------------
-      const totalGrossExposure =
-        taxIssueEntries.length === 1
-          ? taxIssueEntries[0].grossTaxExposure || 0
-          : taxIssueEntries.reduce(
-              (sum, e) => sum + (e.grossTaxExposure || 0),
-              0
-            );
-
-      // ---------------- DRAFT CHECK ----------------
-      const isDraftCase = existing && selectedCase?.CaseStatus === "Draft";
-
-      // ---------------- TITLE LOGIC ----------------
-      let finalTitle: string;
-
-      if (isDraftCase) {
-        // update draft → keep same title
-        finalTitle =
-          cleanData.Title?.toString()?.trim() ||
-          selectedCase?.Title ||
-          `${prefix}${String(nextCaseNumber)}`;
-      } else {
-        // new OR editing non-draft → new case number
-        finalTitle = `${prefix}${String(nextCaseNumber)}`;
-      }
-
-      // ---------------- ITEM PAYLOAD ----------------
-      const itemData: any = {
-        Title: finalTitle,
-        IsDraft: isDraft,
-        CaseStatus: isDraft ? "Draft" : "Pending",
-        ApprovalStatus: isDraft ? "" : "Pending",
-        GrossExposure: totalGrossExposure,
-
-        // link previous case when cloning
-        ParentCaseId:
-          !isDraftCase && existing
-            ? Number(selectedCase.ID)
-            : cleanData.ParentCaseId
-            ? Number(cleanData.ParentCaseId)
-            : null,
-      };
-
-      // ---------------- DROPDOWNS ----------------
-      dropdownFields.forEach((field) => {
-        const key = fieldMapping[field];
-        const value = cleanData[key];
-        itemData[key] =
-          typeof value === "string"
-            ? value
-            : value?.text || value?.Value || value?.toString?.() || "";
-      });
-
-      // ---------------- INPUTS ----------------
-      inputFields.forEach(({ name }) => {
-        itemData[name] = cleanData[name]?.toString() || "";
-      });
-
-      // ---------------- DATES ----------------
-      dateFields.forEach(({ name }) => {
-        const val = cleanData[name];
-        if (val instanceof Date && !isNaN(val.getTime())) {
-          itemData[name] = val.toISOString();
-        } else if (typeof val === "string" && val.trim()) {
-          const parsed = new Date(val);
-          itemData[name] = isNaN(parsed.getTime())
-            ? null
-            : parsed.toISOString();
-        } else {
-          itemData[name] = null;
-        }
-      });
-
-      // ---------------- MULTILINE ----------------
-      multilineFields.forEach(({ name }) => {
-        itemData[name] = cleanData[name]?.toString() || "";
-      });
-
-      itemData.ConsultantEmail = cleanData.ConsultantEmail || "";
-      itemData.LawyerEmail = cleanData.LawyerEmail || "";
-
       const finalPayload = {
         ...itemData,
         LinkedNotificationIDId: notiID ? Number(notiID) : null,
       };
 
-      // ---------------- CREATE vs UPDATE ----------------
-      let itemId: number;
+      // Create
+      const addResult = await sp.web.lists
+        .getByTitle("Cases")
+        .items.add(finalPayload);
 
-      if (isDraftCase) {
-        // 🔄 UPDATE DRAFT
-        await sp.web.lists
-          .getByTitle("Cases")
-          .items.getById(selectedCase.ID)
-          .update(finalPayload);
+      const itemId = addResult.ID;
 
-        itemId = selectedCase.ID;
-      } else {
-        // ➕ CREATE NEW CASE
-        const addResult = await sp.web.lists
-          .getByTitle("Cases")
-          .items.add(finalPayload);
+      // Run markAsRead in background (non-blocking)
+      if (notiID) markAsRead(notiID).catch(console.error);
 
-        itemId = addResult.ID;
-      }
-
-      // ---------------- MARK NOTIFICATION ----------------
-      if (notiID) {
-        markAsRead(notiID).catch(console.error);
-      }
-
-      // ---------------- TAX ISSUES ----------------
+      // 🔹 Batch add Tax Issues
       if (taxIssueEntries.length > 0) {
         const [batchedSP, execute] = sp.batched();
-
         taxIssueEntries.forEach((entry) => {
           batchedSP.web.lists.getByTitle("Tax Issues").items.add({
             Title: entry.taxIssue,
@@ -771,69 +756,83 @@ const CaseForm: React.FC<CaseFormProps> = ({
             CaseId: itemId,
           });
         });
-
         await execute();
       }
 
-      // ---------------- NEW ATTACHMENTS ----------------
-      const newAttachmentPromises = attachments.map(async (a) => {
-        const fileName = a.isRenamed ? a.newName : a.originalName;
+      // 🔹 Process new attachments in parallel
+      const attachmentPromises = attachments.map(async (attachment) => {
+        const finalFileName = attachment.isRenamed
+          ? attachment.newName
+          : attachment.originalName;
 
-        const upload = await sp.web.lists
+        const uploadResult = await sp.web.lists
           .getByTitle("Core Data Repositories")
-          .rootFolder.files.addUsingPath(fileName, a.file, { Overwrite: true });
+          .rootFolder.files.addUsingPath(finalFileName, attachment.file, {
+            Overwrite: true,
+          });
 
         const fileItem = await sp.web
-          .getFileByServerRelativePath(upload.ServerRelativeUrl)
+          .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
           .getItem();
 
         return fileItem.update({ CaseId: itemId });
       });
 
-      // ---------------- EXISTING ATTACHMENTS ----------------
-      const existingAttachmentPromises = existingAttachments.map(async (f) => {
-        try {
-          const blob = await sp.web
-            .getFileByServerRelativePath(f.FileRef2 || f.FileRef)
-            .getBlob();
+      // 🔹 Process existing attachments in parallel
+      const existingAttachmentPromises = existingAttachments.map(
+        async (file) => {
+          try {
+            const blob = await sp.web
+              .getFileByServerRelativePath(file.FileRef2 || file.FileRef)
+              .getBlob();
 
-          const fileName = f.isRenamed ? f.newName : f.FileLeafRef;
+            const finalFileName = file.isRenamed
+              ? file.newName
+              : file.FileLeafRef;
 
-          const upload = await sp.web.lists
-            .getByTitle("Core Data Repositories")
-            .rootFolder.files.addUsingPath(fileName, blob, { Overwrite: true });
+            const uploadResult: any = await sp.web.lists
+              .getByTitle("Core Data Repositories")
+              .rootFolder.files.addUsingPath(finalFileName, blob, {
+                Overwrite: true,
+              });
 
-          const fileItem = await sp.web
-            .getFileByServerRelativePath(upload.ServerRelativeUrl)
-            .getItem();
+            const uploadedItem = await sp.web
+              .getFileByServerRelativePath(uploadResult.ServerRelativeUrl)
+              .getItem();
 
-          return fileItem.update({ CaseId: itemId });
-        } catch (e) {
-          console.error("Attachment copy failed", e);
+            return uploadedItem.update({ CaseId: itemId });
+          } catch (err) {
+            console.error("Failed to copy attachment:", err);
+          }
         }
-      });
-
-      await Promise.all([
-        ...newAttachmentPromises,
-        ...existingAttachmentPromises,
-      ]);
-
-      // ---------------- SUCCESS ----------------
-      toast.success(
-        isDraft ? "Draft saved successfully" : "Case submitted successfully",
-        { icon: "✅" }
       );
 
-      // ---------------- RESET ----------------
+      // Wait for all attachments together
+      await Promise.all([...attachmentPromises, ...existingAttachmentPromises]);
+
+      // Success
+      toast.success(
+        isDraft ? "Draft saved successfully" : "Case submitted successfully",
+        {
+          icon: "✅",
+          style: {
+            borderRadius: "10px",
+            background: "#f0fff4",
+            color: "#2f855a",
+          },
+        }
+      );
+
+      loadCasesData;
       setExisting(false);
+      onSave(cleanData);
       reset();
       setAttachments([]);
       setExistingAttachments([]);
       setTaxIssueEntries([]);
       setNextCaseNumber(null);
-      onSave(cleanData);
-    } catch (err) {
-      console.error("Submit failed", err);
+    } catch (error) {
+      console.error("Submission failed", error);
       toast.error("Error submitting form", { icon: "⚠️" });
     } finally {
       setIsSubmitting(false);
