@@ -1504,8 +1504,11 @@ const ReportsTable: React.FC<{
                 : utp.GrossExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
-              (utp.GrossExposure || 0) - utp.Amount || 0
-            ),
+              (utp.GrossExposure || 0) -  -
+  (utp.PaymentType === "Payment under Protest"
+    ? (utp.Amount || 0)
+    : 0)
+),
 
             // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
             caseNumber: utp?.CaseNumber?.Title || "",
@@ -1580,9 +1583,13 @@ const ReportsTable: React.FC<{
                 ? 0
                 : issue.GrossTaxExposure || 0
             ),
-            cashFlowExposurePKR: formatAmount(
-              (issue.GrossTaxExposure || 0) - issue.Amount || 0
-            ),
+           cashFlowExposurePKR: formatAmount(
+  (issue.GrossTaxExposure || 0) -
+  (issue.PaymentType === "Payment under Protest"
+    ? (issue.Amount || 0)
+    : 0)
+),
+
 
             // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
             caseNumber: utp?.CaseNumber?.Title || "",
