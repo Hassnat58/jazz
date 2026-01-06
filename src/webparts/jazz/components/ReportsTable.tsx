@@ -449,6 +449,8 @@ const ReportsTable: React.FC<{
             .items.expand("CaseNumber") // lookup field
             .select("Id,UTPId,CaseNumber/Id")
             .orderBy("Id", false)
+               .filter(` ApprovalStatus eq 'Approved'`)
+          
             .top(5000)
         );
 
@@ -850,6 +852,8 @@ const ReportsTable: React.FC<{
             .getByTitle("UTPData")
             .items.select("Id", "UTPId", "UTPDate", "TaxType")
             .orderBy("Id", false)
+               .filter(` ApprovalStatus eq 'Approved'`)
+          
             .top(5000)
         );
 
