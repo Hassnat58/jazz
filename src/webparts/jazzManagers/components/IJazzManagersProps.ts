@@ -1,3 +1,5 @@
+import { WebPartContext } from "@microsoft/sp-webpart-base";
+
 export interface IJazzManagersProps {
-  SpfxContext: any;
+  SpfxContext: WebPartContext;
 }
