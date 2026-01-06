@@ -449,8 +449,8 @@ const ReportsTable: React.FC<{
             .items.expand("CaseNumber") // lookup field
             .select("Id,UTPId,CaseNumber/Id")
             .orderBy("Id", false)
-               .filter(` ApprovalStatus eq 'Approved'`)
-          
+            .filter(` ApprovalStatus eq 'Approved'`)
+
             .top(5000)
         );
 
@@ -679,6 +679,7 @@ const ReportsTable: React.FC<{
               "ProvisionGLCode",
               "UTP/Id"
             )
+            .filter("RiskCategory eq 'Probable'")
             .expand("UTP")
             .orderBy("Id", false)
             .top(5000)
@@ -724,7 +725,7 @@ const ReportsTable: React.FC<{
                 ? prevIssue.GrossTaxExposure || 0
                 : 0;
 
-            // if (currAmt === 0 && prevAmt === 0) continue;
+            if (currAmt === 0 && prevAmt === 0) continue;
 
             results.push({
               utpId,
@@ -852,8 +853,8 @@ const ReportsTable: React.FC<{
             .getByTitle("UTPData")
             .items.select("Id", "UTPId", "UTPDate", "TaxType")
             .orderBy("Id", false)
-               .filter(` ApprovalStatus eq 'Approved'`)
-          
+            .filter(` ApprovalStatus eq 'Approved'`)
+
             .top(5000)
         );
 
@@ -1508,11 +1509,11 @@ const ReportsTable: React.FC<{
                 : utp.GrossExposure || 0
             ),
             cashFlowExposurePKR: formatAmount(
-              (utp.GrossExposure || 0) -  -
-  (utp.PaymentType === "Payment under Protest"
-    ? (utp.Amount || 0)
-    : 0)
-),
+              (utp.GrossExposure || 0) -
+                -(utp.PaymentType === "Payment under Protest"
+                  ? utp.Amount || 0
+                  : 0)
+            ),
 
             // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
             caseNumber: utp?.CaseNumber?.Title || "",
@@ -1587,13 +1588,12 @@ const ReportsTable: React.FC<{
                 ? 0
                 : issue.GrossTaxExposure || 0
             ),
-           cashFlowExposurePKR: formatAmount(
-  (issue.GrossTaxExposure || 0) -
-  (issue.PaymentType === "Payment under Protest"
-    ? (issue.Amount || 0)
-    : 0)
-),
-
+            cashFlowExposurePKR: formatAmount(
+              (issue.GrossTaxExposure || 0) -
+                (issue.PaymentType === "Payment under Protest"
+                  ? issue.Amount || 0
+                  : 0)
+            ),
 
             // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
             caseNumber: utp?.CaseNumber?.Title || "",
