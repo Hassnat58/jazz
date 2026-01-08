@@ -639,7 +639,7 @@ const ReportsTable: React.FC<{
             return false;
           };
 
-          // ===== CURRENT (latest ≤ current target) =====
+          // ===== CURRENT (latest ≤ end of selected month) =====
           const currTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
@@ -652,12 +652,14 @@ const ReportsTable: React.FC<{
             }
           }
 
-          // ===== PREVIOUS (latest < current.UTPDate) =====
-          const currDate = acc[id].current
-            ? new Date(acc[id].current.UTPDate)
-            : null;
+          // ===== PREVIOUS (latest ≤ end of (selected month - 1)) =====
+          const prevTarget = new Date(
+            effectiveCurrentYear,
+            effectiveCurrentMonth,
+            0
+          );
 
-          if (currDate && d < currDate) {
+          if (d <= prevTarget) {
             if (isLater(acc[id].previous, utp)) {
               acc[id].previous = utp;
             }
@@ -899,26 +901,29 @@ const ReportsTable: React.FC<{
           };
 
           // target = last day of selected current month
-          const target = new Date(
+          const currTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
             0
           );
 
-          // ---------- Pick CURRENT ----------
-          if (d <= target) {
+          // ---------- Pick CURRENT (latest ≤ end of selected month) ----------
+          if (d <= currTarget) {
             if (isLater(acc[id].current, utp)) {
               acc[id].current = utp;
             }
           }
 
-          // ---------- Pick PREVIOUS ----------
-          if (acc[id].current) {
-            const currDate = new Date(acc[id].current.UTPDate);
-            if (d < currDate) {
-              if (isLater(acc[id].previous, utp)) {
-                acc[id].previous = utp;
-              }
+          // ---------- Pick PREVIOUS (latest ≤ end of (selected month - 1)) ----------
+          const prevTarget = new Date(
+            effectiveCurrentYear,
+            effectiveCurrentMonth,
+            0
+          );
+
+          if (d <= prevTarget) {
+            if (isLater(acc[id].previous, utp)) {
+              acc[id].previous = utp;
             }
           }
 
@@ -1293,7 +1298,7 @@ const ReportsTable: React.FC<{
             return false;
           };
 
-          // ===== CURRENT (latest ≤ current target) =====
+          // ===== CURRENT (latest ≤ end of selected month) =====
           const currTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
@@ -1306,12 +1311,14 @@ const ReportsTable: React.FC<{
             }
           }
 
-          // ===== PREVIOUS (latest < current.UTPDate) =====
-          const currDate = acc[id].current
-            ? new Date(acc[id].current.UTPDate)
-            : null;
+          // ===== PREVIOUS (latest ≤ end of (selected month - 1)) =====
+          const prevTarget = new Date(
+            effectiveCurrentYear,
+            effectiveCurrentMonth,
+            0
+          );
 
-          if (currDate && d < currDate) {
+          if (d <= prevTarget) {
             if (isLater(acc[id].previous, utp)) {
               acc[id].previous = utp;
             }
@@ -1343,7 +1350,7 @@ const ReportsTable: React.FC<{
 
         // ---------- STEP 4: Group Issues by UTP SharePoint Id ----------
         const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
-          const utpId = issue.UTP?.UTPId;
+        const utpId = issue.UTP?.Id;
           if (!utpId) return acc;
           if (!acc[utpId]) acc[utpId] = [];
           acc[utpId].push(issue);
@@ -1360,10 +1367,10 @@ const ReportsTable: React.FC<{
           latestByMonth
         ) as [string, { current?: any; previous?: any }][]) {
           const currentIssues = current
-            ? issuesByUtp[current?.UTPId] || []
+            ? issuesByUtp[current?.Id] || []
             : [];
           const previousIssues = previous
-            ? issuesByUtp[previous?.UTPId] || []
+            ? issuesByUtp[previous?.Id] || []
             : [];
           const maxLength = Math.max(
             currentIssues.length,
