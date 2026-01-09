@@ -727,7 +727,7 @@ const ReportsTable: React.FC<{
                 ? prevIssue.GrossTaxExposure || 0
                 : 0;
 
-            if (currAmt === 0 && prevAmt === 0) continue;
+            // if (currAmt === 0 && prevAmt === 0) continue;
 
             results.push({
               utpId,
@@ -1214,7 +1214,7 @@ const ReportsTable: React.FC<{
             if (issue.RiskCategory !== "Probable") continue;
 
             const currAmt = issue.GrossTaxExposure || 0;
-            if (currAmt === 0) continue;
+            // if (currAmt === 0) continue;
 
             grandCurr += currAmt;
 
@@ -1783,6 +1783,7 @@ const ReportsTable: React.FC<{
       setFilters(reset);
       setData([]);
       setFilteredData([]);
+      setCurrentPage(1); // ✅ Reset to page 1 when report type changes
 
       setLoading(true);
 
@@ -2141,19 +2142,49 @@ const ReportsTable: React.FC<{
     setLoading(false);
   };
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  // ✅ Separate data rows from total/subtotal rows for pagination
+  const isPaginatedReport = ["Litigation", "UTP", "ActiveCases", "Contingencies"].includes(reportType);
+  
+  let dataRows: CaseItem[] = [];
+  let totalRows: CaseItem[] = [];
+  
+  if (isPaginatedReport) {
+    filteredData.forEach((row) => {
+      // Check if this is a total/subtotal row
+      if (row.entity === "Grand Total" || row.entity === "Sub Total") {
+        totalRows.push(row);
+      } else {
+        dataRows.push(row);
+      }
+    });
+  } else {
+    dataRows = filteredData;
+  }
 
-  const paginatedData = [
-    "Litigation",
-    "UTP",
-    "ActiveCases",
-    "Contingencies",
-  ].includes(reportType)
-    ? filteredData.slice(
+  // ✅ Calculate pagination based only on data rows (excluding totals)
+  const totalPages = isPaginatedReport 
+    ? Math.ceil(dataRows.length / itemsPerPage) 
+    : 1;
+
+  // ✅ Get paginated data rows for current page
+  const paginatedDataRows = isPaginatedReport
+    ? dataRows.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
       )
-    : filteredData;
+    : dataRows;
+
+  // ✅ If on last page and there are total rows, append them to display
+  const paginatedData = isPaginatedReport && currentPage === totalPages && totalRows.length > 0
+    ? [...paginatedDataRows, ...totalRows]
+    : paginatedDataRows;
+
+  // ✅ Ensure current page doesn't exceed total pages after filtering
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   return (
     <>
@@ -2736,7 +2767,7 @@ const ReportsTable: React.FC<{
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={filteredData.length}
+          totalItems={dataRows.length}
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
         />
