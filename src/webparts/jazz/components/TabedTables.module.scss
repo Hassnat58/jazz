@@ -417,3 +417,17 @@
   /* SharePoint blue focus */
   outline: none;
 }
+.lms-footer {
+  width: 100%;
+  text-align: end;
+  padding: 10px 0;
+  background: linear-gradient(90deg, #1e293b, #0f172a);
+  color: #e5e7eb;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+}
