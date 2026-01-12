@@ -267,7 +267,7 @@ const ReportsTable: React.FC<{
     };
   }, []); // empty deps -> attach once
 
-  const exportReportPDF = (type: ReportType, data: CaseItem[]) => {
+const exportReportPDF = (type: ReportType, data: CaseItem[]) => {
     const config = reportConfig[type];
     if (!config) return;
 
@@ -285,6 +285,28 @@ const ReportsTable: React.FC<{
 
     doc.setFontSize(14);
     doc.text(`${type} Report`, 40, 30);
+const columnStyles: Record<number, any> = {};
+
+const fixedWidthColumns: Record<string, number> = {
+  "SCN/Order Summary": 70,
+  "MLR Claim ID": 20,
+  "Tax Matter": 30,
+  "Brief Description": 30,
+   "UTP Paper Category": 30,
+  "ERM Category": 30,
+};
+
+headers.forEach((header, index) => {
+  if (fixedWidthColumns[header]) {
+    columnStyles[index] = {
+      minCellWidth: fixedWidthColumns[header],
+    };
+  } else {
+    columnStyles[index] = {
+      minCellWidth: 30,
+    };
+  }
+});
 
     autoTable(doc, {
       startY: 50,
@@ -301,14 +323,12 @@ const ReportsTable: React.FC<{
         textColor: 255,
         fontStyle: "bold",
       },
-      columnStyles: {
-        // Replace "scnOrderSummary" with your actual field name or index
-        [headers.indexOf("SCN/Order Summary")]: { cellWidth: 70 },
-      },
+     columnStyles
     });
 
     doc.save(`${type}_Report.pdf`);
   };
+
   const exportReport = (type: ReportType, data: CaseItem[]) => {
     const config = reportConfig[type];
     let exportData: Record<string, any>[] = [];
@@ -1742,8 +1762,8 @@ const ReportsTable: React.FC<{
           Date.UTC(next30.getFullYear(), next30.getMonth(), next30.getDate())
         );
 
-        const newStart = startUTC.toISOString().split("T")[0]; // YYYY-MM-DD
-        const newEnd = endUTC.toISOString().split("T")[0]; // YYYY-MM-DD
+        const newStart = formatLocalDate(startUTC) // YYYY-MM-DD
+        const newEnd = formatLocalDate(endUTC) // YYYY-MM-DD
 
         handleFilterChangeDate2(newStart, newEnd, items);
       } else {
@@ -1827,15 +1847,20 @@ const ReportsTable: React.FC<{
 
     fetchLOVs();
   }, []);
-  const handleFilterChange = async (key: string, value: any) => {
-    const updatedFilters = { ...filters, [key]: value };
-    setFilters(updatedFilters);
-
-    const normalizeDate = (date: Date | string) => {
+   const normalizeDate = (date: Date | string) => {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
       return d;
     };
+  const handleFilterChange = async (key: string, value: any) => {
+    
+    const updatedFilters = { ...filters, [key]: value, dateStart: "",
+                  dateEnd: "", };
+    console.log(key, value,filters,updatedFilters,'filters');
+
+    setFilters(updatedFilters);
+
+   
 
     // STEP 1: Prepare date filter
     const start = updatedFilters.dateRangeStart
@@ -1943,6 +1968,12 @@ const ReportsTable: React.FC<{
     setFilteredData(dataf);
     setLoading(false);
   };
+const formatLocalDate = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
   const handleFilterChangeDate = async (value1: string, value2: string) => {
     const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
@@ -2160,6 +2191,21 @@ const ReportsTable: React.FC<{
   } else {
     dataRows = filteredData;
   }
+const resetDateRange = () => {
+  setDateRange([null, null]);
+  setSelectedDate(null);
+
+  const clearedFilters = {
+    ...filters,
+    dateRangeStart: "",
+    dateRangeEnd: "",
+    dateStart: "",
+    dateEnd: "",
+  };
+
+  setFilters(clearedFilters);
+  handleFilterChange("dateRangeStart", "");
+};
 
   // ✅ Calculate pagination based only on data rows (excluding totals)
   const totalPages = isPaginatedReport 
@@ -2209,14 +2255,16 @@ const ReportsTable: React.FC<{
             selectsRange
             startDate={startDate}
             endDate={endDate}
+            onMonthChange={resetDateRange}
+  onYearChange={resetDateRange}
             onChange={(update: [Date | null, Date | null]) => {
               setDateRange(update);
 
               const newStart = update[0]
-                ? update[0].toISOString().split("T")[0]
+                ? formatLocalDate(update[0])
                 : "";
               const newEnd = update[1]
-                ? update[1].toISOString().split("T")[0]
+                ? formatLocalDate(update[1])
                 : "";
 
               // Update state
@@ -2282,8 +2330,8 @@ const ReportsTable: React.FC<{
                 const endUTC = new Date(
                   Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)
                 );
-                const newStart = startUTC?.toISOString().split("T")[0];
-                const newEnd = endUTC.toISOString().split("T")[0];
+                const newStart = formatLocalDate(startUTC);
+                const newEnd = formatLocalDate(endUTC);
 
                 handleFilterChangeDate(newStart, newEnd);
               } else {
