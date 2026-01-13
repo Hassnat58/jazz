@@ -340,7 +340,13 @@ headers.forEach((header, index) => {
     function mapRow(item: CaseItem, cfg: typeof config) {
       const row: Record<string, any> = {};
       cfg.columns.forEach((col) => {
-        row[col.header] = item[col.field] ?? "";
+        const value = item[col.field];
+
+    // ✅ keep numbers as numbers
+    // ✅ keep strings as strings
+    // ✅ keep empty cells empty (not text)
+    row[col.header] =
+      value === undefined || value === null ? null : value;
       });
       return row;
     }
@@ -1469,11 +1475,67 @@ headers.forEach((header, index) => {
         }));
       default: // UTPData
         const sp = spfi().using(SPFx(SpfxContext));
+        
+        // ---------- STEP 1: Determine effective period (same as Provisions3) ----------
+        const now = new Date();
+        let effectiveCurrentMonth: number;
+        let effectiveCurrentYear: number;
+
+        if (filter.dateStart) {
+          const selectedMonth = new Date(filter.dateEnd);
+          effectiveCurrentMonth = selectedMonth.getMonth();
+          effectiveCurrentYear = selectedMonth.getFullYear();
+        } else if (filter.dateRangeStart && filter.dateRangeEnd) {
+          const end = new Date(filter.dateRangeEnd);
+          effectiveCurrentMonth = end.getMonth();
+          effectiveCurrentYear = end.getFullYear();
+        } else {
+          effectiveCurrentMonth = now.getMonth();
+          effectiveCurrentYear = now.getFullYear();
+        }
+
+        // ---------- STEP 2: Find latest UTP per month (same logic as Provisions3) ----------
+        const latestByUtp = rawData.reduce((acc: any, utp: any) => {
+          const d = new Date(utp.UTPDate);
+          const id = utp.UTPId;
+
+          if (!id) return acc;
+          if (!acc[id]) acc[id] = { current: null };
+
+          const isLater = (a: any, b: any) => {
+            if (!a) return true;
+            const aDate = new Date(a.UTPDate);
+            const bDate = new Date(b.UTPDate);
+
+            if (bDate > aDate) return true;
+            if (bDate.getTime() === aDate.getTime()) return b.Id > a.Id;
+
+            return false;
+          };
+
+          // target = last day of selected current month
+          const currTarget = new Date(
+            effectiveCurrentYear,
+            effectiveCurrentMonth + 1,
+            0
+          );
+
+          // ---------- Pick CURRENT (latest ≤ end of selected month) ----------
+          if (d <= currTarget) {
+            if (isLater(acc[id].current, utp)) {
+              acc[id].current = utp;
+            }
+          }
+
+          return acc;
+        }, {});
+
+        // ---------- STEP 3: Fetch UTP Tax Issues ----------
         let utpItems = await fetchPaged(
           sp.web.lists
             .getByTitle("UTP Tax Issue")
             .items.expand("UTP")
-            .select("*,UTP/Id,UTP/Title")
+            .select("*,UTP/Id,UTP/Title,UTP/UTPId,UTP/UTPDate")
             .orderBy("Id", false)
             .top(5000)
         );
@@ -1481,154 +1543,150 @@ headers.forEach((header, index) => {
         // now filter in JS
         if (filter.category) {
           utpItems = utpItems.filter(
-            (item) => item.RiskCategory === "Possible" //filter.category
+            (item) => item.RiskCategory === filter.category
           );
         }
 
         const utpIssues = utpItems;
 
-        const latestIssues = await getLatestUTPIssues(rawData);
-        const merged = latestIssues.flatMap((utp: any) => {
-          const mainRow = {
-            ...utp,
-            utpId: utp.UTPId, // exists (currently null in your data)
-            mlrClaimId: utp.GMLRID, // mapping from GMLRID
-            pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
-            type: utp.PaymentType, // exists but null
-            grossExposureJul: formatAmount(utp.GrossExposure), // only one field, reusing
-            grossExposureJun: formatAmount(utp.GrossExposure),
-            UTPDate: utp.UTPDate,
-            category: utp.RiskCategory, // exists
-            fy: utp?.CaseNumber?.FinancialYear, // exists but null
-            taxYear: utp?.CaseNumber?.TaxYear, // exists but null
-            taxAuthority: utp?.CaseNumber?.TaxAuthority, // ❌ not in data (will be undefined)
-            taxMatter: utp?.CaseNumber?.CorrespondenceType, // ❌ not in data (will be undefined)
-            taxType: utp?.CaseNumber?.TaxType, // exists
-            entity: utp?.CaseNumber?.Entity, // exists but null
+        // ---------- STEP 4: Group issues by UTP Id ----------
+        const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
+          const utpId = issue.UTP?.Id;
+          if (!utpId) return acc;
+          if (!acc[utpId]) acc[utpId] = [];
+          acc[utpId].push(issue);
+          return acc;
+        }, {});
 
-            varianceLastMonth: formatAmount(utp.VarianceWithLastMonthPKR), // ❌ not in data (undefined)
-            grossExposureMay: formatAmount(utp.GrossExposure),
-            grossExposureApr: formatAmount(utp.GrossExposure),
-            arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
-            contingencyNote: utp.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
-            briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
-            provisionGlCode: utp.ProvisionGLCode, // ❌ not in data (undefined)
-            provisionGrsCode: utp.GRSCode, // exists
-            paymentUnderProtest:
-              utp.PaymentType == "Payment under Protest" ? utp.Amount : "", // exists but null (note lowercase "u")
-            admittedTax: utp.PaymentType == "Admitted Tax" ? utp.Amount : "", // exists but null (note lowercase "u")
+        // ---------- STEP 5: Build rows from latest UTPs only ----------
+        // let totalGrossExposure = 0;
+        // let totalPlExposure = 0;
+        // let totalEbitdaExposure = 0;
+        // let totalCashFlowExposure = 0;
 
-            paymentGlCode: utp.PaymentGLCode, // ❌ not in data (undefined)
-            utpPaperCategory: utp.UTPCategory, // exists but null
-            provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
+        const merged = Object.values(latestByUtp).flatMap(({ current }: any) => {
+          if (!current) return [];
 
-            utpIdDisplay: utp.Id,
-            utpIssue: "",
-            ermCategory: utp.ERMCategory ?? "",
-            plExposurePKR: formatAmount(
-              utp.RiskCategory === "Probable" ? 0 : utp.GrossExposure || 0
-            ),
-            ebitdaExposurePKR: formatAmount(
-              utp.CaseNumber?.TaxType === "Income Tax"
-                ? 0
-                : utp.RiskCategory === "Probable"
-                ? 0
-                : utp.GrossExposure || 0
-            ),
-            cashFlowExposurePKR: formatAmount(
-              (utp.GrossExposure || 0) -
-                -(utp.PaymentType === "Payment under Protest"
-                  ? utp.Amount || 0
-                  : 0)
-            ),
+          const utp = current;
+          const relatedIssues = issuesByUtp[utp.Id] || [];
 
-            // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
-            caseNumber: utp?.CaseNumber?.Title || "",
-          };
+          // If no issues, skip this UTP (to match Provisions3 logic which only sums issues)
+          if (relatedIssues.length === 0) return [];
 
-          const relatedIssues = utpIssues.filter(
-            (issue: any) => issue.UTPId === utp.Id
-          );
-          // console.log(
-          //   utp.Id,
-          //   utpIssues,
-          //   rawData,
-          //   latestIssues,
-          //   relatedIssues,
-          //   "dekhloo"
-          // );
+          const issueRows = relatedIssues.map((issue: any, index: number) => {
+            const grossExposure = issue.GrossTaxExposure || 0;
+            const plExposure = issue.RiskCategory === "Probable" ? 0 : grossExposure;
+            const ebitdaExposure = utp.CaseNumber?.TaxType === "Income Tax"
+              ? 0
+              : issue.RiskCategory === "Probable"
+              ? 0
+              : grossExposure;
+            const cashFlowExposure = grossExposure -
+              (issue.PaymentType === "Payment under Protest"
+                ? issue.Amount || 0
+                : 0);
 
-          if (relatedIssues.length === 0) return [mainRow];
+            // Accumulate totals
+            // totalGrossExposure += grossExposure;
+            // totalPlExposure += plExposure;
+            // totalEbitdaExposure += ebitdaExposure;
+            // totalCashFlowExposure += cashFlowExposure;
 
-          const issueRows = relatedIssues.map((issue: any, index: number) => ({
-            ...utp,
-            utpId: `${utp.UTPId}-${String.fromCharCode(97 + index)}`, // exists (currently null in your data)
-            mlrClaimId: utp.GMLRID, // mapping from GMLRID
-            pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
-            type: utp.PaymentType, // exists but null
-            grossExposureJul: utp.GrossExposure, // only one field, reusing
-            grossExposureJun: formatAmount(issue.GrossTaxExposure) ?? 0,
-            UTPDate: utp.UTPDate,
-            category: issue.RiskCategory, // exists
-            fy: utp?.CaseNumber?.FinancialYear, // exists but null
-            taxYear: utp?.CaseNumber?.TaxYear, // exists but null
-            taxAuthority: utp?.CaseNumber?.TaxAuthority,
-            taxMatter: utp?.CaseNumber?.CorrespondenceType, // ❌ not in data (will be undefined)
-            taxType: utp?.CaseNumber?.TaxType, // exists
-            entity: utp?.CaseNumber?.Entity, // exists but null
+            return {
+              ...utp,
+              utpId: `${utp.UTPId}-${String.fromCharCode(97 + index)}`, // exists (currently null in your data)
+              mlrClaimId: utp.GMLRID, // mapping from GMLRID
+              pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
+              type: utp.PaymentType, // exists but null
+              grossExposureJul: utp.GrossExposure, // only one field, reusing
+              grossExposureJun: formatAmount(grossExposure) ?? 0,
+              UTPDate: utp.UTPDate,
+              category: issue.RiskCategory, // exists
+              fy: utp?.CaseNumber?.FinancialYear, // exists but null
+              taxYear: utp?.CaseNumber?.TaxYear, // exists but null
+              taxAuthority: utp?.CaseNumber?.TaxAuthority,
+              taxMatter: utp?.CaseNumber?.CorrespondenceType, // ❌ not in data (will be undefined)
+              taxType: utp?.CaseNumber?.TaxType, // exists
+              entity: utp?.CaseNumber?.Entity, // exists but null
 
-            varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
-            grossExposureMay: formatAmount(utp.GrossExposure),
-            grossExposureApr: formatAmount(utp.GrossExposure),
-            arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
+              varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
+              grossExposureMay: formatAmount(utp.GrossExposure),
+              grossExposureApr: formatAmount(utp.GrossExposure),
+              arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
 
-            contingencyNote: issue.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
-            briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
-            provisionGlCode: issue.ProvisionGLCode, // ❌ not in data (undefined)
-            provisionGrsCode: issue.GRSCode, // exists
-            paymentUnderProtest:
-              issue.PaymentType == "Payment under Protest"
-                ? formatAmount(issue.Amount)
-                : "", // exists but null (note lowercase "u")
-            admittedTax:
-              issue.PaymentType == "Admitted Tax"
-                ? formatAmount(issue.Amount)
-                : "", // exists but null (note lowercase "u")
-            // exists but null (note lowercase "u")
-            paymentGlCode: issue.PaymentGLCode, // ❌ not in data (undefined)
-            utpPaperCategory: issue.UTPCategory, // exists but null
-            provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
+              contingencyNote: issue.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
+              briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
+              provisionGlCode: issue.ProvisionGLCode, // ❌ not in data (undefined)
+              provisionGrsCode: issue.GRSCode, // exists
+              paymentUnderProtest:
+                issue.PaymentType == "Payment under Protest"
+                  ? formatAmount(issue.Amount)
+                  : "", // exists but null (note lowercase "u")
+              admittedTax:
+                issue.PaymentType == "Admitted Tax"
+                  ? formatAmount(issue.Amount)
+                  : "", // exists but null (note lowercase "u")
+              // exists but null (note lowercase "u")
+              paymentGlCode: issue.PaymentGLCode, // ❌ not in data (undefined)
+              utpPaperCategory: issue.UTPCategory, // exists but null
+              provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
 
-            utpIssue: issue.Title ?? "",
-            amtContested: formatAmount(issue.AmountContested) ?? "",
-            rate: issue.Rate ?? "",
-            ermCategory: issue.ERMCategory ?? "",
-            plExposurePKR: formatAmount(
-              issue.RiskCategory === "Probable"
-                ? 0
-                : issue.GrossTaxExposure || 0
-            ),
-            ebitdaExposurePKR: formatAmount(
-              utp.CaseNumber?.TaxType === "Income Tax"
-                ? 0
-                : issue.RiskCategory === "Probable"
-                ? 0
-                : issue.GrossTaxExposure || 0
-            ),
-            cashFlowExposurePKR: formatAmount(
-              (issue.GrossTaxExposure || 0) -
-                (issue.PaymentType === "Payment under Protest"
-                  ? issue.Amount || 0
-                  : 0)
-            ),
+              utpIssue: issue.Title ?? "",
+              amtContested: formatAmount(issue.AmountContested) ?? "",
+              rate: issue.Rate ?? "",
+              ermCategory: issue.ERMCategory ?? "",
+              plExposurePKR: formatAmount(plExposure),
+              ebitdaExposurePKR: formatAmount(ebitdaExposure),
+              cashFlowExposurePKR: formatAmount(cashFlowExposure),
 
-            // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
-            caseNumber: utp?.CaseNumber?.Title || "",
-          }));
+              // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
+              caseNumber: utp?.CaseNumber?.Title || "",
+            };
+          });
 
-          // return [mainRow, ...issueRows];
-          return [...issueRows];
+          return issueRows;
         });
+
+        // ---------- STEP 6: Add Grand Total row ----------
+        if (merged.length > 0) {
+          // merged.push({
+          //   utpId: "",
+          //   mlrClaimId: "",
+          //   pendingAuthority: "",
+          //   type: "",
+          //   grossExposureJul: "",
+          //   grossExposureJun: formatAmount(totalGrossExposure),
+          //   UTPDate: "",
+          //   category: "",
+          //   fy: "",
+          //   taxYear: "",
+          //   taxAuthority: "",
+          //   taxMatter: "",
+          //   taxType: "",
+          //   entity: "Grand Total", // This will be picked up by pagination logic
+          //   varianceLastMonth: "",
+          //   grossExposureMay: "",
+          //   grossExposureApr: "",
+          //   arcTopTaxRisk: "",
+          //   contingencyNote: "",
+          //   briefDescription: "",
+          //   provisionGlCode: "",
+          //   provisionGrsCode: "",
+          //   paymentUnderProtest: "",
+          //   admittedTax: "",
+          //   paymentGlCode: "",
+          //   utpPaperCategory: "",
+          //   provisionsContingencies: "",
+          //   utpIssue: "",
+          //   amtContested: "",
+          //   rate: "",
+          //   ermCategory: "",
+          //   plExposurePKR: formatAmount(totalPlExposure),
+          //   ebitdaExposurePKR: formatAmount(totalEbitdaExposure),
+          //   cashFlowExposurePKR: formatAmount(totalCashFlowExposure),
+          //   caseNumber: "",
+          // });
+        }
 
         return merged;
     }
