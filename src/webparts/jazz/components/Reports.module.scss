@@ -134,6 +134,7 @@
   padding: 16px;
   border-radius: 8px;
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
+  margin-bottom: 30px;
 }
 
 .table {
@@ -227,21 +228,18 @@
   font-weight: 500;
 }
 
-
 .filtersRow {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
   flex-wrap: wrap;
-   
 }
 .filterField {
   display: flex;
   flex-direction: column;
   min-width: 170px;
-    height: 44px;
-
+  height: 44px;
 }
 
 .filterLabel {
@@ -280,11 +278,11 @@
   border-radius: 4px;
   cursor: pointer;
 }
-.clearButton{
+.clearButton {
   padding: 8px 12px;
-  background-color:#8a191e; /* or your primary color */
+  background-color: #8a191e; /* or your primary color */
   color: rgb(255, 255, 255);
-  border:none;
+  border: none;
   border-radius: 4px;
   cursor: pointer;
 }
@@ -296,17 +294,16 @@
   border-radius: 4px;
   cursor: pointer;
 }
- .customCalendar:global(.react-datepicker-wrapper) {
-    width: auto !important;
-    height: 44px;
+.customCalendar:global(.react-datepicker-wrapper) {
+  width: auto !important;
+  height: 44px;
+}
 
-  }
-
-  .customCalendar:global(.react-datepicker__input-container input) {
-    @extend .filterInput; // reuse same styles as dropdowns
-    width: 180px;         // fixed width like dropdown
-    height: 44px;
-  }
+.customCalendar:global(.react-datepicker__input-container input) {
+  @extend .filterInput; // reuse same styles as dropdowns
+  width: 180px; // fixed width like dropdown
+  height: 44px;
+}
 .customCalendar :global(.react-datepicker__day--in-range),
 .customCalendar :global(.react-datepicker__day--in-selecting-range),
 .customCalendar :global(.react-datepicker__day--selecting-range-start),
@@ -322,9 +319,9 @@
   color: #fff !important;
 }
 .datePickerInput {
-  height: 35;       // adjust as needed
-  padding: 3.5px 12px;  // keep text vertically centered
-  font-size: 14px;    // optional for consistent text size
+  height: 35; // adjust as needed
+  padding: 3.5px 12px; // keep text vertically centered
+  font-size: 14px; // optional for consistent text size
 }
 .exportOptionsDropdown {
   position: absolute;
@@ -335,7 +332,7 @@
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
   z-index: 9999;
@@ -347,7 +344,12 @@
     text-align: left;
     cursor: pointer;
     width: 100%;
-    &:hover { background: #f5f5f5; }
-    &:focus { outline: none; background: #eef; }
+    &:hover {
+      background: #f5f5f5;
+    }
+    &:focus {
+      outline: none;
+      background: #eef;
+    }
   }
 }

@@ -38,6 +38,9 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
     any[]
   >([]);
 
+  // const now = new Date();
+  // const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
   React.useEffect(() => {
     const loadDashboard = async () => {
       try {
@@ -243,39 +246,38 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
           .top(5000)();
 
         // Group by UTPId → greatest ID
-     const now = new Date();
-const effectiveCurrentMonth = now.getMonth();
-const effectiveCurrentYear = now.getFullYear();
-const currTarget = new Date(
-  effectiveCurrentYear,
-  effectiveCurrentMonth + 1,
-  0
-);
+        const now = new Date();
+        const effectiveCurrentMonth = now.getMonth();
+        const effectiveCurrentYear = now.getFullYear();
+        const currTarget = new Date(
+          effectiveCurrentYear,
+          effectiveCurrentMonth + 1,
+          0
+        );
 
-const utpMap = new Map<number, any>();
+        const utpMap = new Map<number, any>();
 
-utpItems.forEach((item) => {
-  if (!item.UTPId || !item.UTPDate) return;
+        utpItems.forEach((item) => {
+          if (!item.UTPId || !item.UTPDate) return;
 
-  const utpDate = new Date(item.UTPDate);
-  if (utpDate > currTarget) return;
+          const utpDate = new Date(item.UTPDate);
+          if (utpDate > currTarget) return;
 
-  const existing = utpMap.get(item.UTPId);
+          const existing = utpMap.get(item.UTPId);
 
-  const isLater = (a: any, b: any) => {
-    if (!a) return true;
-    const aDate = new Date(a.UTPDate);
-    const bDate = new Date(b.UTPDate);
-    if (bDate > aDate) return true;
-    if (bDate.getTime() === aDate.getTime()) return b.ID > a.ID;
-    return false;
-  };
+          const isLater = (a: any, b: any) => {
+            if (!a) return true;
+            const aDate = new Date(a.UTPDate);
+            const bDate = new Date(b.UTPDate);
+            if (bDate > aDate) return true;
+            if (bDate.getTime() === aDate.getTime()) return b.ID > a.ID;
+            return false;
+          };
 
-  if (isLater(existing, item)) {
-    utpMap.set(item.UTPId, item);
-  }
-});
-
+          if (isLater(existing, item)) {
+            utpMap.set(item.UTPId, item);
+          }
+        });
 
         // Total Active Exposure
         const activeExposureSum = Array.from(utpMap.values()).reduce(

@@ -267,7 +267,7 @@ const ReportsTable: React.FC<{
     };
   }, []); // empty deps -> attach once
 
-const exportReportPDF = (type: ReportType, data: CaseItem[]) => {
+  const exportReportPDF = (type: ReportType, data: CaseItem[]) => {
     const config = reportConfig[type];
     if (!config) return;
 
@@ -285,28 +285,28 @@ const exportReportPDF = (type: ReportType, data: CaseItem[]) => {
 
     doc.setFontSize(14);
     doc.text(`${type} Report`, 40, 30);
-const columnStyles: Record<number, any> = {};
+    const columnStyles: Record<number, any> = {};
 
-const fixedWidthColumns: Record<string, number> = {
-  "SCN/Order Summary": 70,
-  "MLR Claim ID": 20,
-  "Tax Matter": 30,
-  "Brief Description": 30,
-   "UTP Paper Category": 30,
-  "ERM Category": 30,
-};
+    const fixedWidthColumns: Record<string, number> = {
+      "SCN/Order Summary": 70,
+      "MLR Claim ID": 20,
+      "Tax Matter": 30,
+      "Brief Description": 30,
+      "UTP Paper Category": 30,
+      "ERM Category": 30,
+    };
 
-headers.forEach((header, index) => {
-  if (fixedWidthColumns[header]) {
-    columnStyles[index] = {
-      minCellWidth: fixedWidthColumns[header],
-    };
-  } else {
-    columnStyles[index] = {
-      minCellWidth: 30,
-    };
-  }
-});
+    headers.forEach((header, index) => {
+      if (fixedWidthColumns[header]) {
+        columnStyles[index] = {
+          minCellWidth: fixedWidthColumns[header],
+        };
+      } else {
+        columnStyles[index] = {
+          minCellWidth: 30,
+        };
+      }
+    });
 
     autoTable(doc, {
       startY: 50,
@@ -323,7 +323,7 @@ headers.forEach((header, index) => {
         textColor: 255,
         fontStyle: "bold",
       },
-     columnStyles
+      columnStyles,
     });
 
     doc.save(`${type}_Report.pdf`);
@@ -342,11 +342,10 @@ headers.forEach((header, index) => {
       cfg.columns.forEach((col) => {
         const value = item[col.field];
 
-    // ✅ keep numbers as numbers
-    // ✅ keep strings as strings
-    // ✅ keep empty cells empty (not text)
-    row[col.header] =
-      value === undefined || value === null ? null : value;
+        // ✅ keep numbers as numbers
+        // ✅ keep strings as strings
+        // ✅ keep empty cells empty (not text)
+        row[col.header] = value === undefined || value === null ? null : value;
       });
       return row;
     }
@@ -1376,7 +1375,7 @@ headers.forEach((header, index) => {
 
         // ---------- STEP 4: Group Issues by UTP SharePoint Id ----------
         const issuesByUtp = utpIssues.reduce((acc: any, issue: any) => {
-        const utpId = issue.UTP?.Id;
+          const utpId = issue.UTP?.Id;
           if (!utpId) return acc;
           if (!acc[utpId]) acc[utpId] = [];
           acc[utpId].push(issue);
@@ -1392,9 +1391,7 @@ headers.forEach((header, index) => {
         for (const [utpId, { current, previous }] of Object.entries(
           latestByMonth
         ) as [string, { current?: any; previous?: any }][]) {
-          const currentIssues = current
-            ? issuesByUtp[current?.Id] || []
-            : [];
+          const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
           const previousIssues = previous
             ? issuesByUtp[previous?.Id] || []
             : [];
@@ -1475,7 +1472,7 @@ headers.forEach((header, index) => {
         }));
       default: // UTPData
         const sp = spfi().using(SPFx(SpfxContext));
-        
+
         // ---------- STEP 1: Determine effective period (same as Provisions3) ----------
         const now = new Date();
         let effectiveCurrentMonth: number;
@@ -1564,88 +1561,93 @@ headers.forEach((header, index) => {
         // let totalEbitdaExposure = 0;
         // let totalCashFlowExposure = 0;
 
-        const merged = Object.values(latestByUtp).flatMap(({ current }: any) => {
-          if (!current) return [];
+        const merged = Object.values(latestByUtp).flatMap(
+          ({ current }: any) => {
+            if (!current) return [];
 
-          const utp = current;
-          const relatedIssues = issuesByUtp[utp.Id] || [];
+            const utp = current;
+            const relatedIssues = issuesByUtp[utp.Id] || [];
 
-          // If no issues, skip this UTP (to match Provisions3 logic which only sums issues)
-          if (relatedIssues.length === 0) return [];
+            // If no issues, skip this UTP (to match Provisions3 logic which only sums issues)
+            if (relatedIssues.length === 0) return [];
 
-          const issueRows = relatedIssues.map((issue: any, index: number) => {
-            const grossExposure = issue.GrossTaxExposure || 0;
-            const plExposure = issue.RiskCategory === "Probable" ? 0 : grossExposure;
-            const ebitdaExposure = utp.CaseNumber?.TaxType === "Income Tax"
-              ? 0
-              : issue.RiskCategory === "Probable"
-              ? 0
-              : grossExposure;
-            const cashFlowExposure = grossExposure -
-              (issue.PaymentType === "Payment under Protest"
-                ? issue.Amount || 0
-                : 0);
+            const issueRows = relatedIssues.map((issue: any, index: number) => {
+              const grossExposure = issue.GrossTaxExposure || 0;
+              const plExposure =
+                issue.RiskCategory === "Probable" ? 0 : grossExposure;
+              const ebitdaExposure =
+                utp.CaseNumber?.TaxType === "Income Tax"
+                  ? 0
+                  : issue.RiskCategory === "Probable"
+                  ? 0
+                  : grossExposure;
+              const cashFlowExposure =
+                grossExposure -
+                (issue.PaymentType === "Payment under Protest"
+                  ? issue.Amount || 0
+                  : 0);
 
-            // Accumulate totals
-            // totalGrossExposure += grossExposure;
-            // totalPlExposure += plExposure;
-            // totalEbitdaExposure += ebitdaExposure;
-            // totalCashFlowExposure += cashFlowExposure;
+              // Accumulate totals
+              // totalGrossExposure += grossExposure;
+              // totalPlExposure += plExposure;
+              // totalEbitdaExposure += ebitdaExposure;
+              // totalCashFlowExposure += cashFlowExposure;
 
-            return {
-              ...utp,
-              utpId: `${utp.UTPId}-${String.fromCharCode(97 + index)}`, // exists (currently null in your data)
-              mlrClaimId: utp.GMLRID, // mapping from GMLRID
-              pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
-              type: utp.PaymentType, // exists but null
-              grossExposureJul: utp.GrossExposure, // only one field, reusing
-              grossExposureJun: formatAmount(grossExposure) ?? 0,
-              UTPDate: utp.UTPDate,
-              category: issue.RiskCategory, // exists
-              fy: utp?.CaseNumber?.FinancialYear, // exists but null
-              taxYear: utp?.CaseNumber?.TaxYear, // exists but null
-              taxAuthority: utp?.CaseNumber?.TaxAuthority,
-              taxMatter: utp?.CaseNumber?.CorrespondenceType, // ❌ not in data (will be undefined)
-              taxType: utp?.CaseNumber?.TaxType, // exists
-              entity: utp?.CaseNumber?.Entity, // exists but null
+              return {
+                ...utp,
+                utpId: `${utp.UTPId}-${String.fromCharCode(97 + index)}`, // exists (currently null in your data)
+                mlrClaimId: utp.GMLRID, // mapping from GMLRID
+                pendingAuthority: utp?.CaseNumber?.PendingAuthority, // exists but null
+                type: utp.PaymentType, // exists but null
+                grossExposureJul: utp.GrossExposure, // only one field, reusing
+                grossExposureJun: formatAmount(grossExposure) ?? 0,
+                UTPDate: utp.UTPDate,
+                category: issue.RiskCategory, // exists
+                fy: utp?.CaseNumber?.FinancialYear, // exists but null
+                taxYear: utp?.CaseNumber?.TaxYear, // exists but null
+                taxAuthority: utp?.CaseNumber?.TaxAuthority,
+                taxMatter: utp?.CaseNumber?.CorrespondenceType, // ❌ not in data (will be undefined)
+                taxType: utp?.CaseNumber?.TaxType, // exists
+                entity: utp?.CaseNumber?.Entity, // exists but null
 
-              varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
-              grossExposureMay: formatAmount(utp.GrossExposure),
-              grossExposureApr: formatAmount(utp.GrossExposure),
-              arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
+                varianceLastMonth: utp.VarianceWithLastMonthPKR, // ❌ not in data (undefined)
+                grossExposureMay: formatAmount(utp.GrossExposure),
+                grossExposureApr: formatAmount(utp.GrossExposure),
+                arcTopTaxRisk: utp.ARCtopTaxRisksReporting, // ❌ not in data (undefined)
 
-              contingencyNote: issue.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
-              briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
-              provisionGlCode: issue.ProvisionGLCode, // ❌ not in data (undefined)
-              provisionGrsCode: issue.GRSCode, // exists
-              paymentUnderProtest:
-                issue.PaymentType == "Payment under Protest"
-                  ? formatAmount(issue.Amount)
-                  : "", // exists but null (note lowercase "u")
-              admittedTax:
-                issue.PaymentType == "Admitted Tax"
-                  ? formatAmount(issue.Amount)
-                  : "", // exists but null (note lowercase "u")
-              // exists but null (note lowercase "u")
-              paymentGlCode: issue.PaymentGLCode, // ❌ not in data (undefined)
-              utpPaperCategory: issue.UTPCategory, // exists but null
-              provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
+                contingencyNote: issue.ContigencyNote, // exists but null (be careful: property is "ContigencyNote" with missing 'n')
+                briefDescription: utp?.CaseNumber?.BriefDescription, // exists but null
+                provisionGlCode: issue.ProvisionGLCode, // ❌ not in data (undefined)
+                provisionGrsCode: issue.GRSCode, // exists
+                paymentUnderProtest:
+                  issue.PaymentType == "Payment under Protest"
+                    ? formatAmount(issue.Amount)
+                    : "", // exists but null (note lowercase "u")
+                admittedTax:
+                  issue.PaymentType == "Admitted Tax"
+                    ? formatAmount(issue.Amount)
+                    : "", // exists but null (note lowercase "u")
+                // exists but null (note lowercase "u")
+                paymentGlCode: issue.PaymentGLCode, // ❌ not in data (undefined)
+                utpPaperCategory: issue.UTPCategory, // exists but null
+                provisionsContingencies: utp.ProvisionsContingencies, // ❌ not in data (undefined)
 
-              utpIssue: issue.Title ?? "",
-              amtContested: formatAmount(issue.AmountContested) ?? "",
-              rate: issue.Rate ?? "",
-              ermCategory: issue.ERMCategory ?? "",
-              plExposurePKR: formatAmount(plExposure),
-              ebitdaExposurePKR: formatAmount(ebitdaExposure),
-              cashFlowExposurePKR: formatAmount(cashFlowExposure),
+                utpIssue: issue.Title ?? "",
+                amtContested: formatAmount(issue.AmountContested) ?? "",
+                rate: issue.Rate ?? "",
+                ermCategory: issue.ERMCategory ?? "",
+                plExposurePKR: formatAmount(plExposure),
+                ebitdaExposurePKR: formatAmount(ebitdaExposure),
+                cashFlowExposurePKR: formatAmount(cashFlowExposure),
 
-              // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
-              caseNumber: utp?.CaseNumber?.Title || "",
-            };
-          });
+                // ermUniqueNumbering: utp.ERMUniqueNumbering ?? "",
+                caseNumber: utp?.CaseNumber?.Title || "",
+              };
+            });
 
-          return issueRows;
-        });
+            return issueRows;
+          }
+        );
 
         // ---------- STEP 6: Add Grand Total row ----------
         if (merged.length > 0) {
@@ -1820,8 +1822,8 @@ headers.forEach((header, index) => {
           Date.UTC(next30.getFullYear(), next30.getMonth(), next30.getDate())
         );
 
-        const newStart = formatLocalDate(startUTC) // YYYY-MM-DD
-        const newEnd = formatLocalDate(endUTC) // YYYY-MM-DD
+        const newStart = formatLocalDate(startUTC); // YYYY-MM-DD
+        const newEnd = formatLocalDate(endUTC); // YYYY-MM-DD
 
         handleFilterChangeDate2(newStart, newEnd, items);
       } else {
@@ -1905,20 +1907,21 @@ headers.forEach((header, index) => {
 
     fetchLOVs();
   }, []);
-   const normalizeDate = (date: Date | string) => {
-      const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    };
+  const normalizeDate = (date: Date | string) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
   const handleFilterChange = async (key: string, value: any) => {
-    
-    const updatedFilters = { ...filters, [key]: value, dateStart: "",
-                  dateEnd: "", };
-    console.log(key, value,filters,updatedFilters,'filters');
+    const updatedFilters = {
+      ...filters,
+      [key]: value,
+      dateStart: "",
+      dateEnd: "",
+    };
+    console.log(key, value, filters, updatedFilters, "filters");
 
     setFilters(updatedFilters);
-
-   
 
     // STEP 1: Prepare date filter
     const start = updatedFilters.dateRangeStart
@@ -2026,12 +2029,12 @@ headers.forEach((header, index) => {
     setFilteredData(dataf);
     setLoading(false);
   };
-const formatLocalDate = (date: Date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
+  const formatLocalDate = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
 
   const handleFilterChangeDate = async (value1: string, value2: string) => {
     const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
@@ -2232,11 +2235,16 @@ const formatLocalDate = (date: Date) => {
   };
 
   // ✅ Separate data rows from total/subtotal rows for pagination
-  const isPaginatedReport = ["Litigation", "UTP", "ActiveCases", "Contingencies"].includes(reportType);
-  
+  const isPaginatedReport = [
+    "Litigation",
+    "UTP",
+    "ActiveCases",
+    "Contingencies",
+  ].includes(reportType);
+
   let dataRows: CaseItem[] = [];
   let totalRows: CaseItem[] = [];
-  
+
   if (isPaginatedReport) {
     filteredData.forEach((row) => {
       // Check if this is a total/subtotal row
@@ -2249,25 +2257,25 @@ const formatLocalDate = (date: Date) => {
   } else {
     dataRows = filteredData;
   }
-const resetDateRange = () => {
-  setDateRange([null, null]);
-  setSelectedDate(null);
+  const resetDateRange = () => {
+    setDateRange([null, null]);
+    setSelectedDate(null);
 
-  const clearedFilters = {
-    ...filters,
-    dateRangeStart: "",
-    dateRangeEnd: "",
-    dateStart: "",
-    dateEnd: "",
+    const clearedFilters = {
+      ...filters,
+      dateRangeStart: "",
+      dateRangeEnd: "",
+      dateStart: "",
+      dateEnd: "",
+    };
+
+    setFilters(clearedFilters);
+    handleFilterChange("dateRangeStart", "");
   };
 
-  setFilters(clearedFilters);
-  handleFilterChange("dateRangeStart", "");
-};
-
   // ✅ Calculate pagination based only on data rows (excluding totals)
-  const totalPages = isPaginatedReport 
-    ? Math.ceil(dataRows.length / itemsPerPage) 
+  const totalPages = isPaginatedReport
+    ? Math.ceil(dataRows.length / itemsPerPage)
     : 1;
 
   // ✅ Get paginated data rows for current page
@@ -2279,9 +2287,10 @@ const resetDateRange = () => {
     : dataRows;
 
   // ✅ If on last page and there are total rows, append them to display
-  const paginatedData = isPaginatedReport && currentPage === totalPages && totalRows.length > 0
-    ? [...paginatedDataRows, ...totalRows]
-    : paginatedDataRows;
+  const paginatedData =
+    isPaginatedReport && currentPage === totalPages && totalRows.length > 0
+      ? [...paginatedDataRows, ...totalRows]
+      : paginatedDataRows;
 
   // ✅ Ensure current page doesn't exceed total pages after filtering
   useEffect(() => {
@@ -2314,16 +2323,12 @@ const resetDateRange = () => {
             startDate={startDate}
             endDate={endDate}
             onMonthChange={resetDateRange}
-  onYearChange={resetDateRange}
+            onYearChange={resetDateRange}
             onChange={(update: [Date | null, Date | null]) => {
               setDateRange(update);
 
-              const newStart = update[0]
-                ? formatLocalDate(update[0])
-                : "";
-              const newEnd = update[1]
-                ? formatLocalDate(update[1])
-                : "";
+              const newStart = update[0] ? formatLocalDate(update[0]) : "";
+              const newEnd = update[1] ? formatLocalDate(update[1]) : "";
 
               // Update state
               setFilters((prev) => ({
