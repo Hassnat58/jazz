@@ -722,56 +722,93 @@ const ReportsTable: React.FC<{
         }, {});
 
         // ---------- STEP 5: Build Results ----------
-        const results: any[] = [];
+        // ✅ Using LATEST UTP issues only (same logic as Provisions3/Contingencies)
+        // ✅ Current = latest UTP ≤ end of selected month
+        // ✅ Previous = latest UTP ≤ end of (selected month - 1)
+        // Collect all issues from latest UTPs, then group across all UTPs by unique key
+        const currentIssuesMap = new Map<string, any>();
+        const previousIssuesMap = new Map<string, any>();
 
         for (const [utpId, { current, previous }] of Object.entries(
           latestByMonth
         ) as [string, { current?: any; previous?: any }][]) {
-          console.log(current, previous, utpId);
-
+          console.log(utpId);
+          
+          // ✅ Get issues from LATEST current UTP only
           const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
+          // ✅ Get issues from LATEST previous UTP only
           const previousIssues = previous
             ? issuesByUtp[previous?.Id] || []
             : [];
-          const maxLength = Math.max(
-            currentIssues.length,
-            previousIssues.length
-          );
 
-          for (let i = 0; i < maxLength; i++) {
-            const currIssue = currentIssues[i];
-            const prevIssue = previousIssues[i];
+          // Get metadata from UTP (use latest available)
+          const entity = current?.CaseNumber?.Entity || previous?.CaseNumber?.Entity || "";
+          const taxMatter = current?.CaseNumber?.CorrespondenceType || previous?.CaseNumber?.CorrespondenceType || "";
 
-            // Only count Probable cases
-            const currAmt =
-              currIssue && currIssue.RiskCategory === "Probable"
-                ? currIssue.GrossTaxExposure || 0
-                : 0;
-            const prevAmt =
-              prevIssue && prevIssue.RiskCategory === "Probable"
-                ? prevIssue.GrossTaxExposure || 0
-                : 0;
+          // Group current issues by GL Code + EBITDA + Entity + Tax Matter
+          currentIssues.forEach((issue: any) => {
+            if (issue.RiskCategory === "Probable") {
+              const key = `${issue.ProvisionGLCode || ""}_${issue.EBITDA || ""}_${entity}_${taxMatter}`;
+              if (currentIssuesMap.has(key)) {
+                const existing = currentIssuesMap.get(key);
+                existing.GrossTaxExposure = (existing.GrossTaxExposure || 0) + (issue.GrossTaxExposure || 0);
+              } else {
+                currentIssuesMap.set(key, {
+                  ...issue,
+                  entity,
+                  taxMatter,
+                });
+              }
+            }
+          });
 
-            // if (currAmt === 0 && prevAmt === 0) continue;
+          // Group previous issues by GL Code + EBITDA + Entity + Tax Matter
+          previousIssues.forEach((issue: any) => {
+            if (issue.RiskCategory === "Probable") {
+              const key = `${issue.ProvisionGLCode || ""}_${issue.EBITDA || ""}_${entity}_${taxMatter}`;
+              if (previousIssuesMap.has(key)) {
+                const existing = previousIssuesMap.get(key);
+                existing.GrossTaxExposure = (existing.GrossTaxExposure || 0) + (issue.GrossTaxExposure || 0);
+              } else {
+                previousIssuesMap.set(key, {
+                  ...issue,
+                  entity,
+                  taxMatter,
+                });
+              }
+            }
+          });
+        }
 
-            results.push({
-              utpId,
-              glCode:
-                currIssue?.ProvisionGLCode || prevIssue?.ProvisionGLCode || "",
-              taxType:
-                current?.CaseNumber?.CorrespondenceType ||
-                previous?.CaseNumber?.CorrespondenceType ||
-                "",
-              provisionType: currIssue?.EBITDA || prevIssue?.EBITDA || "",
-              entity:
-                current?.CaseNumber?.Entity ||
-                previous?.CaseNumber?.Entity ||
-                "",
-              currentMonthAmount: currAmt,
-              previousMonthAmount: prevAmt,
-              variance: currAmt - prevAmt,
-            });
-          }
+        // Get all unique keys from both maps
+        const allKeys = new Set([
+          ...Array.from(currentIssuesMap.keys()),
+          ...Array.from(previousIssuesMap.keys()),
+        ]);
+
+        // Create one row per unique GL Code + EBITDA + Entity + Tax Matter combination
+        const results: any[] = [];
+        for (const key of Array.from(allKeys)) {
+          const currIssue = currentIssuesMap.get(key);
+          const prevIssue = previousIssuesMap.get(key);
+
+          const currAmt = currIssue?.GrossTaxExposure || 0;
+          const prevAmt = prevIssue?.GrossTaxExposure || 0;
+
+          // Skip if both amounts are zero (optional - uncomment if needed)
+          // if (currAmt === 0 && prevAmt === 0) continue;
+
+          results.push({
+            utpId: "", // No longer per-UTP, so empty
+            glCode:
+              currIssue?.ProvisionGLCode || prevIssue?.ProvisionGLCode || "",
+            taxType: currIssue?.taxMatter || prevIssue?.taxMatter || "",
+            provisionType: currIssue?.EBITDA || prevIssue?.EBITDA || "",
+            entity: currIssue?.entity || prevIssue?.entity || "",
+            currentMonthAmount: currAmt,
+            previousMonthAmount: prevAmt,
+            variance: currAmt - prevAmt,
+          });
         }
 
         // ---------- STEP 6: Group & Subtotal ----------
