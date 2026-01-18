@@ -641,6 +641,8 @@ const ReportsTable: React.FC<{
 
         // ---------- STEP 2: Pick latest UTP per month (same date => higher ID) ----------
         // ---------- STEP 2: Pick latest UTP version ON OR BEFORE the target month ----------
+        // console.log(rawData.filter((a=>a.UTPId=="UTP-ST-FBR-462")));
+        
         const latestByMonth = rawData.reduce((acc: any, utp: any) => {
           const d = new Date(utp.UTPDate);
           const id = utp.UTPId;
@@ -683,8 +685,9 @@ const ReportsTable: React.FC<{
             effectiveCurrentMonth,
             0
           );
+         
 
-          if (d <= prevTarget) {
+        if (d <= prevTarget) {
             if (isLater(acc[id].previous, utp)) {
               acc[id].previous = utp;
             }
@@ -732,7 +735,10 @@ const ReportsTable: React.FC<{
         for (const [utpId, { current, previous }] of Object.entries(
           latestByMonth
         ) as [string, { current?: any; previous?: any }][]) {
-          console.log(utpId);
+          latestByMonth
+          console.log(utpId
+ );
+
           
           // ✅ Get issues from LATEST current UTP only
           const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
@@ -1864,7 +1870,7 @@ const ReportsTable: React.FC<{
 
         handleFilterChangeDate2(newStart, newEnd, items);
       } else {
-        console.log(items, "hhh");
+        // console.log(items, "hhh");
 
         items_updated = await normalizeData(reportType, items, "");
         setFilteredData(items_updated);
@@ -2004,11 +2010,11 @@ const ReportsTable: React.FC<{
     if (
       [
         "UTP",
-        "Provisions1",
-        "Provisions2",
-        "Provisions3",
-        "Contingencies",
-        "ERM",
+        // "Provisions1",
+        // "Provisions2",
+        // "Provisions3",
+        // "Contingencies",
+        // "ERM",
       ].includes(reportType)
     ) {
       latestData = await getLatestUTPIssues(workingData);
@@ -2119,11 +2125,11 @@ const ReportsTable: React.FC<{
     if (
       [
         "UTP",
-        "Provisions1",
-        "Provisions2",
-        "Provisions3",
-        "Contingencies",
-        "ERM",
+        // "Provisions1",
+        // "Provisions2",
+        // "Provisions3",
+        // "Contingencies",
+        // "ERM",
       ].includes(reportType)
     ) {
       latestData = await getLatestUTPIssues(workingData);
@@ -2210,11 +2216,11 @@ const ReportsTable: React.FC<{
     if (
       [
         "UTP",
-        "Provisions1",
-        "Provisions2",
-        "Provisions3",
-        "Contingencies",
-        "ERM",
+        // "Provisions1",
+        // "Provisions2",
+        // "Provisions3",
+        // "Contingencies",
+        // "ERM",
       ].includes(reportType)
     ) {
       latestData = await getLatestUTPIssues(workingData);
