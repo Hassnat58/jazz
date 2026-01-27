@@ -180,7 +180,8 @@
   padding: 16px;
   border-radius: 8px;
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
-  overflow: hidden; /* keeps rounded corners consistent */
+  overflow: hidden;
+  margin-bottom: 30px; /* keeps rounded corners consistent */
 }
 
 /* Add this wrapper to enable internal scroll */

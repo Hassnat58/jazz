@@ -2666,7 +2666,7 @@ const TabbedTables: React.FC<{
 
       <div className={styles.tableContainer}>{renderTabContent()}</div>
       <div className={styles["lms-footer"]}>
-        <span style={{ margin: "40px" }}>JAZZ LMS — Version 1.0.0</span>
+        <span style={{ margin: "40px" }}>JAZZ LMS — Version 1.0.1</span>
       </div>
 
       {/* Offcanvas for viewing case details */}

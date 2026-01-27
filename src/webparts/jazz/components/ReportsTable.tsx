@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 /* eslint-disable prefer-const */
 /* eslint-disable max-lines */
 /* eslint-disable @typescript-eslint/no-use-before-define */
@@ -642,7 +643,7 @@ const ReportsTable: React.FC<{
         // ---------- STEP 2: Pick latest UTP per month (same date => higher ID) ----------
         // ---------- STEP 2: Pick latest UTP version ON OR BEFORE the target month ----------
         // console.log(rawData.filter((a=>a.UTPId=="UTP-ST-FBR-462")));
-        
+
         const latestByMonth = rawData.reduce((acc: any, utp: any) => {
           const d = new Date(utp.UTPDate);
           const id = utp.UTPId;
@@ -685,9 +686,8 @@ const ReportsTable: React.FC<{
             effectiveCurrentMonth,
             0
           );
-         
 
-        if (d <= prevTarget) {
+          if (d <= prevTarget) {
             if (isLater(acc[id].previous, utp)) {
               acc[id].previous = utp;
             }
@@ -735,11 +735,9 @@ const ReportsTable: React.FC<{
         for (const [utpId, { current, previous }] of Object.entries(
           latestByMonth
         ) as [string, { current?: any; previous?: any }][]) {
-          latestByMonth
-          console.log(utpId
- );
+          latestByMonth;
+          console.log(utpId);
 
-          
           // ✅ Get issues from LATEST current UTP only
           const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
           // ✅ Get issues from LATEST previous UTP only
@@ -748,16 +746,24 @@ const ReportsTable: React.FC<{
             : [];
 
           // Get metadata from UTP (use latest available)
-          const entity = current?.CaseNumber?.Entity || previous?.CaseNumber?.Entity || "";
-          const taxMatter = current?.CaseNumber?.CorrespondenceType || previous?.CaseNumber?.CorrespondenceType || "";
+          const entity =
+            current?.CaseNumber?.Entity || previous?.CaseNumber?.Entity || "";
+          const taxMatter =
+            current?.CaseNumber?.CorrespondenceType ||
+            previous?.CaseNumber?.CorrespondenceType ||
+            "";
 
           // Group current issues by GL Code + EBITDA + Entity + Tax Matter
           currentIssues.forEach((issue: any) => {
             if (issue.RiskCategory === "Probable") {
-              const key = `${issue.ProvisionGLCode || ""}_${issue.EBITDA || ""}_${entity}_${taxMatter}`;
+              const key = `${issue.ProvisionGLCode || ""}_${
+                issue.EBITDA || ""
+              }_${entity}_${taxMatter}`;
               if (currentIssuesMap.has(key)) {
                 const existing = currentIssuesMap.get(key);
-                existing.GrossTaxExposure = (existing.GrossTaxExposure || 0) + (issue.GrossTaxExposure || 0);
+                existing.GrossTaxExposure =
+                  (existing.GrossTaxExposure || 0) +
+                  (issue.GrossTaxExposure || 0);
               } else {
                 currentIssuesMap.set(key, {
                   ...issue,
@@ -771,10 +777,14 @@ const ReportsTable: React.FC<{
           // Group previous issues by GL Code + EBITDA + Entity + Tax Matter
           previousIssues.forEach((issue: any) => {
             if (issue.RiskCategory === "Probable") {
-              const key = `${issue.ProvisionGLCode || ""}_${issue.EBITDA || ""}_${entity}_${taxMatter}`;
+              const key = `${issue.ProvisionGLCode || ""}_${
+                issue.EBITDA || ""
+              }_${entity}_${taxMatter}`;
               if (previousIssuesMap.has(key)) {
                 const existing = previousIssuesMap.get(key);
-                existing.GrossTaxExposure = (existing.GrossTaxExposure || 0) + (issue.GrossTaxExposure || 0);
+                existing.GrossTaxExposure =
+                  (existing.GrossTaxExposure || 0) +
+                  (issue.GrossTaxExposure || 0);
               } else {
                 previousIssuesMap.set(key, {
                   ...issue,
