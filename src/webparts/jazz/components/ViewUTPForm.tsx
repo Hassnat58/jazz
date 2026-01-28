@@ -26,7 +26,7 @@ const ViewUTPForm: React.FC<{
   const [utpHistory, setUtpHistory] = React.useState<any[]>([]);
   const [historyUtpIssues, setHistoryUtpIssues] = React.useState<any>({});
   const [historyUtpAttachments, setHistoryUtpAttachments] = React.useState<any>(
-    {}
+    {},
   );
 
   const sp = spfi().using(SPFx(SpfxContext));
@@ -54,7 +54,7 @@ const ViewUTPForm: React.FC<{
             "PaymentGLCode",
             "UTPCategory",
             "ERMCategory",
-            "GRSCode"
+            "GRSCode",
           )
           .orderBy("ID", true)();
 
@@ -77,7 +77,7 @@ const ViewUTPForm: React.FC<{
         }));
         const totalUnderProtest = mappedIssues
           .filter(
-            (i) => i.paymentType?.toLowerCase() === "payment under protest"
+            (i) => i.paymentType?.toLowerCase() === "payment under protest",
           )
           .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
         const calculatedCashflowExposure =
@@ -101,7 +101,12 @@ const ViewUTPForm: React.FC<{
 
         // Load all versions for the same UTP
         const versions = await list.items
-          .filter(`UTPId eq '${data.UTPId}'`)
+          .filter(
+            `
+    UTPId eq '${data.UTPId}'
+    and (ApprovalStatus eq 'Approved' or ApprovalStatus eq 'Rejected')
+  `,
+          )
           .select("*", "Author/Title", "Editor/Title")
           .expand("Author", "Editor")
           .orderBy("ID", false)();
@@ -157,7 +162,7 @@ const ViewUTPForm: React.FC<{
     if (!element) return;
 
     const noPrintElements = element.querySelectorAll(
-      ".no-print"
+      ".no-print",
     ) as NodeListOf<HTMLElement>;
     noPrintElements.forEach((el) => (el.style.display = "none"));
 
@@ -198,6 +203,21 @@ const ViewUTPForm: React.FC<{
     }
 
     pdf.save(`${data?.UTPId}.pdf`);
+  };
+
+  const getStatusClass = (status?: string) => {
+    switch (status) {
+      case "Approved":
+        return styles.approved;
+      case "Rejected":
+        return styles.rejected;
+      case "Pending":
+        return styles.pending;
+      case "Draft":
+        return styles.draft;
+      default:
+        return styles.default;
+    }
   };
 
   return (
@@ -520,7 +540,14 @@ const ViewUTPForm: React.FC<{
               <div key={item.Id} className={styles.historyCard}>
                 <h5>
                   Version ID: {item.UTPId}-{item.Id} — Modified:{" "}
-                  {new Date(item.Modified).toLocaleString()}
+                  {new Date(item.Modified).toLocaleString()} — Approval Status:{" "}
+                  <span
+                    className={`${styles.statusCapsule} ${getStatusClass(
+                      item.ApprovalStatus,
+                    )}`}
+                  >
+                    {item.ApprovalStatus}
+                  </span>
                 </h5>
 
                 <table className={styles.detailTable}>

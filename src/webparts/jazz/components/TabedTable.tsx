@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable max-lines */
 /* eslint-disable no-debugger */
 /* eslint-disable dot-notation */
@@ -154,6 +155,7 @@ const TabbedTables: React.FC<{
   const [utpIdOptions, setUtpIdOptions] = useState<
     { key: number; text: string }[]
   >([]);
+  const [isReady, setIsReady] = useState(false);
 
   const sp = spfi().using(SPFx(SpfxContext));
 
@@ -207,7 +209,7 @@ const TabbedTables: React.FC<{
             "Title",
             "TaxType",
             "TaxAuthority",
-            "ApprovalStatus"
+            "ApprovalStatus",
           )
           .filter("ApprovalStatus eq 'Approved'")
           .top(5000)();
@@ -250,11 +252,14 @@ const TabbedTables: React.FC<{
           setUserRole(roles);
         } else {
           console.log("No roles found for user");
-          setUserRole([]); // explicitly set to empty
+          setUserRole([]);
         }
       } catch (error) {
         console.error("Error fetching role:", error);
-        setUserRole([]); // ensure defined even on error
+        setUserRole([]);
+      } finally {
+        // ✅ MARK APP READY HERE
+        setIsReady(true);
       }
     };
 
@@ -269,8 +274,8 @@ const TabbedTables: React.FC<{
     userRole.length === 0
       ? [] // ❌ show nothing
       : hideReports
-      ? tabs.filter((t) => t !== "Reports")
-      : tabs;
+        ? tabs.filter((t) => t !== "Reports")
+        : tabs;
 
   // helper functions for filters
   const getFinancialYearOptions = (): IDropdownOption[] => {
@@ -297,6 +302,66 @@ const TabbedTables: React.FC<{
 
     return years;
   };
+  const getUrlParams = () => {
+    const params = new URLSearchParams(window.location.search);
+
+    return {
+      tab: params.get("tab") ? decodeURIComponent(params.get("tab")!) : null,
+      caseId: params.get("caseId"),
+      view: params.get("view") === "true",
+    };
+  };
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    const { tab, caseId, view } = getUrlParams();
+
+    if (!tab || !caseId || !view) return;
+
+    if (!tabs.includes(tab)) {
+      setActiveTab("Dashboard");
+      return;
+    }
+
+    setActiveTab(tab);
+
+    const openFromLink = async () => {
+      try {
+        let item;
+
+        if (tab === "Litigation") {
+          item = await sp.web.lists
+            .getByTitle("Cases")
+            .items.getById(Number(caseId))();
+          await fetchAttachments(Number(caseId), "case");
+        }
+
+        if (tab === "Response") {
+          item = await sp.web.lists
+            .getByTitle("CorrespondenceOut")
+            .items.getById(Number(caseId))();
+          await fetchAttachments(Number(caseId), "correspondenceOut");
+        }
+
+        if (tab === "UTP Dashboard") {
+          item = await sp.web.lists
+            .getByTitle("UTPData")
+            .items.getById(Number(caseId))();
+          await fetchAttachments(Number(caseId), "UTP");
+        }
+
+        if (item) {
+          setSelectedCase(item);
+          setShowOffcanvas(true);
+        }
+      } catch (e) {
+        console.error("Deep link failed:", e);
+      }
+    };
+
+    openFromLink();
+  }, [isReady]);
 
   const loadCorrespondenceOutData = async () => {
     try {
@@ -323,7 +388,7 @@ const TabbedTables: React.FC<{
           "CaseNumber/CorrespondenceType",
           "CaseNumber/FinancialYear",
           "Created",
-          "Modified"
+          "Modified",
         )
         .top(50000)
         .expand("CaseNumber", "Author", "Editor")
@@ -377,7 +442,7 @@ const TabbedTables: React.FC<{
           "ApprovedBy",
           "ApprovedDate",
           "Created",
-          "Modified"
+          "Modified",
         )
         .top(50000)
         .expand("Author", "Editor", "ParentCase")
@@ -420,7 +485,7 @@ const TabbedTables: React.FC<{
           "ApprovedBy",
           "ApprovedDate",
           "ApprovalStatus",
-          "Created"
+          "Created",
         )
         .top(50000)
         .orderBy("ID", false)
@@ -442,7 +507,7 @@ const TabbedTables: React.FC<{
   };
   const fetchAttachments = async (
     itemId: number,
-    type: "case" | "correspondenceOut" | "UTP"
+    type: "case" | "correspondenceOut" | "UTP",
   ) => {
     try {
       let filter = "";
@@ -502,16 +567,18 @@ const TabbedTables: React.FC<{
     setSelectedCase(item);
 
     let type: "case" | "correspondenceOut" | "UTP";
-    if (activeTab === "Litigation") {
-      type = "case";
-    } else if (activeTab === "Response") {
-      type = "correspondenceOut";
-    } else if (activeTab === "UTP Dashboard") {
-      type = "UTP";
-    } else {
-      type = "case"; // default fallback
-    }
+    if (activeTab === "Litigation") type = "case";
+    else if (activeTab === "Response") type = "correspondenceOut";
+    else type = "UTP";
+
     await fetchAttachments(item.ID, type);
+
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", activeTab);
+    params.set("caseid", item.ID.toString());
+    params.set("view", "true");
+
+    window.history.pushState({}, "", `?${params.toString()}`);
 
     setShowOffcanvas(true);
   };
@@ -519,39 +586,14 @@ const TabbedTables: React.FC<{
   const handleClose = () => {
     setShowOffcanvas(false);
     setSelectedCase(null);
+
+    const params = new URLSearchParams(window.location.search);
+    params.delete("caseid");
+    params.delete("view");
+
+    window.history.pushState({}, "", `?${params.toString()}`);
   };
-  // const handleFilterChange = (key: string, value: string) => {
-  //   const updatedFilters = { ...filters, [key]: value };
-  //   setFilters(updatedFilters);
 
-  //   const filtered = paginatedData.filter((item) => {
-  //     // const itemDate = new Date(item.dateReceived);
-
-  //     //   const startCheck = updatedFilters.dateStart
-  //     //     ? itemDate >= new Date(updatedFilters.dateStart)
-  //     //     : true;
-
-  //     //   const endCheck = updatedFilters.dateEnd
-  //     //     ? itemDate <= new Date(updatedFilters.dateEnd)
-  //     //     : true;
-
-  //     return (
-  //       // startCheck &&
-  //       // endCheck &&
-  //       (!updatedFilters.category ||
-  //         item.category === updatedFilters.category) &&
-  //       (!updatedFilters.financialYear ||
-  //         item.fy === updatedFilters.financialYear) &&
-  //       (!updatedFilters.taxYear || item.taxYear === updatedFilters.taxYear) &&
-  //       (!updatedFilters.taxType || item.taxType === updatedFilters.taxType) &&
-  //       (!updatedFilters.taxAuthority ||
-  //         item.taxAuthority === updatedFilters.taxAuthority) &&
-  //       (!updatedFilters.entity || item.entity === updatedFilters.entity)
-  //     );
-  //   });
-
-  //   setFilteredData(filtered);
-  // };
   useEffect(() => {
     const fetchLOVs = async () => {
       const items = await sp.web.lists
@@ -572,30 +614,6 @@ const TabbedTables: React.FC<{
 
     fetchLOVs();
   }, []);
-
-  // React.useEffect(() => {
-  //   if (showLOVManagement) {
-  //     setShowManageRole(false);
-  //   }
-  // }, [showLOVManagement]);
-
-  // React.useEffect(() => {
-  //   if (showManageRole) {
-  //     setShowLOVManagement(false);
-  //   }
-  // }, [showManageRole]);
-
-  // React.useEffect(() => {
-  //   if (showConsultantManagement) {
-  //     setShowConsultantManagement(false);
-  //   }
-  // }, [showConsultantManagement]);
-
-  // React.useEffect(() => {
-  //   if (showLawyerManagement) {
-  //     setShowLawyerManagement(false);
-  //   }
-  // }, [showLawyerManagement]);
 
   useEffect(() => {
     setIsAddingNew(false);
@@ -643,13 +661,13 @@ const TabbedTables: React.FC<{
           acc[item.Title] = item;
         }
         return acc;
-      }, {})
+      }, {}),
     ) as any[];
 
     const totalPages = Math.ceil(uniqueByTitle.length / itemsPerPage);
     const paginatedData = uniqueByTitle.slice(
       (casesPage - 1) * itemsPerPage,
-      casesPage * itemsPerPage
+      casesPage * itemsPerPage,
     );
     const handleFilterChange = (key: string, value: string | undefined) => {
       const updatedFilters = { ...filters, [key]: value ?? "" };
@@ -698,19 +716,6 @@ const TabbedTables: React.FC<{
       setFilteredData(filtered);
       setCasesPage(1);
     };
-
-    // const getFormattedCaseNumber = (
-    //   taxType: string,
-    //   taxAuthority: string,
-    //   parentCaseId: number
-    // ) => {
-    //   let prefix = "CN";
-    //   if (taxType === "Income Tax") prefix = "IT";
-    //   else if (taxType === "Sales Tax") prefix = "ST";
-    //   const authority = taxAuthority ? `-${taxAuthority}` : "";
-
-    //   return `${prefix}${authority}-${parentCaseId}`;
-    // };
 
     return (
       <>
@@ -897,7 +902,7 @@ const TabbedTables: React.FC<{
                               return new Date(
                                 Number(year),
                                 Number(month) - 1,
-                                1
+                                1,
                               );
                             } else if (!isNaN(Date.parse(filters.taxYear))) {
                               return new Date(filters.taxYear);
@@ -913,7 +918,7 @@ const TabbedTables: React.FC<{
                     if (date) {
                       const formatted = `${String(date.getMonth() + 1).padStart(
                         2,
-                        "0"
+                        "0",
                       )}/${date.getFullYear()}`;
                       handleFilterChange("taxYear", formatted);
                     } else {
@@ -986,7 +991,7 @@ const TabbedTables: React.FC<{
                               return new Date(
                                 Number(year),
                                 Number(month) - 1,
-                                1
+                                1,
                               );
                             } else if (
                               !isNaN(Date.parse(filters.financialYear))
@@ -1004,7 +1009,7 @@ const TabbedTables: React.FC<{
                     if (date) {
                       const formatted = `${String(date.getMonth() + 1).padStart(
                         2,
-                        "0"
+                        "0",
                       )}/${date.getFullYear()}`;
                       handleFilterChange("financialYear", formatted);
                     } else {
@@ -1138,13 +1143,7 @@ const TabbedTables: React.FC<{
                         setIsAddingNew(true);
                         setExisting(true);
                       }}
-                      disabled={
-                        !(
-                          userRole.includes("admin") ||
-                          (item.CaseStatus === "Draft" &&
-                            item.Author?.Id === currentUser?.Id)
-                        )
-                      }
+                      disabled={item.ApprovalStatus === "Pending"}
                     >
                       ✏️
                     </Button>
@@ -1171,7 +1170,7 @@ const TabbedTables: React.FC<{
     const totalPages = Math.ceil(correspondenceOutData.length / itemsPerPage);
     const paginatedData = filteredCorrespondenceOutData.slice(
       (correspondencePage - 1) * itemsPerPage,
-      correspondencePage * itemsPerPage
+      correspondencePage * itemsPerPage,
     );
 
     const getFormattedCaseNumber = (caseNumber: any) => {
@@ -1192,7 +1191,7 @@ const TabbedTables: React.FC<{
 
     const handleCorrespondenceFilterChange = (
       key: string,
-      value: string | undefined
+      value: string | undefined,
     ) => {
       const updatedFilters = { ...correspondenceFilters, [key]: value };
       setCorrespondenceFilters(updatedFilters);
@@ -1279,7 +1278,7 @@ const TabbedTables: React.FC<{
               onChange={(_, option) =>
                 handleCorrespondenceFilterChange(
                   "Entity",
-                  option?.key as string
+                  option?.key as string,
                 )
               }
               styles={{ root: { minWidth: 160 } }}
@@ -1317,7 +1316,7 @@ const TabbedTables: React.FC<{
               onChange={(_, option) =>
                 handleCorrespondenceFilterChange(
                   "taxType",
-                  option?.key as string
+                  option?.key as string,
                 )
               }
               styles={{ root: { minWidth: 160 } }}
@@ -1355,7 +1354,7 @@ const TabbedTables: React.FC<{
               onChange={(_, option) =>
                 handleCorrespondenceFilterChange(
                   "taxAuthority",
-                  option?.key as string
+                  option?.key as string,
                 )
               }
               styles={{ root: { minWidth: 160 } }}
@@ -1400,7 +1399,7 @@ const TabbedTables: React.FC<{
                           try {
                             if (
                               /^\d{2}\/\d{4}$/.test(
-                                correspondenceFilters.taxYear
+                                correspondenceFilters.taxYear,
                               )
                             ) {
                               const [month, year] =
@@ -1408,7 +1407,7 @@ const TabbedTables: React.FC<{
                               return new Date(
                                 Number(year),
                                 Number(month) - 1,
-                                1
+                                1,
                               );
                             } else if (
                               !isNaN(Date.parse(correspondenceFilters.taxYear))
@@ -1426,7 +1425,7 @@ const TabbedTables: React.FC<{
                     if (date) {
                       const formatted = `${String(date.getMonth() + 1).padStart(
                         2,
-                        "0"
+                        "0",
                       )}/${date.getFullYear()}`;
                       handleCorrespondenceFilterChange("taxYear", formatted);
                     } else {
@@ -1448,7 +1447,7 @@ const TabbedTables: React.FC<{
                 onChange={(_, option) =>
                   handleCorrespondenceFilterChange(
                     "taxYear",
-                    option?.key as string
+                    option?.key as string,
                   )
                 }
                 styles={{
@@ -1500,7 +1499,7 @@ const TabbedTables: React.FC<{
                           try {
                             if (
                               /^\d{2}\/\d{4}$/.test(
-                                correspondenceFilters.financialYear
+                                correspondenceFilters.financialYear,
                               )
                             ) {
                               const [month, year] =
@@ -1508,15 +1507,15 @@ const TabbedTables: React.FC<{
                               return new Date(
                                 Number(year),
                                 Number(month) - 1,
-                                1
+                                1,
                               );
                             } else if (
                               !isNaN(
-                                Date.parse(correspondenceFilters.financialYear)
+                                Date.parse(correspondenceFilters.financialYear),
                               )
                             ) {
                               return new Date(
-                                correspondenceFilters.financialYear
+                                correspondenceFilters.financialYear,
                               );
                             }
                             return null;
@@ -1530,11 +1529,11 @@ const TabbedTables: React.FC<{
                     if (date) {
                       const formatted = `${String(date.getMonth() + 1).padStart(
                         2,
-                        "0"
+                        "0",
                       )}/${date.getFullYear()}`;
                       handleCorrespondenceFilterChange(
                         "financialYear",
-                        formatted
+                        formatted,
                       );
                     } else {
                       handleCorrespondenceFilterChange("financialYear", "");
@@ -1555,7 +1554,7 @@ const TabbedTables: React.FC<{
                 onChange={(_, option) =>
                   handleCorrespondenceFilterChange(
                     "financialYear",
-                    option?.key as string
+                    option?.key as string,
                   )
                 }
                 styles={{
@@ -1688,13 +1687,13 @@ const TabbedTables: React.FC<{
           acc[item.UTPId] = item;
         }
         return acc;
-      }, {})
+      }, {}),
     ) as any[];
 
     const totalPages = Math.ceil(uniqueByTitle.length / itemsPerPage);
     const paginatedData = uniqueByTitle.slice(
       (utpPage - 1) * itemsPerPage,
-      utpPage * itemsPerPage
+      utpPage * itemsPerPage,
     );
 
     const handleUtpFilterChange = (key: string, value: string | undefined) => {
@@ -1763,7 +1762,7 @@ const TabbedTables: React.FC<{
               selectedKey={
                 utpFilters.caseNumber
                   ? caseOptions.find(
-                      (opt) => opt.text === utpFilters.caseNumber
+                      (opt) => opt.text === utpFilters.caseNumber,
                     )?.key || null
                   : null
               }
@@ -1997,7 +1996,7 @@ const TabbedTables: React.FC<{
                               return new Date(
                                 Number(year),
                                 Number(month) - 1,
-                                1
+                                1,
                               );
                             } else if (!isNaN(Date.parse(utpFilters.taxYear))) {
                               return new Date(utpFilters.taxYear);
@@ -2013,7 +2012,7 @@ const TabbedTables: React.FC<{
                     if (date) {
                       const formatted = `${String(date.getMonth() + 1).padStart(
                         2,
-                        "0"
+                        "0",
                       )}/${date.getFullYear()}`;
                       handleUtpFilterChange("taxYear", formatted);
                     } else {
@@ -2088,7 +2087,7 @@ const TabbedTables: React.FC<{
                               return new Date(
                                 Number(year),
                                 Number(month) - 1,
-                                1
+                                1,
                               );
                             } else if (
                               !isNaN(Date.parse(utpFilters.financialYear))
@@ -2106,7 +2105,7 @@ const TabbedTables: React.FC<{
                     if (date) {
                       const formatted = `${String(date.getMonth() + 1).padStart(
                         2,
-                        "0"
+                        "0",
                       )}/${date.getFullYear()}`;
                       handleUtpFilterChange("financialYear", formatted);
                     } else {
@@ -2275,13 +2274,7 @@ const TabbedTables: React.FC<{
                         setActiveFormType("UTP");
                         setIsAddingNew(true);
                       }}
-                      disabled={
-                        !(
-                          userRole.includes("admin") ||
-                          (item.Status === "Draft" &&
-                            item.Author?.Id === currentUser?.Id)
-                        )
-                      }
+                      disabled={item.ApprovalStatus === "Pending"}
                     >
                       ✏️
                     </Button>
@@ -2573,12 +2566,12 @@ const TabbedTables: React.FC<{
             {showLOVManagement
               ? "LOV Management"
               : showManageRole
-              ? "Manage Role"
-              : showConsultantManagement
-              ? ""
-              : showLawyerManagement
-              ? ""
-              : activeTab}
+                ? "Manage Role"
+                : showConsultantManagement
+                  ? ""
+                  : showLawyerManagement
+                    ? ""
+                    : activeTab}
           </h3>
           {(userRole.includes("admin") ||
             userRole.includes("tax litigation team")) &&
@@ -2617,12 +2610,12 @@ const TabbedTables: React.FC<{
             {showLOVManagement
               ? "LOV Management"
               : showManageRole
-              ? "Manage Role"
-              : showConsultantManagement
-              ? "Consultant Management"
-              : showLawyerManagement
-              ? "Lawyer Management"
-              : activeTab}
+                ? "Manage Role"
+                : showConsultantManagement
+                  ? "Consultant Management"
+                  : showLawyerManagement
+                    ? "Lawyer Management"
+                    : activeTab}
           </h6>
           {/* Report Type Tabs */}
           {activeTab == "Reports" &&
@@ -2666,7 +2659,7 @@ const TabbedTables: React.FC<{
 
       <div className={styles.tableContainer}>{renderTabContent()}</div>
       <div className={styles["lms-footer"]}>
-        <span style={{ margin: "40px" }}>JAZZ LMS — Version 1.0.1</span>
+        <span style={{ margin: "40px" }}>JAZZ LMS — Version 1.0.3</span>
       </div>
 
       {/* Offcanvas for viewing case details */}

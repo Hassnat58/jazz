@@ -73,7 +73,10 @@ const CaseForm: React.FC<CaseFormProps> = ({
   existing,
   setExisting,
 }) => {
-  const { control, handleSubmit, reset, getValues, setValue } = useForm({});
+  const { control, handleSubmit, reset, getValues, setValue } = useForm({
+    mode: "onSubmit",
+    shouldFocusError: true,
+  });
   const taxType = useWatch({ control, name: "TaxType" });
   const taxAuthority = useWatch({ control, name: "TaxAuthority" });
 
@@ -86,7 +89,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     ExistingAttachmentWithRename[]
   >([]);
   const [editingAttachment, setEditingAttachment] = useState<string | null>(
-    null
+    null,
   );
   const [caseSearch, setCaseSearch] = useState("");
   const [taxConsultantOptions, setTaxConsultantOptions] = useState<any[]>([]);
@@ -105,7 +108,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const [nextCaseNumber, setNextCaseNumber] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rateInputs, setRateInputs] = React.useState<{ [key: number]: string }>(
-    {}
+    {},
   );
   // const [isNewCaseFromNotification, setIsNewCaseFromNotification] =
   // useState(false);
@@ -254,14 +257,14 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
   const handleFinancialYearInputChange = (value: string) => {
     const filtered = allFinancialYears.filter((o) =>
-      o.text.toLowerCase().includes(value.toLowerCase())
+      o.text.toLowerCase().includes(value.toLowerCase()),
     );
     setFinancialYearOptions(filtered.length > 0 ? filtered : allFinancialYears);
   };
 
   const handleTaxYearInputChange = (value: string) => {
     const filtered = allTaxYears.filter((o) =>
-      o.text.toLowerCase().includes(value.toLowerCase())
+      o.text.toLowerCase().includes(value.toLowerCase()),
     );
     setTaxYearOptions(filtered.length > 0 ? filtered : allTaxYears);
   };
@@ -358,12 +361,12 @@ const CaseForm: React.FC<CaseFormProps> = ({
         "TaxType",
         "CaseStatus",
         "TaxAuthority",
-        "ApprovalStatus"
+        "ApprovalStatus",
       )()
       .then((items) => {
         const activeApproved = items.filter(
           (item) =>
-            item.CaseStatus === "Active" && item.ApprovalStatus === "Approved"
+            item.CaseStatus === "Active" && item.ApprovalStatus === "Approved",
         );
 
         // Deduplicate: keep only the highest ID per Title
@@ -400,7 +403,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     if (caseSearch) {
       const searchLower = caseSearch.toLowerCase();
       filtered = filtered.filter((opt) =>
-        opt.text?.toString().toLowerCase().includes(searchLower)
+        opt.text?.toString().toLowerCase().includes(searchLower),
       );
     }
 
@@ -425,10 +428,10 @@ const CaseForm: React.FC<CaseFormProps> = ({
   const saveAttachmentName = (id: string, isExisting: boolean = true) => {
     const extension = isExisting
       ? getFileExtension(
-          existingAttachments.find((att) => att.ID === id)?.originalName || ""
+          existingAttachments.find((att) => att.ID === id)?.originalName || "",
         )
       : getFileExtension(
-          attachments.find((att) => att.file.name === id)?.originalName || ""
+          attachments.find((att) => att.file.name === id)?.originalName || "",
         );
 
     const newFullName = tempName.trim() + extension;
@@ -442,8 +445,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 newName: newFullName,
                 isRenamed: newFullName !== att.originalName,
               }
-            : att
-        )
+            : att,
+        ),
       );
     } else {
       setAttachments((prev) =>
@@ -454,8 +457,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
                 newName: newFullName,
                 isRenamed: newFullName !== att.originalName,
               }
-            : att
-        )
+            : att,
+        ),
       );
     }
 
@@ -484,7 +487,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
             originalName: file.FileLeafRef,
             newName: file.FileLeafRef,
             isRenamed: false,
-          }))
+          })),
         );
       }
 
@@ -589,7 +592,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
               originalName: f.FileName,
               newName: f.FileName,
               isRenamed: false,
-            }))
+            })),
           );
         }
       }
@@ -647,7 +650,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     // Pre-calculate gross exposure before creating case
     const grossExposures = taxIssueEntries.map(
-      (entry) => entry.grossTaxExposure || 0
+      (entry) => entry.grossTaxExposure || 0,
     );
     const totalGrossExposure =
       grossExposures.length === 1
@@ -665,7 +668,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
       finalTitle = selectedCase.Title;
       if (cleanData.ParentCaseId) {
         const parentCase = casesOptions.find(
-          (opt) => opt.key.toString() === cleanData.ParentCaseId.toString()
+          (opt) => opt.key.toString() === cleanData.ParentCaseId.toString(),
         );
 
         if (parentCase) {
@@ -678,15 +681,15 @@ const CaseForm: React.FC<CaseFormProps> = ({
       Title: finalTitle,
       IsDraft: isDraft,
       CaseStatus: isDraft ? "Draft" : "Pending",
-      ApprovalStatus: isDraft ? "" : "Pending",
+      ApprovalStatus: isDraft ? "Draft" : "Pending",
       GrossExposure: totalGrossExposure,
       ParentCaseId: existing
         ? cleanData.ParentCaseId
           ? Number(cleanData.ParentCaseId)
           : null
         : selectedCase && selectedCase.ID
-        ? Number(selectedCase.ID)
-        : null,
+          ? Number(selectedCase.ID)
+          : null,
     };
 
     // dropdowns - ensure string values
@@ -728,6 +731,9 @@ const CaseForm: React.FC<CaseFormProps> = ({
     delete itemData.Id;
     delete itemData.id;
 
+    const shouldUpdateDraft =
+      existing && selectedCase?.ApprovalStatus === "Draft";
+
     try {
       const finalPayload = {
         ...itemData,
@@ -735,11 +741,24 @@ const CaseForm: React.FC<CaseFormProps> = ({
       };
 
       // Create
-      const addResult = await sp.web.lists
-        .getByTitle("Cases")
-        .items.add(finalPayload);
+      let itemId: number;
 
-      const itemId = addResult.ID;
+      if (shouldUpdateDraft) {
+        // 🔁 UPDATE existing draft
+        await sp.web.lists
+          .getByTitle("Cases")
+          .items.getById(selectedCase.ID)
+          .update(finalPayload);
+
+        itemId = selectedCase.ID;
+      } else {
+        // ➕ CREATE new item
+        const addResult = await sp.web.lists
+          .getByTitle("Cases")
+          .items.add(finalPayload);
+
+        itemId = addResult.ID;
+      }
 
       // Run markAsRead in background (non-blocking)
       if (notiID) markAsRead(notiID).catch(console.error);
@@ -804,7 +823,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
           } catch (err) {
             console.error("Failed to copy attachment:", err);
           }
-        }
+        },
       );
 
       // Wait for all attachments together
@@ -820,7 +839,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
             background: "#f0fff4",
             color: "#2f855a",
           },
-        }
+        },
       );
 
       loadCasesData;
@@ -868,7 +887,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
     "Date Received",
   ];
   const handleParentCaseSelect = async (
-    parentKey: string | number | undefined
+    parentKey: string | number | undefined,
   ) => {
     // if cleared - reset only the ParentCaseId
     if (!parentKey) {
@@ -902,7 +921,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
           "BriefDescription",
           "Email",
           "ConsultantEmail",
-          "LawyerEmail"
+          "LawyerEmail",
         )();
 
       if (!parentCase) return;
@@ -1007,7 +1026,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
 
     if (allowedAuthorities[taxType]) {
       return all.filter((opt) =>
-        allowedAuthorities[taxType].includes(opt.text)
+        allowedAuthorities[taxType].includes(opt.text),
       );
     }
 
@@ -1039,7 +1058,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
             <button
               className={styles.draftbtn}
               type="button"
-              onClick={() => submitForm(true)}
+              onClick={handleSubmit(() => submitForm(true))}
               disabled={isSubmitting}
             >
               Save as Draft
@@ -1201,7 +1220,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                                         return new Date(
                                           Number(year),
                                           Number(month) - 1,
-                                          1
+                                          1,
                                         );
                                       } else if (
                                         /^\d{4}-\d{2}$/.test(f.value)
@@ -1212,7 +1231,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                                         return new Date(
                                           Number(year),
                                           Number(month) - 1,
-                                          1
+                                          1,
                                         );
                                       } else if (!isNaN(Date.parse(f.value))) {
                                         // If SharePoint stored ISO string (like 2025-10-01T00:00:00Z)
@@ -1229,7 +1248,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                               if (date) {
                                 // Save only MM/yyyy in your text field
                                 const formattedValue = `${String(
-                                  date.getMonth() + 1
+                                  date.getMonth() + 1,
                                 ).padStart(2, "0")}/${date.getFullYear()}`;
                                 f.onChange(formattedValue);
                               } else {
@@ -1356,7 +1375,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                                         return new Date(
                                           Number(year),
                                           Number(month) - 1,
-                                          1
+                                          1,
                                         );
                                       } else if (
                                         /^\d{4}-\d{2}$/.test(f.value)
@@ -1367,7 +1386,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                                         return new Date(
                                           Number(year),
                                           Number(month) - 1,
-                                          1
+                                          1,
                                         );
                                       } else if (!isNaN(Date.parse(f.value))) {
                                         // If SharePoint stored ISO string (like 2025-10-01T00:00:00Z)
@@ -1384,7 +1403,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                               if (date) {
                                 // Save only MM/yyyy in your text field
                                 const formattedValue = `${String(
-                                  date.getMonth() + 1
+                                  date.getMonth() + 1,
                                 ).padStart(2, "0")}/${date.getFullYear()}`;
                                 f.onChange(formattedValue);
                               } else {
@@ -1465,7 +1484,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                             f.onChange(option ? option.key : null);
                             setValue(
                               "ConsultantEmail",
-                              option?.data?.email || ""
+                              option?.data?.email || "",
                             );
                           }}
                           placeholder="Select Tax Consultant"
@@ -1760,7 +1779,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                       originalName: file.name,
                       newName: file.name,
                       isRenamed: false,
-                    })
+                    }),
                   );
                   setAttachments((prev) => [...prev, ...newAttachments]);
                 }}
@@ -1790,7 +1809,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                     type="button"
                     onClick={() => {
                       setExistingAttachments((prev) =>
-                        prev.filter((att) => att.ID !== file.ID)
+                        prev.filter((att) => att.ID !== file.ID),
                       );
                     }}
                     style={{
@@ -2026,7 +2045,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
                         onClick={() =>
                           startEditingAttachment(
                             attachment.file.name,
-                            attachment.newName
+                            attachment.newName,
                           )
                         }
                         style={{
@@ -2121,8 +2140,8 @@ const CaseForm: React.FC<CaseFormProps> = ({
                   rateInputs[idx] !== undefined
                     ? rateInputs[idx]
                     : entry.rate !== undefined && entry.rate !== null
-                    ? entry.rate.toString()
-                    : ""
+                      ? entry.rate.toString()
+                      : ""
                 }
                 onChange={(_, v) => {
                   // Allow only numbers and a single decimal
@@ -2201,7 +2220,7 @@ const CaseForm: React.FC<CaseFormProps> = ({
               onClick={() => {
                 const used = taxIssueEntries.map((t) => t.taxIssue);
                 const available = (lovOptions["Tax Issue"] || []).find(
-                  (opt) => !used.includes(opt.key as string)
+                  (opt) => !used.includes(opt.key as string),
                 );
                 if (available) {
                   setTaxIssueEntries((prev) => [

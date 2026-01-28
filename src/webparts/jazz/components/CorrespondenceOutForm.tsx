@@ -54,7 +54,10 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
   notiID,
   selectedCase,
 }) => {
-  const { control, handleSubmit, reset, getValues } = useForm();
+  const { control, handleSubmit, reset, getValues } = useForm({
+    mode: "onSubmit",
+    shouldFocusError: true,
+  });
   const [lovOptions, setLovOptions] = useState<{
     [key: string]: IDropdownOption[];
   }>({});
@@ -63,7 +66,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
     ExistingAttachmentWithRename[]
   >([]);
   const [editingAttachment, setEditingAttachment] = useState<string | null>(
-    null
+    null,
   );
 
   const [tempName, setTempName] = useState<string>("");
@@ -121,10 +124,10 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
   const saveAttachmentName = (id: string, isExisting: boolean = true) => {
     const extension = isExisting
       ? getFileExtension(
-          existingAttachments.find((att) => att.ID === id)?.originalName || ""
+          existingAttachments.find((att) => att.ID === id)?.originalName || "",
         )
       : getFileExtension(
-          attachments.find((att) => att.file.name === id)?.originalName || ""
+          attachments.find((att) => att.file.name === id)?.originalName || "",
         );
 
     const newFullName = tempName.trim() + extension;
@@ -138,8 +141,8 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                 newName: newFullName,
                 isRenamed: newFullName !== att.originalName,
               }
-            : att
-        )
+            : att,
+        ),
       );
     } else {
       setAttachments((prev) =>
@@ -150,8 +153,8 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                 newName: newFullName,
                 isRenamed: newFullName !== att.originalName,
               }
-            : att
-        )
+            : att,
+        ),
       );
     }
 
@@ -175,7 +178,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           "TaxType",
           "CaseStatus",
           "TaxAuthority",
-          "ApprovalStatus"
+          "ApprovalStatus",
         )
         .top(5000)();
 
@@ -254,7 +257,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
             originalName: file.FileLeafRef,
             newName: file.FileLeafRef,
             isRenamed: false,
-          }))
+          })),
         );
       }
     };
@@ -303,7 +306,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
               originalName: f.FileName,
               newName: f.FileName,
               isRenamed: false,
-            }))
+            })),
           );
         }
       }
@@ -435,7 +438,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           } catch (err) {
             console.error("Failed to copy inbox attachment", err);
           }
-        }
+        },
       );
 
       // 🔹 Wait for all uploads to finish
@@ -455,7 +458,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
             background: "#f0fff4",
             color: "#2f855a",
           },
-        }
+        },
       );
 
       onSave(data);
@@ -489,7 +492,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
           <button
             type="button"
             className={styles.draftbtn}
-            onClick={() => submitForm(true)}
+            onClick={handleSubmit(() => submitForm(true))}
             disabled={isSubmitting}
           >
             Save as Draft
@@ -520,12 +523,13 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                   allowFreeform
                   autoComplete="on"
                   useComboBoxAsMenuWidth
+                  onBlur={field.onBlur}
                   onInputValueChange={(newValue) => {
                     if (!newValue) {
                       setCaseOptions(allCases);
                     } else {
                       const filtered = allCases.filter((opt) =>
-                        opt.text.toLowerCase().includes(newValue.toLowerCase())
+                        opt.text.toLowerCase().includes(newValue.toLowerCase()),
                       );
                       setCaseOptions(filtered);
                     }
@@ -551,13 +555,13 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                 {field.value && (
                   <button
                     type="button"
-                    onMouseDown={(e) => e.preventDefault()} // prevent ComboBox blur
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       field.onChange(undefined);
                     }}
                     style={{
                       position: "absolute",
-                      right: 30, // adjust for label width
+                      right: 30,
                       top: "65%",
                       transform: "translateY(-50%)",
                       border: "none",
@@ -725,7 +729,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                       originalName: file.name,
                       newName: file.name,
                       isRenamed: false,
-                    })
+                    }),
                   );
                   setAttachments((prev) => [...prev, ...newAttachments]);
                 }}
@@ -755,7 +759,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                     type="button"
                     onClick={() => {
                       setExistingAttachments((prev) =>
-                        prev.filter((att) => att.ID !== file.ID)
+                        prev.filter((att) => att.ID !== file.ID),
                       );
                     }}
                     style={{
@@ -990,7 +994,7 @@ const CorrespondenceOutForm: React.FC<CorrespondenceOutFormProps> = ({
                         onClick={() =>
                           startEditingAttachment(
                             attachment.file.name,
-                            attachment.newName
+                            attachment.newName,
                           )
                         }
                         style={{

@@ -55,20 +55,20 @@ const ViewCaseOffcanvas: React.FC<{
     fetchTaxIssues();
   }, [data?.Id]);
 
-  const getFormattedCaseNumber = (
-    taxType: string,
-    taxAuthority: string,
-    parentCaseId: number
-  ) => {
-    let prefix = "CN"; // default
-    if (taxType === "Income Tax") prefix = "IT";
-    else if (taxType === "Sales Tax") prefix = "ST";
+  // const getFormattedCaseNumber = (
+  //   taxType: string,
+  //   taxAuthority: string,
+  //   parentCaseId: number
+  // ) => {
+  //   let prefix = "CN"; // default
+  //   if (taxType === "Income Tax") prefix = "IT";
+  //   else if (taxType === "Sales Tax") prefix = "ST";
 
-    // add tax authority if present
-    const authority = taxAuthority ? `-${taxAuthority}` : "";
+  //   // add tax authority if present
+  //   const authority = taxAuthority ? `-${taxAuthority}` : "";
 
-    return `${prefix}-${authority}-${parentCaseId}`;
-  };
+  //   return `${prefix}-${authority}-${parentCaseId}`;
+  // };
 
   React.useEffect(() => {
     const loadHistory = async () => {
@@ -79,7 +79,12 @@ const ViewCaseOffcanvas: React.FC<{
 
         // Load items with same Title (newest → oldest)
         const sameTitleItems = await list.items
-          .filter(`Title eq '${data.Title.replace(/'/g, "''")}'`)
+          .filter(
+            `
+    Title eq '${data.Title.replace(/'/g, "''")}'
+    and (ApprovalStatus eq 'Approved' or ApprovalStatus eq 'Rejected')
+  `,
+          )
           .select("*", "Author/Title", "Editor/Title")
           .expand("Author", "Editor")
           .orderBy("ID", false)();
@@ -143,7 +148,7 @@ const ViewCaseOffcanvas: React.FC<{
 
     // Hide elements with "no-print" class
     const noPrintElements = element.querySelectorAll(
-      ".no-print"
+      ".no-print",
     ) as NodeListOf<HTMLElement>;
     noPrintElements.forEach((el) => (el.style.display = "none"));
 
@@ -175,6 +180,20 @@ const ViewCaseOffcanvas: React.FC<{
 
     pdf.addImage(imgData, "JPEG", x, y, imgWidth, imgHeight);
     pdf.save(`Case-${data?.Title}.pdf`);
+  };
+  const getStatusClass = (status?: string) => {
+    switch (status) {
+      case "Approved":
+        return styles.approved;
+      case "Rejected":
+        return styles.rejected;
+      case "Pending":
+        return styles.pending;
+      case "Draft":
+        return styles.draft;
+      default:
+        return styles.default;
+    }
   };
 
   return (
@@ -439,8 +458,15 @@ const ViewCaseOffcanvas: React.FC<{
             {caseHistory.map((item) => (
               <div key={item.Id} className={styles.historyCard}>
                 <h5>
-                  Version ID:{item.Title}-{item.Id} — Modified:{" "}
-                  {new Date(item.Modified).toLocaleString()}
+                  Version ID: {item.Title}-{item.Id} — Modified:{" "}
+                  {new Date(item.Modified).toLocaleString()} — Approval Status:{" "}
+                  <span
+                    className={`${styles.statusCapsule} ${getStatusClass(
+                      item.ApprovalStatus,
+                    )}`}
+                  >
+                    {item.ApprovalStatus}
+                  </span>
                 </h5>
 
                 <table className={styles.detailTable}>
@@ -451,11 +477,7 @@ const ViewCaseOffcanvas: React.FC<{
                       </td>
                       <td>
                         {item.ParentCaseId
-                          ? getFormattedCaseNumber(
-                              item.TaxType,
-                              item.TaxAuthority,
-                              item.ParentCaseId
-                            )
+                          ? item.ParentCase?.Title
                           : item.Title}
                       </td>
                       <td>

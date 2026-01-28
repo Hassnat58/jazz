@@ -87,6 +87,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
       defaultValues: {
         UTPDate: new Date(), // initial default
       },
+
+      mode: "onSubmit",
+      shouldFocusError: true,
     });
 
   const [lovOptions, setLovOptions] = useState<{
@@ -97,10 +100,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
     ExistingAttachmentWithRename[]
   >([]);
   const [editingAttachment, setEditingAttachment] = useState<string | null>(
-    null
+    null,
   );
   const [rateInputs, setRateInputs] = React.useState<{ [key: number]: string }>(
-    {}
+    {},
   );
   const [tempName, setTempName] = useState<string>("");
   const [caseOptions, setCaseOptions] = useState<IComboBoxOption[]>([]);
@@ -164,7 +167,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
             "TaxType",
             "CaseStatus",
             "TaxAuthority",
-            "ApprovalStatus"
+            "ApprovalStatus",
           )
           .top(5000)(),
         sp.web.lists
@@ -230,7 +233,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
         .map(String);
 
       const hasSelected = builtOptions.some((o) =>
-        candidateKeys.includes(String(o.key))
+        candidateKeys.includes(String(o.key)),
       );
       if (!hasSelected) {
         // inject the selectedCase as the first option (best-effort)
@@ -348,10 +351,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
   const saveAttachmentName = (id: string, isExisting: boolean = true) => {
     const extension = isExisting
       ? getFileExtension(
-          existingAttachments.find((att) => att.ID === id)?.originalName || ""
+          existingAttachments.find((att) => att.ID === id)?.originalName || "",
         )
       : getFileExtension(
-          attachments.find((att) => att.file.name === id)?.originalName || ""
+          attachments.find((att) => att.file.name === id)?.originalName || "",
         );
 
     const newFullName = tempName.trim() + extension;
@@ -365,8 +368,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 newName: newFullName,
                 isRenamed: newFullName !== att.originalName,
               }
-            : att
-        )
+            : att,
+        ),
       );
     } else {
       setAttachments((prev) =>
@@ -377,8 +380,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
                 newName: newFullName,
                 isRenamed: newFullName !== att.originalName,
               }
-            : att
-        )
+            : att,
+        ),
       );
     }
 
@@ -441,7 +444,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           originalName: file.FileLeafRef,
           newName: file.FileLeafRef,
           isRenamed: false,
-        }))
+        })),
       );
 
       const issues = await sp.web.lists
@@ -462,7 +465,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           "UTPCategory",
           "ERMCategory",
           "ProvisionGLCode",
-          "PaymentGLCode"
+          "PaymentGLCode",
         )();
 
       const mappedIssues = issues.map((item) => ({
@@ -526,6 +529,10 @@ const UTPForm: React.FC<UTPFormProps> = ({
   const submitForm = async (isDraft: boolean) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    const shouldUpdateDraft =
+      isEditMode &&
+      selectedCase?.ID &&
+      selectedCase?.ApprovalStatus === "Draft";
 
     try {
       const data = getValues();
@@ -534,7 +541,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
       const itemData: any = {
         IsDraft: isDraft,
         Status: isDraft ? "Draft" : "Pending",
-        ApprovalStatus: "Pending",
+        ApprovalStatus: isDraft ? "Draft" : "Pending",
         CaseNumberId: data.CaseNumber ? Number(data.CaseNumber) : null,
         // Choice/Text fields
         // UTPCategory: toNullIfEmpty(data.UTPCategory),
@@ -575,28 +582,34 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
       let itemId: number;
 
-      if (isEditMode && selectedCase?.ID) {
-        // ✅ Always create a NEW item — but keep same UTPId as old record
+      if (shouldUpdateDraft) {
+        // 🔁 UPDATE existing draft (NO new item)
+        await sp.web.lists
+          .getByTitle("UTPData")
+          .items.getById(selectedCase.ID)
+          .update(itemData);
+
+        itemId = selectedCase.ID;
+      } else if (isEditMode && selectedCase?.ID) {
+        // ➕ CREATE new version (Approved / Rejected edits)
         const result = await sp.web.lists.getByTitle("UTPData").items.add({
           ...itemData,
-          UTPId: selectedCase.UTPId, // keep existing UTPId
+          UTPId: selectedCase.UTPId, // preserve UTPId
         });
 
         itemId = result.ID;
       } else {
-        // STEP 1: Create item first (without UTPId)
+        // ➕ BRAND NEW UTP
         const result = await sp.web.lists
           .getByTitle("UTPData")
           .items.add(itemData);
 
         itemId = result.ID;
 
-        // STEP 2: Get next UTP number based on previous UTPId
         const nextNumber = await getLastUTPNumber();
 
-        // STEP 3: Build UTPId
         const selectedCaseItem = allCases.find(
-          (c) => String(c.Id) === String(data.CaseNumber)
+          (c) => String(c.Id) === String(data.CaseNumber),
         );
 
         const taxAuth = selectedCaseItem?.TaxAuthority || "N/A";
@@ -604,12 +617,11 @@ const UTPForm: React.FC<UTPFormProps> = ({
           selectedCaseItem?.TaxType === "Income Tax"
             ? "IT"
             : selectedCaseItem?.TaxType === "Sales Tax"
-            ? "ST"
-            : "XX";
+              ? "ST"
+              : "XX";
 
         const generatedUTPId = `UTP-${taxtype}-${taxAuth}-${nextNumber}`;
 
-        // STEP 4: Update item with generated UTPId
         await sp.web.lists.getByTitle("UTPData").items.getById(itemId).update({
           UTPId: generatedUTPId,
         });
@@ -666,7 +678,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           } catch (err) {
             console.error("Failed to copy attachment:", err);
           }
-        }
+        },
       );
 
       // Wait for all attachments together
@@ -689,8 +701,9 @@ const UTPForm: React.FC<UTPFormProps> = ({
         const amountContested = toNumberOrNull(entry.amountContested);
         const rate = toNumberOrNull(entry.rate);
         const grossTaxExposure = toNumberOrNull(entry.grossTaxExposure);
+        const isUpdatingDraft = shouldUpdateDraft;
 
-        if (entry.id && isDraft && selectedCase?.Status === "Draft") {
+        if (entry.id && isUpdatingDraft) {
           batchedSP.web.lists
             .getByTitle("UTP Tax Issue")
             .items.getById(entry.id)
@@ -737,11 +750,11 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
       // 🔹 Calculate Gross Exposure after batch
       const grossExposures = taxIssueEntries.map(
-        (entry) => Number(entry.grossTaxExposure) || 0
+        (entry) => Number(entry.grossTaxExposure) || 0,
       );
       const totalGrossExposure = grossExposures.reduce(
         (sum, val) => sum + val,
-        0
+        0,
       );
 
       await sp.web.lists.getByTitle("UTPData").items.getById(itemId).update({
@@ -758,7 +771,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
             background: "#f0fff4",
             color: "#2f855a",
           },
-        }
+        },
       );
 
       onSave(data);
@@ -805,7 +818,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
           <button
             type="button"
             className={styles.draftbtn}
-            onClick={() => submitForm(true)}
+            onClick={handleSubmit(() => submitForm(true))}
             disabled={isSubmitting}
           >
             Save as Draft
@@ -887,16 +900,18 @@ const UTPForm: React.FC<UTPFormProps> = ({
           <Controller
             name="CaseNumber"
             control={control}
+            rules={{ required: "CaseNumber is required" }}
             render={({ field, fieldState: { error } }) => (
               <ComboBox
                 label="Case Number"
                 options={caseOptions}
+                required
                 disabled={isEditMode}
                 selectedKey={field.value ? String(field.value) : undefined}
                 onChange={(_, option) => {
                   if (option && usedCaseNumbers.includes(Number(option.key))) {
                     setCaseError(
-                      "A UTP has already been created with this Case Number."
+                      "A UTP has already been created with this Case Number.",
                     );
                     field.onChange(undefined); // clear invalid selection
                     return;
@@ -925,7 +940,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
 
                     if (selectedTaxType) {
                       const filtered = activeCases.filter(
-                        (item) => item.TaxType === selectedTaxType
+                        (item) => item.TaxType === selectedTaxType,
                       );
                       // const prefix =
                       // selectedTaxType === "Income Tax" ? "IT" : "ST";
@@ -938,7 +953,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                             text: item.Title,
                             data: item,
                           };
-                        })
+                        }),
                       );
                     } else {
                       setCaseOptions(
@@ -951,12 +966,12 @@ const UTPForm: React.FC<UTPFormProps> = ({
                             text: `${taxtype}-${taxAuth}-${item.Id}`,
                             data: item,
                           };
-                        })
+                        }),
                       );
                     }
                   } else {
                     const filtered = caseOptions.filter((opt) =>
-                      opt.text.toLowerCase().includes(newValue.toLowerCase())
+                      opt.text.toLowerCase().includes(newValue.toLowerCase()),
                     );
                     setCaseOptions(filtered);
                   }
@@ -1496,7 +1511,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                         originalName: file.name,
                         newName: file.name,
                         isRenamed: false,
-                      })
+                      }),
                     );
                     setAttachments((prev) => [...prev, ...newAttachments]);
                   }}
@@ -1526,7 +1541,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       type="button"
                       onClick={() => {
                         setExistingAttachments((prev) =>
-                          prev.filter((att) => att.ID !== file.ID)
+                          prev.filter((att) => att.ID !== file.ID),
                         );
                       }}
                       style={{
@@ -1763,7 +1778,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                           onClick={() =>
                             startEditingAttachment(
                               attachment.file.name,
-                              attachment.newName
+                              attachment.newName,
                             )
                           }
                           style={{
@@ -2023,7 +2038,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     value={
                       entry.amountContested
                         ? new Intl.NumberFormat("en-US").format(
-                            entry.amountContested
+                            entry.amountContested,
                           )
                         : ""
                     }
@@ -2051,8 +2066,8 @@ const UTPForm: React.FC<UTPFormProps> = ({
                       rateInputs[idx] !== undefined
                         ? rateInputs[idx]
                         : entry.rate !== undefined && entry.rate !== null
-                        ? String(entry.rate)
-                        : ""
+                          ? String(entry.rate)
+                          : ""
                     }
                     onChange={(_, v) => {
                       const cleaned = v?.replace(/[^0-9.]/g, "") || "";
@@ -2078,7 +2093,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
                     value={
                       entry.grossTaxExposure
                         ? new Intl.NumberFormat("en-US").format(
-                            entry.grossTaxExposure
+                            entry.grossTaxExposure,
                           )
                         : ""
                     }
@@ -2472,7 +2487,7 @@ const UTPForm: React.FC<UTPFormProps> = ({
               onClick={() => {
                 const used = taxIssueEntries.map((t) => t.taxIssue);
                 const available = (lovOptions["Tax Issue"] || []).find(
-                  (opt) => !used.includes(opt.key as string)
+                  (opt) => !used.includes(opt.key as string),
                 );
                 if (available) {
                   setTaxIssueEntries((prev) => [
