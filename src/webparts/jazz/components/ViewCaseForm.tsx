@@ -247,11 +247,19 @@ const ViewCaseOffcanvas: React.FC<{
               <td>
                 <strong>Date of Document:</strong>
               </td>
-              <td>{data.Dateofdocument?.split("T")[0]}</td>
+              <td>
+                {data.Dateofdocument
+                  ? new Date(data.Dateofdocument).toLocaleDateString()
+                  : "-"}
+              </td>
               <td>
                 <strong>Date Received:</strong>
               </td>
-              <td>{data.DateReceived?.split("T")[0]}</td>
+              <td>
+                {data.DateReceived
+                  ? new Date(data.DateReceived).toLocaleDateString()
+                  : "-"}
+              </td>
               <td>
                 <strong>Financial Year:</strong>
               </td>
@@ -262,7 +270,11 @@ const ViewCaseOffcanvas: React.FC<{
               <td>
                 <strong>Date of Compliance:</strong>
               </td>
-              <td>{data.DateofCompliance?.split("T")[0]}</td>
+              <td>
+                {data.DateofCompliance
+                  ? new Date(data.DateofCompliance).toLocaleDateString()
+                  : "-"}
+              </td>
               <td>
                 <strong>Lawyer Assigned:</strong>
               </td>
@@ -277,7 +289,7 @@ const ViewCaseOffcanvas: React.FC<{
               <td>
                 <strong>Hearing Date:</strong>
               </td>
-              <td>{data.Hearingdate?.split("T")[0]}</td>
+              <td>{new Date(data.Hearingdate).toLocaleDateString()}</td>
               <td>
                 <strong>Pending Authority:</strong>
               </td>
@@ -509,11 +521,18 @@ const ViewCaseOffcanvas: React.FC<{
                       <td>
                         <strong>Date of Document:</strong>
                       </td>
-                      <td>{item.Dateofdocument?.split("T")[0]}</td>
+                      <td>
+                        {new Date(item.Dateofdocument).toLocaleDateString(
+                          "en-US",
+                        )}
+                      </td>
                       <td>
                         <strong>Date Received:</strong>
                       </td>
-                      <td>{item.DateReceived?.split("T")[0]}</td>
+                      <td>
+                        {new Date(item.DateReceived).toUTCString().slice(0, 16)}
+                      </td>
+
                       <td>
                         <strong>Financial Year:</strong>
                       </td>
@@ -524,7 +543,13 @@ const ViewCaseOffcanvas: React.FC<{
                       <td>
                         <strong>Date of Compliance:</strong>
                       </td>
-                      <td>{item.DateofCompliance?.split("T")[0]}</td>
+                      <td>
+                        {item.DateofCompliance
+                          ? new Date(item.DateofCompliance).toLocaleDateString(
+                              "",
+                            )
+                          : ""}
+                      </td>
                       <td>
                         <strong>Lawyer Assigned:</strong>
                       </td>
@@ -539,7 +564,11 @@ const ViewCaseOffcanvas: React.FC<{
                       <td>
                         <strong>Hearing Date:</strong>
                       </td>
-                      <td>{item.Hearingdate?.split("T")[0]}</td>
+                      <td>
+                        {item.Hearingdate
+                          ? new Date(item.Hearingdate).toLocaleDateString()
+                          : ""}
+                      </td>
                       <td>
                         <strong>Pending Authority:</strong>
                       </td>

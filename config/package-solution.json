@@ -3,7 +3,7 @@
   "solution": {
     "name": "jazz-client-side-solution",
     "id": "d0bba150-fb3f-49a2-8e30-2fd30b6d5b0a",
-    "version": "1.0.1.1",
+    "version": "1.0.1.2",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,

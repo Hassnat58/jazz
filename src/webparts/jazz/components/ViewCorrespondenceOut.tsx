@@ -24,7 +24,7 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
       </div>
 
       <div className={styles.metaInfo}>
-        <div>Last Updated: {new Date(data.Modified).toLocaleString()}</div>
+        <div>Last Updated: {new Date(data.Modified).toLocaleDateString()}</div>
         <div>
           Owner: <strong>{data.Author?.Title}</strong>
         </div>
@@ -70,7 +70,11 @@ const ViewCorrespondenceOutOffcanvas: React.FC<{
             <td>
               <strong>Date of Filing:</strong>
             </td>
-            <td>{data.Dateoffiling?.split("T")[0]}</td>
+            <td>
+              {data.Dateoffiling
+                ? new Date(data.Dateoffiling).toLocaleDateString()
+                : "—"}
+            </td>
           </tr>
         </tbody>
       </table>
