@@ -39,7 +39,7 @@ export const buildForumWiseExposureChart = (utpData: any[], issues: any[]) => {
       const amount = Number(issue.GrossTaxExposure || 0);
       const taxType = issue.UTP?.TaxType || "Income Tax";
 
-      if (taxType === "Income Tax")
+      if (taxType === "Income Tax" || taxType === "Income tax")
         forumMap[forum]["Income Tax Exposure"] += amount;
 
       if (taxType === "Sales Tax")

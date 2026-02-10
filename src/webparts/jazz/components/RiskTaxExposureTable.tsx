@@ -8,7 +8,6 @@ const tableStyle: React.CSSProperties = {
   background: "#0b0b0b",
   color: "#fff",
   fontSize: "14px",
-
 };
 
 const thTd: React.CSSProperties = {

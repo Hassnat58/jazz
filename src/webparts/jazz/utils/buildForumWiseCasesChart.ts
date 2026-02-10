@@ -39,7 +39,8 @@ export const buildForumWiseCasesChart = (utpData: any[], issues: any[]) => {
     relatedIssues.forEach((issue: any) => {
       const taxType = issue.UTP?.TaxType || "Income Tax";
 
-      if (taxType === "Income Tax") forumMap[forum]["Income Tax Cases"] += 1;
+      if (taxType === "Income Tax" || taxType === "Income tax")
+        forumMap[forum]["Income Tax Cases"] += 1;
 
       if (taxType === "Sales Tax") forumMap[forum]["Sales Tax Cases"] += 1;
     });

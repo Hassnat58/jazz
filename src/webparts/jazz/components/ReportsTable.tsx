@@ -275,7 +275,7 @@ const ReportsTable: React.FC<{
     // Prepare headers and rows
     const headers = config.columns.map((col) => col.header);
     const rows = data.map((item) =>
-      config.columns.map((col) => item[col.field] ?? "")
+      config.columns.map((col) => item[col.field] ?? ""),
     );
 
     const doc = new jsPDF({
@@ -383,7 +383,7 @@ const ReportsTable: React.FC<{
   const formatAmount = (
     value: number | string | null | undefined,
     style: "indian" | "western" = "western",
-    decimals = 2
+    decimals = 2,
   ): string => {
     if (value === null || value === undefined || value === "") return "";
 
@@ -463,7 +463,7 @@ const ReportsTable: React.FC<{
   const normalizeData = async (
     reportType: string,
     rawData: any[],
-    filter: any
+    filter: any,
   ) => {
     switch (reportType) {
       case "Litigation":
@@ -477,7 +477,7 @@ const ReportsTable: React.FC<{
             .orderBy("Id", false)
             .filter(` ApprovalStatus eq 'Approved'`)
 
-            .top(5000)
+            .top(5000),
         );
 
         // Map Litigation.Id → UTP row
@@ -671,7 +671,7 @@ const ReportsTable: React.FC<{
           const currTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
-            0
+            0,
           );
 
           if (d <= currTarget) {
@@ -684,7 +684,7 @@ const ReportsTable: React.FC<{
           const prevTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth,
-            0
+            0,
           );
 
           if (d <= prevTarget) {
@@ -707,12 +707,12 @@ const ReportsTable: React.FC<{
               "GrossTaxExposure",
               "ContigencyNote",
               "ProvisionGLCode",
-              "UTP/Id"
+              "UTP/Id",
             )
             .filter("RiskCategory eq 'Probable'")
             .expand("UTP")
             .orderBy("Id", false)
-            .top(5000)
+            .top(5000),
         );
 
         // ---------- STEP 4: Group Issues by UTP SharePoint Id ----------
@@ -733,7 +733,7 @@ const ReportsTable: React.FC<{
         const previousIssuesMap = new Map<string, any>();
 
         for (const [utpId, { current, previous }] of Object.entries(
-          latestByMonth
+          latestByMonth,
         ) as [string, { current?: any; previous?: any }][]) {
           latestByMonth;
           console.log(utpId);
@@ -842,7 +842,7 @@ const ReportsTable: React.FC<{
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const [taxType, items] of Object.entries(groupedByTaxType) as [
           string,
-          any[]
+          any[],
         ][]) {
           let subtotalCurr = 0;
           let subtotalPrev = 0;
@@ -935,7 +935,7 @@ const ReportsTable: React.FC<{
             .orderBy("Id", false)
             .filter(` ApprovalStatus eq 'Approved'`)
 
-            .top(5000)
+            .top(5000),
         );
 
         const utpIssues = await fetchPaged(
@@ -952,11 +952,11 @@ const ReportsTable: React.FC<{
               "UTP/Id",
               "UTP/UTPId",
               "UTP/UTPDate",
-              "UTP/TaxType"
+              "UTP/TaxType",
             )
             .expand("UTP")
             .orderBy("Id", false)
-            .top(5000)
+            .top(5000),
         );
         // ---------- STEP 3: Find latest UTP per month ----------
         // ---------- STEP 3: Find latest UTP current + previous using NEW logic ----------
@@ -982,7 +982,7 @@ const ReportsTable: React.FC<{
           const currTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
-            0
+            0,
           );
 
           // ---------- Pick CURRENT (latest ≤ end of selected month) ----------
@@ -996,7 +996,7 @@ const ReportsTable: React.FC<{
           const prevTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth,
-            0
+            0,
           );
 
           if (d <= prevTarget) {
@@ -1022,7 +1022,7 @@ const ReportsTable: React.FC<{
         const mergedIssues: any[] = [];
 
         for (const { current, previous } of Object.values(
-          latestByUtp
+          latestByUtp,
         ) as any[]) {
           if (current && issuesByUtp[current.Id]) {
             mergedIssues.push(
@@ -1030,7 +1030,7 @@ const ReportsTable: React.FC<{
                 ...i,
                 isCurrent: true,
                 UTPDate: current.UTPDate,
-              }))
+              })),
             );
           }
 
@@ -1040,7 +1040,7 @@ const ReportsTable: React.FC<{
                 ...i,
                 isCurrent: false,
                 UTPDate: previous.UTPDate,
-              }))
+              })),
             );
           }
         }
@@ -1050,14 +1050,14 @@ const ReportsTable: React.FC<{
         const sumBy = (isCurrent: boolean, condition?: (r: any) => boolean) =>
           mergedIssues
             .filter(
-              (r) => r.isCurrent === isCurrent && (!condition || condition(r))
+              (r) => r.isCurrent === isCurrent && (!condition || condition(r)),
             )
             .reduce((s, r) => s + Number(r.Amount || 0), 0);
 
         const sumBy2 = (isCurrent: boolean, condition?: (r: any) => boolean) =>
           mergedIssues
             .filter(
-              (r) => r.isCurrent === isCurrent && (!condition || condition(r))
+              (r) => r.isCurrent === isCurrent && (!condition || condition(r)),
             )
             .reduce((s, r) => s + Number(r.GrossTaxExposure || 0), 0);
 
@@ -1072,21 +1072,21 @@ const ReportsTable: React.FC<{
         // Payments under protest
         const pupCurr = sumBy(
           true,
-          (r) => r.PaymentType === "Payment under Protest"
+          (r) => r.PaymentType === "Payment under Protest",
         );
         const pupPrev = sumBy(
           false,
-          (r) => r.PaymentType === "Payment under Protest"
+          (r) => r.PaymentType === "Payment under Protest",
         );
 
         // Admitted
         const admittedCurr = sumBy(
           true,
-          (r) => r.PaymentType === "Admitted Tax"
+          (r) => r.PaymentType === "Admitted Tax",
         );
         const admittedPrev = sumBy(
           false,
-          (r) => r.PaymentType === "Admitted Tax"
+          (r) => r.PaymentType === "Admitted Tax",
         );
 
         // Cashflow
@@ -1108,7 +1108,7 @@ const ReportsTable: React.FC<{
 
         const ebitdaPrev = mergedIssues
           .filter(
-            (r) => r.isCurrent === false && r.UTP?.TaxType === "Sales Tax"
+            (r) => r.isCurrent === false && r.UTP?.TaxType === "Sales Tax",
           )
           .reduce((s, r) => s + Number(r.PLExposure || 0), 0);
 
@@ -1228,7 +1228,7 @@ const ReportsTable: React.FC<{
           const currTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
-            0
+            0,
           );
 
           if (d <= currTarget) {
@@ -1261,11 +1261,11 @@ const ReportsTable: React.FC<{
               "EBITDA",
               "GrossTaxExposure",
               "GRSCode",
-              "UTP/Id"
+              "UTP/Id",
             )
             .expand("UTP")
             .orderBy("Id", false)
-            .top(5000)
+            .top(5000),
         );
 
         // ---------- STEP 4: Group Issues by UTP Id ----------
@@ -1283,7 +1283,7 @@ const ReportsTable: React.FC<{
 
         for (const [utpId, { current }] of Object.entries(latestByMonth) as [
           string,
-          any
+          any,
         ][]) {
           const issues = issuesByUtp[current?.Id] || [];
 
@@ -1380,7 +1380,7 @@ const ReportsTable: React.FC<{
           const currTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
-            0
+            0,
           );
 
           if (d <= currTarget) {
@@ -1393,7 +1393,7 @@ const ReportsTable: React.FC<{
           const prevTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth,
-            0
+            0,
           );
 
           if (d <= prevTarget) {
@@ -1417,12 +1417,12 @@ const ReportsTable: React.FC<{
               "ContigencyNote",
               "ProvisionGLCode",
               "UTP/Id",
-              "UTP/UTPId"
+              "UTP/UTPId",
             )
             .filter(`RiskCategory eq 'Possible'`)
             .expand("UTP")
             .orderBy("Id", false)
-            .top(5000)
+            .top(5000),
         );
         console.log("Issue UTP", utpIssues);
 
@@ -1442,7 +1442,7 @@ const ReportsTable: React.FC<{
         let grandPrev = 0;
 
         for (const [utpId, { current, previous }] of Object.entries(
-          latestByMonth
+          latestByMonth,
         ) as [string, { current?: any; previous?: any }][]) {
           const currentIssues = current ? issuesByUtp[current?.Id] || [] : [];
           const previousIssues = previous
@@ -1450,7 +1450,7 @@ const ReportsTable: React.FC<{
             : [];
           const maxLength = Math.max(
             currentIssues.length,
-            previousIssues.length
+            previousIssues.length,
           );
 
           for (let i = 0; i < maxLength; i++) {
@@ -1567,7 +1567,7 @@ const ReportsTable: React.FC<{
           const currTarget = new Date(
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
-            0
+            0,
           );
 
           // ---------- Pick CURRENT (latest ≤ end of selected month) ----------
@@ -1587,13 +1587,13 @@ const ReportsTable: React.FC<{
             .items.expand("UTP")
             .select("*,UTP/Id,UTP/Title,UTP/UTPId,UTP/UTPDate")
             .orderBy("Id", false)
-            .top(5000)
+            .top(5000),
         );
 
         // now filter in JS
         if (filter.category) {
           utpItems = utpItems.filter(
-            (item) => item.RiskCategory === filter.category
+            (item) => item.RiskCategory === filter.category,
           );
         }
 
@@ -1632,8 +1632,8 @@ const ReportsTable: React.FC<{
                 utp.CaseNumber?.TaxType === "Income Tax"
                   ? 0
                   : issue.RiskCategory === "Probable"
-                  ? 0
-                  : grossExposure;
+                    ? 0
+                    : grossExposure;
               const cashFlowExposure =
                 grossExposure -
                 (issue.PaymentType === "Payment under Protest"
@@ -1699,7 +1699,7 @@ const ReportsTable: React.FC<{
             });
 
             return issueRows;
-          }
+          },
         );
 
         // ---------- STEP 6: Add Grand Total row ----------
@@ -1786,12 +1786,12 @@ const ReportsTable: React.FC<{
               "CaseNumber/CorrespondenceType",
               "CaseNumber/TaxType",
               "CaseNumber/FinancialYear",
-              "CaseNumber/TaxYear"
+              "CaseNumber/TaxYear",
             )
             .expand("CaseNumber")
             .filter(` ApprovalStatus eq 'Approved'`)
             .orderBy("Id", false)
-            .top(5000)
+            .top(5000),
         );
 
         // 2️⃣ Extract unique Case IDs (no Set used)
@@ -1800,7 +1800,7 @@ const ReportsTable: React.FC<{
           .filter((id) => id !== undefined && id !== null);
 
         const caseIds = caseIdsArray.filter(
-          (id, index) => caseIdsArray.indexOf(id) === index
+          (id, index) => caseIdsArray.indexOf(id) === index,
         );
 
         if (caseIds.length > 0) {
@@ -1813,13 +1813,13 @@ const ReportsTable: React.FC<{
               .getByTitle("Cases")
               .items.select("Id", "BriefDescription")
               .orderBy("Id", false)
-              .top(5000)
+              .top(5000),
           );
 
           // 5️⃣ Merge BriefDescription into UTPData items
           items = items.map((item) => {
             const caseDetail = caseDetails.find(
-              (c) => c.Id === item?.CaseNumber?.Id
+              (c) => c.Id === item?.CaseNumber?.Id,
             );
             return {
               ...item,
@@ -1835,17 +1835,20 @@ const ReportsTable: React.FC<{
               .items.select("Id", "UTP/Id", "RiskCategory")
               .expand("UTP")
               .orderBy("Id", false)
-              .top(5000)
+              .top(5000),
           );
-          const riskMap = utpTaxIssues.reduce((acc, issue) => {
-            const utpId = issue?.UTP?.Id;
-            if (!utpId) return acc;
-            if (!acc[utpId]) acc[utpId] = [];
-            if (!acc[utpId].includes(issue.RiskCategory)) {
-              acc[utpId].push(issue.RiskCategory);
-            }
-            return acc;
-          }, {} as Record<number, string[]>);
+          const riskMap = utpTaxIssues.reduce(
+            (acc, issue) => {
+              const utpId = issue?.UTP?.Id;
+              if (!utpId) return acc;
+              if (!acc[utpId]) acc[utpId] = [];
+              if (!acc[utpId].includes(issue.RiskCategory)) {
+                acc[utpId].push(issue.RiskCategory);
+              }
+              return acc;
+            },
+            {} as Record<number, string[]>,
+          );
 
           // ✅ 8️⃣ Attach RiskCategoryList to each item
           items = items.map((item) => ({
@@ -1859,7 +1862,7 @@ const ReportsTable: React.FC<{
             .getByTitle(listName)
             .items.filter(` ApprovalStatus eq 'Approved'`)
             .orderBy("Id", false)
-            .top(5000)
+            .top(5000),
         );
       }
       if (reportType === "ActiveCases") {
@@ -1869,10 +1872,10 @@ const ReportsTable: React.FC<{
 
         // ✅ Construct UTC dates so .toISOString() won't shift days
         const startUTC = new Date(
-          Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+          Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
         );
         const endUTC = new Date(
-          Date.UTC(next30.getFullYear(), next30.getMonth(), next30.getDate())
+          Date.UTC(next30.getFullYear(), next30.getMonth(), next30.getDate()),
         );
 
         const newStart = formatLocalDate(startUTC); // YYYY-MM-DD
@@ -1944,7 +1947,7 @@ const ReportsTable: React.FC<{
           .getByTitle("LOVData1")
           .items.select("Id", "Title", "Value", "Status")
           .orderBy("Id", false)
-          .top(5000)
+          .top(5000),
       );
       const activeItems = items.filter((item) => item.Status === "Active");
       const grouped: { [key: string]: IDropdownOption[] } = {};
@@ -2104,8 +2107,8 @@ const ReportsTable: React.FC<{
           reportType === "Litigation"
             ? item.DateReceived
             : reportType === "ActiveCases"
-            ? item.DateofCompliance
-            : item.UTPDate;
+              ? item.DateofCompliance
+              : item.UTPDate;
 
         const itemDate = itemDateRaw ? new Date(itemDateRaw) : null;
         if (!itemDate) return false;
@@ -2199,7 +2202,7 @@ const ReportsTable: React.FC<{
   const handleFilterChangeDate2 = async (
     value1: string,
     value2: string,
-    data2: any
+    data2: any,
   ) => {
     const updatedFilters = { ...filters, dateStart: value1, dateEnd: value2 };
     setFilters(updatedFilters);
@@ -2335,7 +2338,7 @@ const ReportsTable: React.FC<{
   const paginatedDataRows = isPaginatedReport
     ? dataRows.slice(
         (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
+        currentPage * itemsPerPage,
       )
     : dataRows;
 
@@ -2444,7 +2447,7 @@ const ReportsTable: React.FC<{
                     ? new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1))
                     : new Date(Date.UTC(1990, date.getMonth(), 1));
                 const endUTC = new Date(
-                  Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)
+                  Date.UTC(date.getFullYear(), date.getMonth() + 1, 0),
                 );
                 const newStart = formatLocalDate(startUTC);
                 const newEnd = formatLocalDate(endUTC);
@@ -2585,7 +2588,7 @@ const ReportsTable: React.FC<{
                     if (date) {
                       const formatted = `${String(date.getMonth() + 1).padStart(
                         2,
-                        "0"
+                        "0",
                       )}/${date.getFullYear()}`;
                       handleFilterChange("taxYear", formatted);
                     } else {
@@ -2665,7 +2668,7 @@ const ReportsTable: React.FC<{
                     if (date) {
                       const formatted = `${String(date.getMonth() + 1).padStart(
                         2,
-                        "0"
+                        "0",
                       )}/${date.getFullYear()}`;
                       handleFilterChange("financialYear", formatted);
                     } else {
@@ -2926,7 +2929,7 @@ const ReportsTable: React.FC<{
         )}
       </div>
       {["Litigation", "UTP", "ActiveCases", "Contingencies"].includes(
-        reportType
+        reportType,
       ) && (
         <Pagination
           currentPage={currentPage}

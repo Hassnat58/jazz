@@ -2,7 +2,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const toMillions = (value: number) => value / 1_000_000;
-
+const normalizeTaxType = (type?: string): string => {
+  if (!type) return "Unknown";
+  const t = type.trim().toLowerCase();
+  if (t === "income tax") return "Income Tax";
+  if (t === "sales tax") return "Sales Tax";
+  return type; // keep others as-is
+};
 export const buildForumSummaryTable = (utpData: any[]) => {
   // latest approved per UTPId
   const latestMap: any = {};
@@ -20,7 +26,7 @@ export const buildForumSummaryTable = (utpData: any[]) => {
 
   Object.values(latestMap).forEach((item: any) => {
     const forum = item.CaseNumber?.PendingAuthority || "Unknown";
-    const taxType = item.TaxType;
+    const taxType = normalizeTaxType(item.TaxType);
     const exposure = Number(item.GrossExposure || 0);
 
     if (!rows[forum]) {
@@ -39,7 +45,7 @@ export const buildForumSummaryTable = (utpData: any[]) => {
       };
     }
 
-    if (taxType === "Income Tax") {
+    if (taxType === "Income Tax" || taxType === "Income tax") {
       rows[forum].cases.income += 1;
       rows[forum].exposure.income += exposure;
     }

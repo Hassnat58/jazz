@@ -74,9 +74,9 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
             "CaseNumber/Entity",
             "UTPDate",
           )
+          // .filter(`ApprovalStatus eq 'Approved'`)
           .top(5000)
           .expand("CaseNumber")();
-        setUtpData(utp);
 
         const dates = utp
           .map((u: any) => u.UTPDate)
@@ -100,11 +100,12 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
           .items.select(
             "*",
             "UTP/Id",
-            "UTP/Title",
+            "UTP/UTPId",
             "UTP/TaxType",
             "RiskCategory",
             "PaymentType",
             "Amount",
+            "GrossTaxExposure",
           )
           .expand("UTP")
           .top(5000)();
@@ -112,7 +113,7 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
         setUtpData(utp);
         setUtpIssues(issues);
         // console.log("utp data", utp);
-        // console.log("utp issues", issues);
+        console.log("utp issues", issues);
 
         if (!anyRole) return;
       } catch (error) {
@@ -139,7 +140,6 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
 
   const rollingMonthUtpData = React.useMemo(() => {
     if (!utpData.length) return [];
-
     // CASE 1 — No month filter → show ALL data till current month
     if (!isMonthFiltered) {
       const today = new Date();
