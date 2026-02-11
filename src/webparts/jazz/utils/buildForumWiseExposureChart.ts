@@ -2,6 +2,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const buildForumWiseExposureChart = (utpData: any[], issues: any[]) => {
+  const normalizeTaxType = (type?: string): string => {
+    if (!type) return "Unknown";
+    const t = type.trim().toLowerCase();
+    if (t === "income tax") return "Income Tax";
+    if (t === "sales tax") return "Sales Tax";
+    return type; // keep others as-is
+  };
   // STEP 1 — latest approved UTP per UTPId
   const latestApprovedMap: Record<string, any> = {};
 
@@ -37,9 +44,9 @@ export const buildForumWiseExposureChart = (utpData: any[], issues: any[]) => {
 
     relatedIssues.forEach((issue: any) => {
       const amount = Number(issue.GrossTaxExposure || 0);
-      const taxType = issue.UTP?.TaxType || "Income Tax";
+      const taxType = normalizeTaxType(issue.UTP?.TaxType || "Income Tax");
 
-      if (taxType === "Income Tax" || taxType === "Income tax")
+      if (taxType === "Income Tax")
         forumMap[forum]["Income Tax Exposure"] += amount;
 
       if (taxType === "Sales Tax")

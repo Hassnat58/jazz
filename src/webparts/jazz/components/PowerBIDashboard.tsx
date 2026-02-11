@@ -24,6 +24,9 @@ import EntityExposureChart from "./EntityExposureChart";
 import { buildEntityExposureChart } from "../utils/buildEntityExposureChart";
 import { buildMonthlyExposureChart } from "../utils/monthlyExposure";
 import MonthlyExposureChart from "./MonthlyExposureChart";
+import ReactDatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+// import styles from "./Dashboard.module.scss";
 
 const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
   SpfxContext,
@@ -42,6 +45,16 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
   );
   const [minUtpDate, setMinUtpDate] = React.useState<Date | null>(null);
   const [isMonthFiltered, setIsMonthFiltered] = React.useState(false);
+
+  React.useEffect(() => {
+    let portal = document.getElementById("datepicker-portal-root");
+
+    if (!portal) {
+      portal = document.createElement("div");
+      portal.id = "datepicker-portal-root";
+      document.body.appendChild(portal);
+    }
+  }, []);
 
   React.useEffect(() => {
     const loadDashboard = async () => {
@@ -216,22 +229,11 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
             Select Month:
           </label>
 
-          <input
-            type="month"
-            value={`${toDate.getFullYear()}-${String(
-              toDate.getMonth() + 1,
-            ).padStart(2, "0")}`}
-            min={
-              minUtpDate
-                ? `${minUtpDate.getFullYear()}-${String(
-                    minUtpDate.getMonth() + 1,
-                  ).padStart(2, "0")}`
-                : undefined
-            }
-            onChange={(e) => {
-              if (!e.target.value) {
+          <ReactDatePicker
+            selected={toDate}
+            onChange={(date: Date | null) => {
+              if (!date) {
                 const today = new Date();
-
                 setIsMonthFiltered(false);
                 setToDate(
                   new Date(today.getFullYear(), today.getMonth() + 1, 0),
@@ -239,11 +241,23 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
                 return;
               }
 
-              const [y, m] = e.target.value.split("-");
-
               setIsMonthFiltered(true);
-              setToDate(new Date(Number(y), Number(m), 0));
+              const endOfMonth = new Date(
+                date.getFullYear(),
+                date.getMonth() + 1,
+                0,
+              );
+              setToDate(endOfMonth);
             }}
+            dateFormat="MM/yyyy"
+            showMonthYearPicker
+            minDate={minUtpDate ?? undefined}
+            placeholderText="Select Month & Year"
+            // className={styles.datePickerInput}
+            /* ===== THE MAGIC ===== */
+            popperPlacement="bottom-start"
+            portalId="datepicker-portal-root"
+            // popperClassName={styles.datepickerPopper}
           />
         </div>
       </div>
@@ -268,7 +282,20 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
       </div>
 
       {/* ================= MANAGERS TABLE ================= */}
-      {(isAdmin || isManager) && <ManagersTable SpfxContext={SpfxContext} />}
+
+      {(isAdmin || isManager) && (
+        <div
+          style={{
+            background: "#ffffff",
+            color: "#323130",
+            padding: "20px",
+            borderRadius: "8px",
+            marginTop: "20px",
+          }}
+        >
+          <ManagersTable SpfxContext={SpfxContext} />
+        </div>
+      )}
     </div>
   );
 };

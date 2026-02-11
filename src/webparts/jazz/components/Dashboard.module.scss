@@ -1,129 +1,24 @@
-.kpi-card {
-  flex: 1;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 20px 24px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+/* input */
+.datePickerInput {
+  background: #1f1f1f;
+  color: #fff;
+  border: 1px solid #444;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+/* make calendar float above SharePoint */
+:global(#datepicker-portal-root) {
   position: relative;
-  min-height: 110px;
+  z-index: 999999999;
 }
 
-.kpi-card h4 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280; /* gray */
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+/* popper fix */
+:global(.react-datepicker-popper) {
+  z-index: 999999999 !important;
 }
 
-.kpi-card p {
-  margin-top: 10px;
-  font-size: 26px;
-  font-weight: 700;
-  color: #111827; /* near black */
+/* prevent layout shift */
+.datepickerPopper {
+  position: fixed !important;
 }
-
-/* Optional icon circle (right side) */
-.kpi-card::after {
-  content: "Rs";
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #fbbf24; /* yellow */
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Variants */
-.kpi-card.cases::after {
-  content: "📁";
-  background: #3b82f6;
-}
-
-.kpi-card.exposure::after {
-  content: "💵";
-  background: #f59e0b;
-}
-
-.kpi-card.active::after {
-  content: "⚡";
-  background: #10b981;
-}
-.graph-card {
-  background: #ffffff;
-  padding: 16px;
-  border-radius: 8px;
-}
-
-.risk-table {
-  width: 50%;
-  border-collapse: collapse;
-}
-.total-row {
-  background: #1d4ed8;
-  color: white;
-  font-weight: 700;
-}
-.risk-table th,
-.risk-table td {
-  padding: 10px;
-  border: 1px solid #ddd;
-  text-align: right;
-}
-
-.risk-table th:first-child,
-.risk-table td:first-child {
-  text-align: left;
-}
-
-.risk-table thead {
-  background: #e6f2ff;
-}
-
-.risk-table tfoot {
-  background: #0b5ed7;
-  color: white;
-  font-weight: bold;
-}
-
-.table-container {
-  background: #ffffff;
-  padding: 16px;
-  border-radius: 8px;
-}
-
-.dashboard-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 12px;
-}
-
-.dashboard-table th {
-  background: #dbeafe;
-  padding: 10px;
-  text-align: left;
-  font-weight: 600;
-}
-
-.dashboard-table td {
-  padding: 10px;
-  border-top: 1px solid #e5e7eb;
-}
-
-// .total-row {
-//   background: #1d4ed8;
-//   color: white;
-//   font-weight: 700;
-// }
