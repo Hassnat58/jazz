@@ -90,7 +90,7 @@ const LOVForm: React.FC<LOVFormProps> = ({
     .sort((a, b) => a.Value.localeCompare(b.Value));
 
   const filteredNewValues = newValues.filter((v) =>
-    v.Value.toLowerCase().includes(searchTerm.toLowerCase())
+    v.Value.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const displayLovValues = [...sortedExisting, ...filteredNewValues];
@@ -107,7 +107,7 @@ const LOVForm: React.FC<LOVFormProps> = ({
     const lowerVal = value.trim().toLowerCase();
     const allValuesLower = lovValues.map((v) => v.Value.trim().toLowerCase());
     const isDuplicate = allValuesLower.some(
-      (v, i) => i !== index && v === lowerVal
+      (v, i) => i !== index && v === lowerVal,
     );
     return isDuplicate ? "Duplicate value" : "";
   };
@@ -115,7 +115,7 @@ const LOVForm: React.FC<LOVFormProps> = ({
   const handleValueChange = (
     index: number,
     field: "Value" | "Status",
-    val: string
+    val: string,
   ) => {
     const displayItem = displayLovValues[index];
     const globalIndex = lovValues.findIndex((lv) => lv.Id === displayItem.Id);
@@ -126,7 +126,7 @@ const LOVForm: React.FC<LOVFormProps> = ({
       setLovValues(updated);
     } else {
       const newIndex = lovValues.findIndex(
-        (lv) => !lv.Id && lv.Value === displayItem.Value
+        (lv) => !lv.Id && lv.Value === displayItem.Value,
       );
       if (newIndex !== -1) {
         const updated = [...lovValues];

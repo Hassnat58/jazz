@@ -35,7 +35,7 @@ export const buildMonthlyExposureChart = (
 
     if (!monthly[key]) monthly[key] = { IncomeTax: 0, SalesTax: 0 };
 
-    if (u.TaxType === "Income Tax")
+    if (u.TaxType === "Income Tax" || u.TaxType === "Income tax")
       monthly[key].IncomeTax += Number(u.GrossExposure || 0);
     else monthly[key].SalesTax += Number(u.GrossExposure || 0);
   });
@@ -71,9 +71,23 @@ export const buildMonthlyExposureChart = (
 
   /* -------- 5. format chart data -------- */
 
-  return filtered.map((m) => ({
-    name: m.date.toLocaleString("default", { month: "short" }),
-    incomeTax: Math.round(monthly[m.key].IncomeTax / 1_000_000_000),
-    salesTax: Math.round(monthly[m.key].SalesTax / 1_000_000_000),
-  }));
+  /* -------- 5. format chart data (CUMULATIVE) -------- */
+
+  let runningIncome = 0;
+  let runningSales = 0;
+
+  return filtered.map((m) => {
+    const monthIncome = Math.round(monthly[m.key].IncomeTax);
+    const monthSales = Math.round(monthly[m.key].SalesTax);
+
+    // carry forward logic
+    runningIncome += monthIncome;
+    runningSales += monthSales;
+
+    return {
+      name: m.date.toLocaleString("default", { month: "short" }),
+      incomeTax: runningIncome,
+      salesTax: runningSales,
+    };
+  });
 };

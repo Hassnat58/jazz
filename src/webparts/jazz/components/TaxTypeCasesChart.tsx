@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Legend,
+  LabelList,
 } from "recharts";
 
 const COLORS: any = {
@@ -31,8 +32,9 @@ const TaxTypeCasesChart = ({ data }: { data: any[] }) => {
           <YAxis allowDecimals={false} stroke="#ccc" />
 
           <Tooltip
-            contentStyle={{ background: "#222", border: "none", color: "#fff" }}
-            formatter={(v: any) => [`${v} cases`, ""]}
+            cursor={false}
+            content={() => null}
+            wrapperStyle={{ display: "none" }}
           />
 
           <Legend wrapperStyle={{ color: "#fff" }} verticalAlign="bottom" />
@@ -41,12 +43,29 @@ const TaxTypeCasesChart = ({ data }: { data: any[] }) => {
             dataKey="Income Tax"
             fill={COLORS["Income Tax"]}
             radius={[6, 6, 0, 0]}
-          />
+            isAnimationActive={false}
+          >
+            <LabelList
+              dataKey="Income Tax"
+              position="top"
+              fill="#fff"
+              formatter={(v: any) => v}
+            />
+          </Bar>
+
           <Bar
             dataKey="Sales Tax"
             fill={COLORS["Sales Tax"]}
             radius={[6, 6, 0, 0]}
-          />
+            isAnimationActive={false}
+          >
+            <LabelList
+              dataKey="Sales Tax"
+              position="top"
+              fill="#fff"
+              formatter={(v: any) => v}
+            />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

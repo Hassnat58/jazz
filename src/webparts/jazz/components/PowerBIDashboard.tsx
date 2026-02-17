@@ -126,7 +126,7 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
         setUtpData(utp);
         setUtpIssues(issues);
         // console.log("utp data", utp);
-        console.log("utp issues", issues);
+        // console.log("utp issues", issues);
 
         if (!anyRole) return;
       } catch (error) {
@@ -251,7 +251,7 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
             }}
             dateFormat="MM/yyyy"
             showMonthYearPicker
-            minDate={minUtpDate ?? undefined}
+            // minDate={minUtpDate ?? undefined}
             placeholderText="Select Month & Year"
             // className={styles.datePickerInput}
             /* ===== THE MAGIC ===== */
@@ -270,8 +270,6 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
           marginBottom: "30px",
         }}
       >
-        <RiskTaxExposureTable data={exposureTableData} />
-        <ForumSummaryTable data={forumTableData} />
         <UTPSummaryGraph data={utpSummaryGraphData} />
         <TaxTypeCasesChart data={taxTypeCasesChartData} />
         <RiskWiseExposureChart data={riskWiseExposureChartData} />
@@ -279,6 +277,10 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
         <ForumWiseCasesChart data={forumWiseCasesData} />
         <EntityExposureChart data={entityExposureChartData} />
         <MonthlyExposureChart data={monthlyExposureChartData} />
+        <RiskTaxExposureTable data={exposureTableData} />
+        <div style={{ gridColumn: "1 / -1" }}>
+          <ForumSummaryTable data={forumTableData} />
+        </div>
       </div>
 
       {/* ================= MANAGERS TABLE ================= */}

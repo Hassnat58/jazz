@@ -27,26 +27,51 @@ const COLORS: any = {
   "Cash Flow Exposure": "#4caf50", // green
 };
 
+const getNiceStep = (max: number) => {
+  const billion = 1_000_000_000;
+
+  if (max >= 800 * billion) return 100 * billion;
+  if (max >= 400 * billion) return 50 * billion;
+  if (max >= 200 * billion) return 25 * billion;
+  if (max >= 100 * billion) return 20 * billion;
+  if (max >= 50 * billion) return 10 * billion;
+  if (max >= 10 * billion) return 5 * billion;
+
+  return 1 * billion;
+};
+
 const UTPSummaryGraph = ({ data }: { data: any[] }) => {
   // recharts needs each bar as separate dataKey → transform
   const chartData = [
     { name: "UTP", ...Object.fromEntries(data.map((d) => [d.label, d.value])) },
   ];
   const formatAmount = (value: number) => {
-    if (value === 0) return "0";
+    if (!value) return "0";
 
     const abs = Math.abs(value);
 
+    const truncate = (v: number, unit: number) => Math.trunc(v / unit); // <- key fix
+
     if (abs >= 1_000_000_000_000) {
-      return `${Number((value / 1_000_000_000_000).toPrecision(2))}T`;
+      return `${truncate(value, 1_000_000_000_000)}T`;
     }
 
     if (abs >= 1_000_000_000) {
-      return `${Number((value / 1_000_000_000).toPrecision(2))}B`;
+      return `${truncate(value, 1_000_000_000)}B`;
     }
 
-    return `${Number((value / 1_000_000).toPrecision(2))}M`;
+    return `${truncate(value, 1_000_000)}M`;
   };
+
+  const maxValue = Math.max(...data.map((d) => d.value));
+  const step = getNiceStep(maxValue);
+
+  // build ticks manually
+  const ticks = [];
+  for (let i = 0; i <= maxValue * 1.15; i += step) {
+    ticks.push(i);
+  }
+  const topDomain = ticks[ticks.length - 1] + step * 0.6;
 
   return (
     <div style={card}>
@@ -55,20 +80,25 @@ const UTPSummaryGraph = ({ data }: { data: any[] }) => {
       </h3>
 
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData}>
+        <BarChart data={chartData} barCategoryGap="30%" barGap={4}>
           <CartesianGrid stroke="#333" />
           <XAxis dataKey="name" stroke="#ccc" />
           <YAxis
             stroke="#ccc"
             allowDecimals={false}
-            tickCount={6}
-            domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
+            ticks={ticks}
+            domain={[0, topDomain]}
             tickFormatter={(v) => formatAmount(v)}
           />
 
-          <Tooltip
+          {/* <Tooltip
             formatter={(value: any) => [`PKR ${formatAmount(value)}`, ""]}
             labelFormatter={() => ""}
+          /> */}
+          <Tooltip
+            cursor={false}
+            content={() => null}
+            wrapperStyle={{ display: "none" }}
           />
 
           <Legend verticalAlign="bottom" height={36} />
@@ -79,6 +109,7 @@ const UTPSummaryGraph = ({ data }: { data: any[] }) => {
               dataKey={d.label}
               fill={COLORS[d.label]}
               radius={[6, 6, 0, 0]}
+              isAnimationActive={false}
             >
               <LabelList
                 dataKey={d.label}

@@ -67,5 +67,26 @@ export const buildForumSummaryTable = (utpData: any[]) => {
     row.exposure.total = Number(toMillions(row.exposure.total).toFixed(2));
   });
 
-  return Object.values(rows);
+  const result = Object.values(rows);
+
+  // 🔴 GRAND TOTAL
+  const totalRow = {
+    forum: "Total",
+    cases: { income: 0, sales: 0, total: 0 },
+    exposure: { income: 0, sales: 0, total: 0 },
+  };
+
+  result.forEach((r: any) => {
+    totalRow.cases.income += r.cases.income;
+    totalRow.cases.sales += r.cases.sales;
+    totalRow.cases.total += r.cases.total;
+
+    totalRow.exposure.income += r.exposure.income;
+    totalRow.exposure.sales += r.exposure.sales;
+    totalRow.exposure.total += r.exposure.total;
+  });
+
+  result.push(totalRow);
+
+  return result;
 };

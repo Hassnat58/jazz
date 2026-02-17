@@ -4,7 +4,7 @@ import * as React from "react";
 
 const th: React.CSSProperties = {
   border: "1px solid #333",
-  background: "#0b0b0b",
+  background: "#facc15",
   color: "#fff",
   padding: "10px",
   textAlign: "center",
@@ -23,6 +23,12 @@ const leftTd: React.CSSProperties = {
   textAlign: "left",
   fontWeight: 600,
 };
+
+const formatMillions = (val: number) =>
+  val.toLocaleString("en-PK", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const ForumSummaryTable = ({ data }: { data: any[] }) => {
   return (
@@ -59,19 +65,26 @@ const ForumSummaryTable = ({ data }: { data: any[] }) => {
       </thead>
 
       <tbody>
-        {data.map((row) => (
-          <tr key={row.forum}>
-            <td style={leftTd}>{row.forum}</td>
+        {data.map((row) => {
+          const isTotal = row.forum === "Total";
 
-            <td style={td}>{row.cases.income}</td>
-            <td style={td}>{row.cases.sales}</td>
-            <td style={td}>{row.cases.total}</td>
+          return (
+            <tr
+              key={row.forum}
+              style={isTotal ? { fontWeight: 700, background: "#111" } : {}}
+            >
+              <td style={leftTd}>{row.forum}</td>
 
-            <td style={td}>{row.exposure.income}</td>
-            <td style={td}>{row.exposure.sales}</td>
-            <td style={td}>{row.exposure.total}</td>
-          </tr>
-        ))}
+              <td style={td}>{row.cases.income}</td>
+              <td style={td}>{row.cases.sales}</td>
+              <td style={td}>{row.cases.total}</td>
+
+              <td style={td}>{formatMillions(row.exposure.income)}</td>
+              <td style={td}>{formatMillions(row.exposure.sales)}</td>
+              <td style={td}>{formatMillions(row.exposure.total)}</td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

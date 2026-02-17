@@ -22,12 +22,15 @@ const leftCell: React.CSSProperties = {
   fontWeight: 600,
 };
 
-const format = (val: number) => val.toLocaleString("en-PK");
+const format = (val: number) =>
+  Math.round(val).toLocaleString("en-PK", {
+    maximumFractionDigits: 0,
+  });
 
 const RiskTaxExposureTable = ({ data }: { data: any }) => {
   return (
     <table style={tableStyle}>
-      <thead>
+      <thead style={{ background: "#facc15" }}>
         <tr>
           <th style={leftCell}>Total Exposure (PKR Mn)</th>
           <th style={thTd}>Probable</th>
