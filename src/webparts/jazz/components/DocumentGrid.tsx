@@ -59,7 +59,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
           "UTP/Id",
           "UTP/UTPId",
           "CorrespondenceOut/Id",
-          "CorrespondenceOut/Title"
+          "CorrespondenceOut/Title",
         )
         .expand("File", "Case", "UTP", "CorrespondenceOut")();
 
@@ -77,12 +77,19 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
     try {
       // ✅ Fetch all three lookup lists
       const [caseItems, utpItems, coItems] = await Promise.all([
-        sp.web.lists.getByTitle("Cases").items.select("Id", "Title")(),
-        sp.web.lists.getByTitle("UTPData").items.select("Id", "UTPId")(),
+        sp.web.lists
+          .getByTitle("Cases")
+          .items.select("Id", "Title")
+          .top(5000)(),
+        sp.web.lists
+          .getByTitle("UTPData")
+          .items.select("Id", "UTPId")
+          .top(5000)(),
         sp.web.lists
           .getByTitle("CorrespondenceOut")
           .items.select("Id", "CaseNumber/Title")
-          .expand("CaseNumber")(),
+          .expand("CaseNumber")
+          .top(5000)(),
       ]);
 
       // ✅ Deduplicate Cases → Keep latest (highest ID) per Title
@@ -130,7 +137,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
 
     if (searchText) {
       filtered = filtered.filter((d) =>
-        d.File?.Name?.toLowerCase().includes(searchText.toLowerCase())
+        d.File?.Name?.toLowerCase().includes(searchText.toLowerCase()),
       );
     }
 
@@ -144,7 +151,7 @@ const DocumentGrid: React.FC<Props> = ({ SpfxContext }) => {
 
     if (filters.correspondenceId) {
       filtered = filtered.filter(
-        (d) => d.CorrespondenceOut?.Id === filters.correspondenceId
+        (d) => d.CorrespondenceOut?.Id === filters.correspondenceId,
       );
     }
 

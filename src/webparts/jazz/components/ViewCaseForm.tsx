@@ -146,13 +146,11 @@ const ViewCaseOffcanvas: React.FC<{
     const element = document.getElementById("pdf-container");
     if (!element) return;
 
-    // Hide elements with "no-print" class
     const noPrintElements = element.querySelectorAll(
       ".no-print",
     ) as NodeListOf<HTMLElement>;
     noPrintElements.forEach((el) => (el.style.display = "none"));
 
-    // Capture PDF (lower scale for smaller canvas)
     const canvas = await html2canvas(element, {
       scale: 1.5, // lower scale reduces file size
       useCORS: true,
@@ -163,7 +161,7 @@ const ViewCaseOffcanvas: React.FC<{
     // Restore visibility
     noPrintElements.forEach((el) => (el.style.display = "block"));
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.8); // use JPEG with 0.8 quality
+    const imgData = canvas.toDataURL("image/jpeg", 0.8);
 
     // A4 size in mm
     const pdfWidth = 210;
@@ -522,15 +520,13 @@ const ViewCaseOffcanvas: React.FC<{
                         <strong>Date of Document:</strong>
                       </td>
                       <td>
-                        {new Date(item.Dateofdocument).toLocaleDateString(
-                          "en-US",
-                        )}
+                        {new Date(item.Dateofdocument).toLocaleDateString()}
                       </td>
                       <td>
                         <strong>Date Received:</strong>
                       </td>
                       <td>
-                        {new Date(item.DateReceived).toUTCString().slice(0, 16)}
+                        {new Date(item.DateReceived).toLocaleDateString()}
                       </td>
 
                       <td>
@@ -545,9 +541,7 @@ const ViewCaseOffcanvas: React.FC<{
                       </td>
                       <td>
                         {item.DateofCompliance
-                          ? new Date(item.DateofCompliance).toLocaleDateString(
-                              "",
-                            )
+                          ? new Date(item.DateofCompliance).toLocaleDateString()
                           : ""}
                       </td>
                       <td>
