@@ -25,7 +25,7 @@ const leftTd: React.CSSProperties = {
 };
 
 const formatMillions = (val: number) =>
-  val.toLocaleString("en-PK", {
+  (val / 1_000_000).toLocaleString("en-PK", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });

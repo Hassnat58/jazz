@@ -180,8 +180,8 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
   }, [utpData, utpIssues, toDate]);
 
   const forumTableData = React.useMemo(() => {
-    return buildForumSummaryTable(filteredUtpData);
-  }, [filteredUtpData]);
+    return buildForumSummaryTable(utpData, toDate);
+  }, [utpData, toDate]);
 
   const utpSummaryGraphData = React.useMemo(() => {
     return buildUTPSummaryGraph(filteredUtpData, utpIssues);
