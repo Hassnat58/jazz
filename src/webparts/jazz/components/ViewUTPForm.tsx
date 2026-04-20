@@ -229,7 +229,10 @@ const ViewUTPForm: React.FC<{
         </div>
 
         <div className={styles.metaInfo}>
-          <div>Last Updated: {new Date(data.Modified).toLocaleString()}</div>
+          <div>
+            Last Updated:{" "}
+            {data.Modified ? new Date(data.Modified).toLocaleString() : "—"}
+          </div>
           <div>
             Owner: <strong>{data.Author?.Title}</strong>
           </div>
@@ -291,9 +294,11 @@ const ViewUTPForm: React.FC<{
                 <strong>Gross Exposure:</strong>
               </td>
               <td>
-                {data.GrossExposure.toLocaleString("en-US", {
-                  style: "decimal",
-                })}
+                {data.GrossExposure !== null && data.GrossExposure !== undefined
+                  ? Number(data.GrossExposure).toLocaleString("en-US", {
+                      style: "decimal",
+                    })
+                  : "—"}
               </td>
               <td>
                 <strong>EBITDA Exposure Exist:</strong>
@@ -303,7 +308,7 @@ const ViewUTPForm: React.FC<{
                 <strong>Cashflow Exposure:</strong>
               </td>
               <td colSpan={5}>
-                {cashflowExposure
+                {cashflowExposure !== null && cashflowExposure !== undefined
                   ? cashflowExposure.toLocaleString("en-US", {
                       style: "decimal",
                     })
@@ -356,7 +361,7 @@ const ViewUTPForm: React.FC<{
                     <td>{issue.taxIssue}</td>
                     <td style={{ textAlign: "right" }}>
                       {issue.amountContested
-                        ? Number(issue.amountContested).toLocaleString()
+                        ? Number(issue.amountContested)
                         : "-"}
                     </td>
                     <td style={{ textAlign: "center" }}>
@@ -364,7 +369,7 @@ const ViewUTPForm: React.FC<{
                     </td>
                     <td style={{ textAlign: "right" }}>
                       {issue.grossTaxExposure
-                        ? Number(issue.grossTaxExposure).toLocaleString()
+                        ? Number(issue.grossTaxExposure)
                         : "-"}
                     </td>
                     <td style={{ textAlign: "center" }}>
@@ -375,9 +380,7 @@ const ViewUTPForm: React.FC<{
                       {issue.paymentType || "-"}
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      {issue.amount
-                        ? Number(issue.amount).toLocaleString()
-                        : "-"}
+                      {issue.amount ? Number(issue.amount) : "-"}
                     </td>
                     <td style={{ textAlign: "right" }}>
                       {issue.ebitda || "-"}
@@ -540,7 +543,10 @@ const ViewUTPForm: React.FC<{
               <div key={item.Id} className={styles.historyCard}>
                 <h5>
                   Version ID: {item.UTPId}-{item.Id} — Modified:{" "}
-                  {new Date(item.Modified).toLocaleString()} — Approval Status:{" "}
+                  {item.Modified
+                    ? new Date(item.Modified).toLocaleString()
+                    : "—"}{" "}
+                  — Approval Status:{" "}
                   <span
                     className={`${styles.statusCapsule} ${getStatusClass(
                       item.ApprovalStatus,
@@ -639,7 +645,7 @@ const ViewUTPForm: React.FC<{
                           <td>{issue.TaxIssue || issue.Title || "-"}</td>
                           <td style={{ textAlign: "right" }}>
                             {issue.AmountContested
-                              ? Number(issue.AmountContested).toLocaleString()
+                              ? Number(issue.AmountContested)
                               : "-"}
                           </td>
                           <td style={{ textAlign: "center" }}>
@@ -649,7 +655,7 @@ const ViewUTPForm: React.FC<{
                           </td>
                           <td style={{ textAlign: "right" }}>
                             {issue.GrossTaxExposure
-                              ? Number(issue.GrossTaxExposure).toLocaleString()
+                              ? Number(issue.GrossTaxExposure)
                               : "-"}
                           </td>
                           <td style={{ textAlign: "center" }}>
@@ -660,9 +666,7 @@ const ViewUTPForm: React.FC<{
                             {issue.PaymentType || "-"}
                           </td>
                           <td style={{ textAlign: "right" }}>
-                            {issue.Amount
-                              ? Number(issue.Amount).toLocaleString()
-                              : "-"}
+                            {issue.Amount ? Number(issue.Amount) : "-"}
                           </td>
                           <td style={{ textAlign: "right" }}>
                             {issue.EBITDA || "-"}
@@ -761,7 +765,6 @@ const ViewUTPForm: React.FC<{
         )}
       </div>
       <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
-        {/* Download PDF */}
         <button
           onClick={generatePDF}
           className={styles.pdfButton + " no-print"}
