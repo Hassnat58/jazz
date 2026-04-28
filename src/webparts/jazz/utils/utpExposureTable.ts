@@ -67,7 +67,7 @@ const normalizeTaxType = (type?: string): string => {
   const t = type.trim().toLowerCase();
   if (t === "income tax") return "Income Tax";
   if (t === "sales tax") return "Sales Tax";
-  return type; // keep others as-is
+  return type;
 };
 
 // 3️⃣ Build final risk tax exposure table

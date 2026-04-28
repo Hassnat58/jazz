@@ -50,17 +50,15 @@ const UTPSummaryGraph = ({ data }: { data: any[] }) => {
 
     const abs = Math.abs(value);
 
-    const truncate = (v: number, unit: number) => Math.trunc(v / unit); // <- key fix
-
     if (abs >= 1_000_000_000_000) {
-      return `${truncate(value, 1_000_000_000_000)}T`;
+      return `${(value / 1_000_000_000_000).toFixed(1)}T`;
     }
 
     if (abs >= 1_000_000_000) {
-      return `${truncate(value, 1_000_000_000)}B`;
+      return `${(value / 1_000_000_000).toFixed(1)}B`;
     }
 
-    return `${truncate(value, 1_000_000)}M`;
+    return `${Math.round(value / 1_000_000_000)}B`;
   };
 
   const maxValue = Math.max(...data.map((d) => d.value));

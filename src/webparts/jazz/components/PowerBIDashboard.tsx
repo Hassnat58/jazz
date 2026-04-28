@@ -184,8 +184,8 @@ const PowerBIDashboard: React.FC<{ SpfxContext: any; attachments: any }> = ({
   }, [utpData, toDate]);
 
   const utpSummaryGraphData = React.useMemo(() => {
-    return buildUTPSummaryGraph(filteredUtpData, utpIssues);
-  }, [filteredUtpData, utpIssues]);
+    return buildUTPSummaryGraph(utpData, utpIssues, toDate);
+  }, [utpData, utpIssues, toDate]);
   const taxTypeCasesChartData = React.useMemo(() => {
     return buildTaxTypeCasesChart(filteredUtpData, utpIssues);
   }, [filteredUtpData, utpIssues]);
