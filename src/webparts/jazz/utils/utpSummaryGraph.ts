@@ -7,12 +7,45 @@
 const getLatestApprovedUTPs = (utpData: any[], toDate: Date) => {
   const map: any = {};
 
+  const target = new Date(
+    Date.UTC(toDate.getFullYear(), toDate.getMonth() + 1, 0, 23, 59, 59, 999),
+  );
+
   utpData.forEach((item) => {
     if (item.ApprovalStatus?.toLowerCase() !== "approved") return;
-    if (!item.UTPId) return;
+    if (!item.UTPId || !item.UTPDate) return;
 
-    if (!map[item.UTPId] || item.Id > map[item.UTPId].Id) {
-      map[item.UTPId] = item;
+    const d = new Date(item.UTPDate);
+
+    const utcDate = new Date(
+      Date.UTC(
+        d.getUTCFullYear(),
+        d.getUTCMonth(),
+        d.getUTCDate(),
+        d.getUTCHours(),
+        d.getUTCMinutes(),
+        d.getUTCSeconds(),
+        d.getUTCMilliseconds(),
+      ),
+    );
+
+    // ✅ THIS IS THE KEY FIX
+    if (utcDate > target) return;
+
+    const key = item.UTPId;
+
+    const isLater = (a: any, b: any) => {
+      const ad = new Date(a.UTPDate);
+      const bd = new Date(b.UTPDate);
+
+      if (bd > ad) return true;
+      if (bd.getTime() === ad.getTime()) return b.Id > a.Id;
+
+      return false;
+    };
+
+    if (!map[key] || isLater(map[key], item)) {
+      map[key] = item;
     }
   });
 
