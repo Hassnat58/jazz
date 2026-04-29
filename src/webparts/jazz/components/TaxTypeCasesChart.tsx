@@ -26,7 +26,10 @@ const TaxTypeCasesChart = ({ data }: { data: any[] }) => {
       </h3>
 
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data}>
+        <BarChart
+          data={data}
+          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+        >
           <CartesianGrid stroke="#333" vertical={false} />
           <XAxis dataKey="name" stroke="#ccc" />
           <YAxis allowDecimals={false} stroke="#ccc" />
