@@ -29,7 +29,6 @@ const getLatestApprovedUTPs = (utpData: any[], toDate: Date) => {
       ),
     );
 
-    // ✅ THIS IS THE KEY FIX
     if (utcDate > target) return;
 
     const key = item.UTPId;

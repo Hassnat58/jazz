@@ -51,14 +51,14 @@ const UTPSummaryGraph = ({ data }: { data: any[] }) => {
     const abs = Math.abs(value);
 
     if (abs >= 1_000_000_000_000) {
-      return `${(value / 1_000_000_000_000).toFixed(1)}T`;
+      return `${Math.floor(value / 1_000_000_000_000)}T`;
     }
 
     if (abs >= 1_000_000_000) {
-      return `${(value / 1_000_000_000).toFixed(1)}B`;
+      return `${Math.floor(value / 1_000_000_000)}B`;
     }
 
-    return `${Math.round(value / 1_000_000_000)}B`;
+    return `${Math.floor(value / 1_000_000)}M`;
   };
 
   const maxValue = Math.max(...data.map((d) => d.value));
