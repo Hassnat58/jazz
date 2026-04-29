@@ -672,6 +672,10 @@ const ReportsTable: React.FC<{
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
             0,
+            23,
+            59,
+            59,
+            999,
           );
 
           if (d <= currTarget) {
@@ -685,6 +689,10 @@ const ReportsTable: React.FC<{
             effectiveCurrentYear,
             effectiveCurrentMonth,
             0,
+            23,
+            59,
+            59,
+            999,
           );
 
           if (d <= prevTarget) {
@@ -983,6 +991,10 @@ const ReportsTable: React.FC<{
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
             0,
+            23,
+            59,
+            59,
+            999,
           );
 
           // ---------- Pick CURRENT (latest ≤ end of selected month) ----------
@@ -997,6 +1009,10 @@ const ReportsTable: React.FC<{
             effectiveCurrentYear,
             effectiveCurrentMonth,
             0,
+            23,
+            59,
+            59,
+            999,
           );
 
           if (d <= prevTarget) {
@@ -1229,6 +1245,10 @@ const ReportsTable: React.FC<{
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
             0,
+            23,
+            59,
+            59,
+            999,
           );
 
           if (d <= currTarget) {
@@ -1381,6 +1401,10 @@ const ReportsTable: React.FC<{
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
             0,
+            23,
+            59,
+            59,
+            999,
           );
 
           if (d <= currTarget) {
@@ -1394,6 +1418,10 @@ const ReportsTable: React.FC<{
             effectiveCurrentYear,
             effectiveCurrentMonth,
             0,
+            23,
+            59,
+            59,
+            999,
           );
 
           if (d <= prevTarget) {
@@ -1568,6 +1596,10 @@ const ReportsTable: React.FC<{
             effectiveCurrentYear,
             effectiveCurrentMonth + 1,
             0,
+            23,
+            59,
+            59,
+            999,
           );
 
           // ---------- Pick CURRENT (latest ≤ end of selected month) ----------
@@ -1625,7 +1657,8 @@ const ReportsTable: React.FC<{
             if (relatedIssues.length === 0) return [];
 
             const issueRows = relatedIssues.map((issue: any, index: number) => {
-              const grossExposure = issue.GrossTaxExposure || 0;
+              const grossExposure = Number(issue.GrossTaxExposure || 0);
+              const issueAmount = Number(issue.Amount || 0);
               const plExposure =
                 issue.RiskCategory === "Probable" ? 0 : grossExposure;
               const ebitdaExposure =
@@ -1637,7 +1670,7 @@ const ReportsTable: React.FC<{
               const cashFlowExposure =
                 grossExposure -
                 (issue.PaymentType === "Payment under Protest"
-                  ? issue.Amount || 0
+                  ? issueAmount
                   : 0);
 
               // Accumulate totals
@@ -1674,11 +1707,11 @@ const ReportsTable: React.FC<{
                 provisionGrsCode: issue.GRSCode, // exists
                 paymentUnderProtest:
                   issue.PaymentType == "Payment under Protest"
-                    ? formatAmount(issue.Amount)
+                    ? formatAmount(issueAmount)
                     : "", // exists but null (note lowercase "u")
                 admittedTax:
                   issue.PaymentType == "Admitted Tax"
-                    ? formatAmount(issue.Amount)
+                    ? formatAmount(issueAmount)
                     : "", // exists but null (note lowercase "u")
                 // exists but null (note lowercase "u")
                 paymentGlCode: issue.PaymentGLCode, // ❌ not in data (undefined)
@@ -1703,45 +1736,45 @@ const ReportsTable: React.FC<{
         );
 
         // ---------- STEP 6: Add Grand Total row ----------
-        if (merged.length > 0) {
-          // merged.push({
-          //   utpId: "",
-          //   mlrClaimId: "",
-          //   pendingAuthority: "",
-          //   type: "",
-          //   grossExposureJul: "",
-          //   grossExposureJun: formatAmount(totalGrossExposure),
-          //   UTPDate: "",
-          //   category: "",
-          //   fy: "",
-          //   taxYear: "",
-          //   taxAuthority: "",
-          //   taxMatter: "",
-          //   taxType: "",
-          //   entity: "Grand Total", // This will be picked up by pagination logic
-          //   varianceLastMonth: "",
-          //   grossExposureMay: "",
-          //   grossExposureApr: "",
-          //   arcTopTaxRisk: "",
-          //   contingencyNote: "",
-          //   briefDescription: "",
-          //   provisionGlCode: "",
-          //   provisionGrsCode: "",
-          //   paymentUnderProtest: "",
-          //   admittedTax: "",
-          //   paymentGlCode: "",
-          //   utpPaperCategory: "",
-          //   provisionsContingencies: "",
-          //   utpIssue: "",
-          //   amtContested: "",
-          //   rate: "",
-          //   ermCategory: "",
-          //   plExposurePKR: formatAmount(totalPlExposure),
-          //   ebitdaExposurePKR: formatAmount(totalEbitdaExposure),
-          //   cashFlowExposurePKR: formatAmount(totalCashFlowExposure),
-          //   caseNumber: "",
-          // });
-        }
+        // if (merged.length > 0) {
+        //   merged.push({
+        //     utpId: "",
+        //     mlrClaimId: "",
+        //     pendingAuthority: "",
+        //     type: "",
+        //     grossExposureJul: "",
+        //     grossExposureJun: formatAmount(totalGrossExposure),
+        //     UTPDate: "",
+        //     category: "",
+        //     fy: "",
+        //     taxYear: "",
+        //     taxAuthority: "",
+        //     taxMatter: "",
+        //     taxType: "",
+        //     entity: "Grand Total", // picked up by pagination logic
+        //     varianceLastMonth: "",
+        //     grossExposureMay: "",
+        //     grossExposureApr: "",
+        //     arcTopTaxRisk: "",
+        //     contingencyNote: "",
+        //     briefDescription: "",
+        //     provisionGlCode: "",
+        //     provisionGrsCode: "",
+        //     paymentUnderProtest: "",
+        //     admittedTax: "",
+        //     paymentGlCode: "",
+        //     utpPaperCategory: "",
+        //     provisionsContingencies: "",
+        //     utpIssue: "",
+        //     amtContested: "",
+        //     rate: "",
+        //     ermCategory: "",
+        //     plExposurePKR: "",
+        //     ebitdaExposurePKR: "",
+        //     cashFlowExposurePKR: "",
+        //     caseNumber: "",
+        //   });
+        // }
 
         return merged;
     }
@@ -2022,12 +2055,14 @@ const ReportsTable: React.FC<{
     let latestData: any[] = [];
     if (
       [
-        "UTP",
+        // UTP-family reports compute latest snapshots in normalizeData
+        // based on selected month-end, so avoid pre-collapsing rows here.
+        // "UTP",
         // "Provisions1",
         // "Provisions2",
         // "Provisions3",
         // "Contingencies",
-        // "ERM",
+        "ERM",
       ].includes(reportType)
     ) {
       latestData = await getLatestUTPIssues(workingData);
@@ -2098,7 +2133,10 @@ const ReportsTable: React.FC<{
 
     // STEP 1: Filter by date range (month selector)
     let workingData = data;
-    if (value1 || value2) {
+    const shouldHardFilterByDate = ["Litigation", "ActiveCases"].includes(
+      reportType,
+    );
+    if ((value1 || value2) && shouldHardFilterByDate) {
       const startDate = value1 ? new Date(value1) : null;
       const endDate = value2 ? new Date(value2) : null;
 
@@ -2137,12 +2175,14 @@ const ReportsTable: React.FC<{
     let latestData: any[] = [];
     if (
       [
-        "UTP",
+        // UTP-family reports compute latest snapshots in normalizeData
+        // based on selected month-end, so avoid pre-collapsing rows here.
+        // "UTP",
         // "Provisions1",
         // "Provisions2",
         // "Provisions3",
         // "Contingencies",
-        // "ERM",
+        "ERM",
       ].includes(reportType)
     ) {
       latestData = await getLatestUTPIssues(workingData);
@@ -2209,7 +2249,10 @@ const ReportsTable: React.FC<{
 
     // STEP 1: Filter by date range
     let workingData = data2;
-    if (value1 || value2) {
+    const shouldHardFilterByDate = ["Litigation", "ActiveCases"].includes(
+      reportType,
+    );
+    if ((value1 || value2) && shouldHardFilterByDate) {
       const startDate = value1 ? new Date(value1) : null;
       const endDate = value2 ? new Date(value2) : null;
 
@@ -2228,12 +2271,14 @@ const ReportsTable: React.FC<{
     let latestData: any[] = [];
     if (
       [
-        "UTP",
+        // UTP-family reports compute latest snapshots in normalizeData
+        // based on selected month-end, so avoid pre-collapsing rows here.
+        // "UTP",
         // "Provisions1",
         // "Provisions2",
         // "Provisions3",
         // "Contingencies",
-        // "ERM",
+        "ERM",
       ].includes(reportType)
     ) {
       latestData = await getLatestUTPIssues(workingData);
